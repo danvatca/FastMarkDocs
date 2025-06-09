@@ -62,6 +62,7 @@ from .openapi_enhancer import OpenAPIEnhancer, enhance_openapi_with_docs
 
 # Type definitions
 from .types import (
+    APILink,
     CodeLanguage,
     CodeSample,
     DocumentationData,
@@ -107,4 +108,5 @@ __all__ = [
     "MarkdownDocumentationConfig",
     "CodeLanguage",
     "HTTPMethod",
+    "APILink",
 ]

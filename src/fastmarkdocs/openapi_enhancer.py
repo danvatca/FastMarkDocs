@@ -15,6 +15,7 @@ from .code_samples import CodeSampleGenerator
 from .documentation_loader import MarkdownDocumentationLoader
 from .exceptions import DocumentationLoadError, OpenAPIEnhancementError
 from .types import (
+    APILink,
     CodeLanguage,
     CodeSample,
     DocumentationData,
@@ -26,6 +27,54 @@ from .types import (
 )
 
 
+def _build_description_with_api_links(
+    app_title: Optional[str] = None,
+    app_description: Optional[str] = None,
+    api_links: Optional[list[APILink]] = None,
+    original_description: Optional[str] = None,
+) -> str:
+    """
+    Build a description with API links in a standardized format.
+
+    Args:
+        app_title: Application title
+        app_description: Application description
+        api_links: List of API links to include
+        original_description: Original description from the schema
+
+    Returns:
+        Formatted description string
+    """
+    description_parts = []
+
+    # Add API links section if provided
+    if api_links:
+        api_link_strings = []
+        for api_link in api_links:
+            api_link_strings.append(f"[{api_link.description}]({api_link.url})")
+        api_links_line = " | ".join(api_link_strings)
+        description_parts.extend(
+            [
+                f"APIs: {api_links_line}",
+                "",
+                "* * *",
+                "",
+            ]
+        )
+
+    # Add app title and description if provided
+    if app_title and app_description:
+        description_parts.append(f"{app_title} - {app_description}")
+    elif app_title:
+        description_parts.append(app_title)
+    elif app_description:
+        description_parts.append(app_description)
+    elif original_description:
+        description_parts.append(original_description)
+
+    return "\n".join(description_parts)
+
+
 def enhance_openapi_with_docs(
     openapi_schema: dict[str, Any],
     docs_directory: str,
@@ -34,6 +83,9 @@ def enhance_openapi_with_docs(
     include_response_examples: bool = True,
     code_sample_languages: Optional[list[CodeLanguage]] = None,
     custom_headers: Optional[dict[str, str]] = None,
+    app_title: Optional[str] = None,
+    app_description: Optional[str] = None,
+    api_links: Optional[list[APILink]] = None,
 ) -> dict[str, Any]:
     """
     Enhance an OpenAPI schema with documentation from markdown files.
@@ -46,6 +98,9 @@ def enhance_openapi_with_docs(
         include_response_examples: Whether to include response examples
         code_sample_languages: List of languages for code samples
         custom_headers: Custom headers to include in code samples
+        app_title: Application title
+        app_description: Application description
+        api_links: List of API links to include
 
     Returns:
         Enhanced OpenAPI schema
@@ -76,7 +131,28 @@ def enhance_openapi_with_docs(
         )
 
         documentation = docs_loader.load_documentation()
-        return enhancer.enhance_openapi_schema(openapi_schema, documentation)
+        enhanced_schema = enhancer.enhance_openapi_schema(openapi_schema, documentation)
+
+        # Override title and description if provided
+        if app_title or app_description or api_links:
+            original_description = enhanced_schema.get("info", {}).get("description", "")
+
+            # Update title if provided
+            if app_title:
+                enhanced_schema.setdefault("info", {})["title"] = app_title
+
+            # Build new description with API links
+            new_description = _build_description_with_api_links(
+                app_title=app_title,
+                app_description=app_description,
+                api_links=api_links,
+                original_description=original_description,
+            )
+
+            if new_description:
+                enhanced_schema.setdefault("info", {})["description"] = new_description
+
+        return enhanced_schema
 
     except (DocumentationLoadError, FileNotFoundError, OpenAPIEnhancementError) as e:
         # Re-raise critical errors that should not be silently ignored

@@ -7,6 +7,7 @@ Tests the various data classes and enums used throughout the library.
 import pytest
 
 from fastmarkdocs.types import (
+    APILink,
     CodeLanguage,
     CodeSample,
     CodeSampleTemplate,
@@ -43,6 +44,43 @@ class TestEnums:
 
 class TestDataClasses:
     """Test data class validation and functionality."""
+
+    def test_api_link_creation(self):
+        """Test APILink creation with valid data."""
+        link = APILink(url="/docs", description="Main API")
+        assert link.url == "/docs"
+        assert link.description == "Main API"
+
+    def test_api_link_empty_url_validation(self):
+        """Test APILink validation for empty URL."""
+        with pytest.raises(ValueError, match="URL cannot be empty"):
+            APILink(url="", description="Main API")
+
+    def test_api_link_empty_description_validation(self):
+        """Test APILink validation for empty description."""
+        with pytest.raises(ValueError, match="Description cannot be empty"):
+            APILink(url="/docs", description="")
+
+    def test_api_link_none_url_validation(self):
+        """Test APILink validation for None URL."""
+        with pytest.raises(ValueError, match="URL cannot be empty"):
+            APILink(url=None, description="Main API")
+
+    def test_api_link_none_description_validation(self):
+        """Test APILink validation for None description."""
+        with pytest.raises(ValueError, match="Description cannot be empty"):
+            APILink(url="/docs", description=None)
+
+    def test_api_link_with_complex_url(self):
+        """Test APILink with complex URL."""
+        link = APILink(url="https://api.example.com/v1/docs?version=latest&format=json", description="Complex API")
+        assert link.url == "https://api.example.com/v1/docs?version=latest&format=json"
+        assert link.description == "Complex API"
+
+    def test_api_link_with_special_characters_in_description(self):
+        """Test APILink with special characters in description."""
+        link = APILink(url="/docs", description="API with special chars: !@#$%^&*()")
+        assert link.description == "API with special chars: !@#$%^&*()"
 
     def test_code_sample_creation(self):
         """Test CodeSample creation and validation."""

@@ -59,6 +59,20 @@ class CodeSample:
 
 
 @dataclass
+class APILink:
+    """Represents a link to another API in the system."""
+
+    url: str
+    description: str
+
+    def __post_init__(self) -> None:
+        if not self.url:
+            raise ValueError("URL cannot be empty")
+        if not self.description:
+            raise ValueError("Description cannot be empty")
+
+
+@dataclass
 class ResponseExample:
     """Represents a response example from documentation."""
 

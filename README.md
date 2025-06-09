@@ -14,6 +14,7 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 🔧 **OpenAPI Enhancement**: Automatically enhance your OpenAPI/Swagger schemas  
 🌍 **Multi-language Code Samples**: Generate code examples in Python, JavaScript, TypeScript, Go, Java, PHP, Ruby, C#, and cURL  
 📝 **Markdown-First**: Write documentation in familiar markdown format  
+🔗 **API Cross-References**: Include links to other APIs in your system with automatic formatting  
 🎨 **Customizable Templates**: Use custom templates for code generation  
 ⚡ **High Performance**: Built-in caching and optimized processing  
 🧪 **Well Tested**: Comprehensive test suite with 100+ tests  
@@ -44,6 +45,50 @@ enhanced_schema = enhance_openapi_with_docs(
 
 # Update your app's OpenAPI schema
 app.openapi_schema = enhanced_schema
+```
+
+### Advanced Usage with API Links
+
+For microservice architectures where you want to link between different APIs:
+
+```python
+from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
+from fastmarkdocs import APILink, enhance_openapi_with_docs
+
+app = FastAPI()
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    # Define links to other APIs in your system
+    api_links = [
+        APILink(url="/docs", description="Authorization"),
+        APILink(url="/api/storage/docs", description="Storage"),
+        APILink(url="/api/monitoring/docs", description="Monitoring"),
+    ]
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # Enhance with custom title, description, and API links
+    enhanced_schema = enhance_openapi_with_docs(
+        openapi_schema=openapi_schema,
+        docs_directory="docs/api",
+        app_title="My API Gateway",
+        app_description="Authorization and access control service",
+        api_links=api_links,
+    )
+    
+    app.openapi_schema = enhanced_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 ```
 
 ### Documentation Structure
@@ -168,8 +213,53 @@ Enhance an OpenAPI schema with markdown documentation.
 - `base_url` (str, optional): Base URL for code samples
 - `custom_headers` (dict, optional): Custom headers for code samples
 - `code_sample_languages` (list, optional): Languages for code generation
+- `app_title` (str, optional): Override the application title
+- `app_description` (str, optional): Application description to include
+- `api_links` (list[APILink], optional): List of links to other APIs
 
 **Returns:** Enhanced OpenAPI schema (dict)
+
+**Example with API Links:**
+```python
+from fastmarkdocs import APILink, enhance_openapi_with_docs
+
+# Define links to other APIs in your system
+api_links = [
+    APILink(url="/docs", description="Authorization"),
+    APILink(url="/api/storage/docs", description="Storage"),
+    APILink(url="/api/monitoring/docs", description="Monitoring"),
+]
+
+enhanced_schema = enhance_openapi_with_docs(
+    openapi_schema=app.openapi(),
+    docs_directory="docs/api",
+    app_title="My API Gateway",
+    app_description="Authorization and access control service",
+    api_links=api_links,
+)
+```
+
+### Types
+
+#### `APILink`
+
+Represents a link to another API in your system.
+
+```python
+from fastmarkdocs import APILink
+
+# Create API links
+api_link = APILink(
+    url="/api/storage/docs",
+    description="Storage API"
+)
+
+# Use in enhance_openapi_with_docs
+api_links = [
+    APILink(url="/docs", description="Main API"),
+    APILink(url="/admin/docs", description="Admin API"),
+]
+```
 
 ### Classes
 
