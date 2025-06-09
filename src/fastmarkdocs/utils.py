@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 Utility functions for FastMarkDocs.
 
 This module provides various utility functions used throughout the library

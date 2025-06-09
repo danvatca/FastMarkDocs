@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 OpenAPI schema enhancement for FastMarkDocs.
 
 This module provides the OpenAPIEnhancer class and enhance_openapi_with_docs function

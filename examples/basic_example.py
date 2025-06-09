@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 Basic example demonstrating FastMarkDocs usage.
 
 This example shows how to enhance a FastAPI application with documentation

@@ -152,7 +152,7 @@ For future releases:
 
 - Check GitHub Actions logs for detailed error messages
 - Review PyPI publishing documentation
-- Contact maintainer: dan@danvatca.com
+- Contact maintainer: dan.vatca@gmail.com
 
 ## 10. Security Considerations
 

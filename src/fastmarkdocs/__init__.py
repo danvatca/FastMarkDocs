@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 FastMarkDocs - Enhanced OpenAPI documentation generation from markdown files.
 
 This library provides sophisticated tools for generating rich, interactive API documentation
@@ -43,7 +45,7 @@ Example:
 """
 
 __version__ = "0.1.0"
-__author__ = "FastMarkDocs Contributors"
+__author__ = "Dan Vatca"
 __email__ = "dan.vatca@gmail.com"
 __license__ = "MIT"
 

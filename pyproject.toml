@@ -2,7 +2,7 @@
 name = "fastmarkdocs"
 version = "0.1.0"
 description = "A powerful library for enhancing FastAPI applications with rich markdown-based API documentation"
-authors = ["Dan Vatca <dan@danvatca.com>"]
+authors = ["Dan Vatca <dan.vatca@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/danvatca/fastmarkdocs"

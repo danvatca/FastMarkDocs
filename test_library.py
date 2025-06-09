@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+Copyright (c) 2025 Dan Vatca
+
 Simple test script to verify the FastMarkDocs library functionality.
 
 This script tests the core components of the library to ensure they work correctly.

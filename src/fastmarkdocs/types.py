@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 Type definitions for FastMarkDocs.
 
 This module contains all type definitions, enums, and data classes used throughout

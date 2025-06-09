@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 Documentation loader for FastMarkDocs.
 
 This module provides the MarkdownDocumentationLoader class for loading

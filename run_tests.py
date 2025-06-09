@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+Copyright (c) 2025 Dan Vatca
+
 Test runner for FastMarkDocs library.
 
 This script provides a convenient way to run different types of tests

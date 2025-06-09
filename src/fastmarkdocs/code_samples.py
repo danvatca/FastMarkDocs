@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 Code sample generation for FastMarkDocs.
 
 This module provides the CodeSampleGenerator class for generating

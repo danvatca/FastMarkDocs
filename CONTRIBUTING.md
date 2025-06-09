@@ -4,7 +4,7 @@ Thank you for your interest in contributing to FastMarkDocs! This document provi
 
 ## Code of Conduct
 
-This project adheres to a code of conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to [dan@danvatca.com](mailto:dan@danvatca.com).
+This project adheres to a code of conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to [dan.vatca@gmail.com](mailto:dan.vatca@gmail.com).
 
 ## How to Contribute
 
@@ -147,7 +147,7 @@ Releases are automated through GitHub Actions:
 - Check the [documentation](https://github.com/danvatca/fastmarkdocs)
 - Search existing [issues](https://github.com/danvatca/fastmarkdocs/issues)
 - Create a new issue for bugs or feature requests
-- Contact the maintainer: [dan@danvatca.com](mailto:dan@danvatca.com)
+- Contact the maintainer: [dan.vatca@gmail.com](mailto:dan.vatca@gmail.com)
 
 ## Recognition
 

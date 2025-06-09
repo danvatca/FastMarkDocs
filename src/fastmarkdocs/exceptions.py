@@ -1,4 +1,6 @@
 """
+Copyright (c) 2025 Dan Vatca
+
 Custom exceptions for FastMarkDocs.
 
 This module defines custom exception classes for handling various error conditions
