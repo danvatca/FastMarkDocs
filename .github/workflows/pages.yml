@@ -1,4 +1,4 @@
-name: Deploy Jekyll site to Pages
+name: Deploy Jekyll 4.x site to Pages
 
 on:
   # Runs on pushes targeting the default branch
@@ -31,7 +31,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1'
+          ruby-version: '3.2'
           bundler-cache: true
           working-directory: ./src/docs
       
@@ -42,12 +42,31 @@ jobs:
       - name: Create output directory
         run: mkdir -p docs
       
+      - name: Verify Jekyll setup
+        run: |
+          cd src/docs
+          echo "Jekyll version:"
+          bundle exec jekyll --version
+          echo "Ruby version:"
+          ruby --version
+          echo "Bundler version:"
+          bundle --version
+      
       - name: Build with Jekyll
         run: |
           cd src/docs
-          bundle exec jekyll build --destination ../../docs --baseurl "${{ steps.pages.outputs.base_path }}"
+          bundle exec jekyll build --destination ../../docs --baseurl "${{ steps.pages.outputs.base_path }}" --verbose
         env:
           JEKYLL_ENV: production
+      
+      - name: Verify build output
+        run: |
+          echo "Build output directory contents:"
+          ls -la docs/
+          echo "Assets directory:"
+          ls -la docs/assets/ || echo "No assets directory"
+          echo "Logo file exists:"
+          ls -la docs/assets/logo.svg || echo "Logo not found"
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
