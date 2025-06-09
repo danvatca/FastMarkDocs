@@ -34,7 +34,7 @@ mistune = ">=2.0.0"
 pyyaml = ">=5.4.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
+pytest = "^8.4.0"
 pytest-asyncio = "^0.23.8"
 pytest-cov = "^4.1.0"
 black = "^24.3.0"
