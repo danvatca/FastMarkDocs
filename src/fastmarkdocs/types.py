@@ -7,13 +7,14 @@ This module contains all type definitions, enums, and data classes used througho
 the library for type safety and better IDE support.
 """
 
-from typing import Dict, List, Optional, Union, Any
-from enum import Enum
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Optional, Union
 
 
 class CodeLanguage(str, Enum):
     """Supported code sample languages."""
+
     CURL = "curl"
     PYTHON = "python"
     JAVASCRIPT = "javascript"
@@ -30,6 +31,7 @@ class CodeLanguage(str, Enum):
 
 class HTTPMethod(str, Enum):
     """HTTP methods supported for code sample generation."""
+
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -45,6 +47,7 @@ class HTTPMethod(str, Enum):
 @dataclass
 class CodeSample:
     """Represents a code sample extracted from markdown."""
+
     language: CodeLanguage
     code: str
     description: Optional[str] = None
@@ -58,10 +61,11 @@ class CodeSample:
 @dataclass
 class ResponseExample:
     """Represents a response example from documentation."""
+
     status_code: int
     description: str
-    content: Optional[Dict[str, Any]] = None
-    headers: Optional[Dict[str, str]] = None
+    content: Optional[dict[str, Any]] = None
+    headers: Optional[dict[str, str]] = None
 
     def __post_init__(self):
         if not isinstance(self.status_code, int) or self.status_code < 100 or self.status_code >= 600:
@@ -71,6 +75,7 @@ class ResponseExample:
 @dataclass
 class ParameterDocumentation:
     """Documentation for a single parameter."""
+
     name: str
     description: str
     example: Optional[Any] = None
@@ -85,14 +90,15 @@ class ParameterDocumentation:
 @dataclass
 class EndpointDocumentation:
     """Complete documentation for an API endpoint."""
+
     path: str
     method: HTTPMethod
     summary: Optional[str] = None
     description: Optional[str] = None
-    code_samples: List[CodeSample] = field(default_factory=list)
-    response_examples: List[ResponseExample] = field(default_factory=list)
-    parameters: List[ParameterDocumentation] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
+    code_samples: list[CodeSample] = field(default_factory=list)
+    response_examples: list[ResponseExample] = field(default_factory=list)
+    parameters: list[ParameterDocumentation] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     deprecated: bool = False
 
     def __post_init__(self):
@@ -105,17 +111,18 @@ class EndpointDocumentation:
 @dataclass
 class DocumentationData:
     """Container for all documentation data loaded from markdown files."""
-    endpoints: List[EndpointDocumentation] = field(default_factory=list)
-    global_examples: List[CodeSample] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
+
+    endpoints: list[EndpointDocumentation] = field(default_factory=list)
+    global_examples: list[CodeSample] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
     def __getitem__(self, key):
         """Allow dictionary-style access for backwards compatibility."""
-        if key == 'endpoints':
+        if key == "endpoints":
             return self.endpoints
-        elif key == 'global_examples':
+        elif key == "global_examples":
             return self.global_examples
-        elif key == 'metadata':
+        elif key == "metadata":
             return self.metadata
         else:
             raise KeyError(f"'{key}' not found in DocumentationData")
@@ -124,10 +131,11 @@ class DocumentationData:
 @dataclass
 class MarkdownDocumentationConfig:
     """Configuration for markdown documentation loading."""
+
     docs_directory: str = "docs"
     base_url_placeholder: str = "https://api.example.com"
-    supported_languages: List[CodeLanguage] = field(default_factory=lambda: list(CodeLanguage))
-    file_patterns: List[str] = field(default_factory=lambda: ["*.md", "*.markdown"])
+    supported_languages: list[CodeLanguage] = field(default_factory=lambda: list(CodeLanguage))
+    file_patterns: list[str] = field(default_factory=lambda: ["*.md", "*.markdown"])
     encoding: str = "utf-8"
     recursive: bool = True
     cache_enabled: bool = True
@@ -137,24 +145,26 @@ class MarkdownDocumentationConfig:
 @dataclass
 class OpenAPIEnhancementConfig:
     """Configuration for OpenAPI schema enhancement."""
+
     include_code_samples: bool = True
     include_response_examples: bool = True
     include_parameter_examples: bool = True
-    code_sample_languages: List[CodeLanguage] = field(default_factory=lambda: [
-        CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT
-    ])
+    code_sample_languages: list[CodeLanguage] = field(
+        default_factory=lambda: [CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT]
+    )
     base_url: Optional[str] = "https://api.example.com"
-    server_urls: List[str] = field(default_factory=lambda: ["https://api.example.com"])
-    custom_headers: Dict[str, str] = field(default_factory=dict)
-    authentication_schemes: List[str] = field(default_factory=list)
+    server_urls: list[str] = field(default_factory=lambda: ["https://api.example.com"])
+    custom_headers: dict[str, str] = field(default_factory=dict)
+    authentication_schemes: list[str] = field(default_factory=list)
 
 
 @dataclass
 class CodeSampleTemplate:
     """Template for generating code samples."""
+
     language: CodeLanguage
     template: str
-    imports: List[str] = field(default_factory=list)
+    imports: list[str] = field(default_factory=list)
     setup_code: Optional[str] = None
     cleanup_code: Optional[str] = None
 
@@ -162,6 +172,7 @@ class CodeSampleTemplate:
 @dataclass
 class ValidationError:
     """Represents a validation error in documentation."""
+
     file_path: str
     line_number: Optional[int]
     error_type: str
@@ -172,26 +183,28 @@ class ValidationError:
 @dataclass
 class DocumentationStats:
     """Statistics about loaded documentation."""
+
     total_files: int
     total_endpoints: int
     total_code_samples: int
-    languages_found: List[CodeLanguage]
-    validation_errors: List[ValidationError]
+    languages_found: list[CodeLanguage]
+    validation_errors: list[ValidationError]
     load_time_ms: float
 
 
 @dataclass
 class EnhancementResult:
     """Result of OpenAPI schema enhancement."""
-    enhanced_schema: Dict[str, Any]
-    enhancement_stats: Dict[str, int]
-    warnings: List[str]
-    errors: List[str]
+
+    enhanced_schema: dict[str, Any]
+    enhancement_stats: dict[str, int]
+    warnings: list[str]
+    errors: list[str]
 
 
 # Union types for flexibility
 PathParameter = Union[str, int, float]
-QueryParameter = Union[str, int, float, bool, List[Union[str, int, float]]]
+QueryParameter = Union[str, int, float, bool, list[Union[str, int, float]]]
 HeaderValue = Union[str, int, float]
 
 # Type aliases for common patterns
@@ -199,9 +212,9 @@ EndpointKey = str  # Format: "METHOD:path"
 FilePath = str
 URLPath = str
 MarkdownContent = str
-JSONSchema = Dict[str, Any]
-OpenAPISchema = Dict[str, Any]
+JSONSchema = dict[str, Any]
+OpenAPISchema = dict[str, Any]
 
 # Configuration type unions
 AnyConfig = Union[MarkdownDocumentationConfig, OpenAPIEnhancementConfig]
-AnyDocumentationData = Union[DocumentationData, EndpointDocumentation, CodeSample] 
+AnyDocumentationData = Union[DocumentationData, EndpointDocumentation, CodeSample]

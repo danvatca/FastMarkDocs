@@ -6,28 +6,20 @@ Pytest configuration and shared fixtures for FastMarkDocs tests.
 This module provides common fixtures and configuration used across all tests.
 """
 
-import pytest
-import tempfile
+import os
 import shutil
+import sys
+import tempfile
 from pathlib import Path
-from typing import Dict, Any
-from unittest.mock import MagicMock
 
+import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
-# Add src to path for imports
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from fastmarkdocs import CodeLanguage, HTTPMethod
 
-from fastmarkdocs import (
-    MarkdownDocumentationLoader,
-    CodeSampleGenerator,
-    OpenAPIEnhancer,
-    CodeLanguage,
-    HTTPMethod
-)
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 @pytest.fixture
@@ -407,14 +399,8 @@ def sample_openapi_schema():
     """Sample OpenAPI schema for testing."""
     return {
         "openapi": "3.0.2",
-        "info": {
-            "title": "Test API",
-            "version": "1.0.0",
-            "description": "A test API for documentation enhancement"
-        },
-        "servers": [
-            {"url": "https://api.example.com", "description": "Production server"}
-        ],
+        "info": {"title": "Test API", "version": "1.0.0", "description": "A test API for documentation enhancement"},
+        "servers": [{"url": "https://api.example.com", "description": "Production server"}],
         "paths": {
             "/api/users": {
                 "get": {
@@ -426,14 +412,11 @@ def sample_openapi_schema():
                             "description": "Successful response",
                             "content": {
                                 "application/json": {
-                                    "schema": {
-                                        "type": "array",
-                                        "items": {"$ref": "#/components/schemas/User"}
-                                    }
+                                    "schema": {"type": "array", "items": {"$ref": "#/components/schemas/User"}}
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 },
                 "post": {
                     "summary": "Create user",
@@ -441,68 +424,37 @@ def sample_openapi_schema():
                     "tags": ["users"],
                     "requestBody": {
                         "required": True,
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/UserCreate"}
-                            }
-                        }
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserCreate"}}},
                     },
                     "responses": {
                         "201": {
                             "description": "User created",
-                            "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/User"}
-                                }
-                            }
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/User"}}},
                         }
-                    }
-                }
+                    },
+                },
             },
             "/api/users/{user_id}": {
                 "get": {
                     "summary": "Get user",
                     "description": "Get a specific user by ID",
                     "tags": ["users"],
-                    "parameters": [
-                        {
-                            "name": "user_id",
-                            "in": "path",
-                            "required": True,
-                            "schema": {"type": "integer"}
-                        }
-                    ],
+                    "parameters": [{"name": "user_id", "in": "path", "required": True, "schema": {"type": "integer"}}],
                     "responses": {
                         "200": {
                             "description": "User found",
-                            "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/User"}
-                                }
-                            }
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/User"}}},
                         },
-                        "404": {
-                            "description": "User not found"
-                        }
-                    }
+                        "404": {"description": "User not found"},
+                    },
                 },
                 "delete": {
                     "summary": "Delete user",
                     "description": "Delete a user by ID",
                     "tags": ["users"],
-                    "parameters": [
-                        {
-                            "name": "user_id",
-                            "in": "path",
-                            "required": True,
-                            "schema": {"type": "integer"}
-                        }
-                    ],
-                    "responses": {
-                        "204": {"description": "User deleted"},
-                        "404": {"description": "User not found"}
-                    }
-                }
+                    "parameters": [{"name": "user_id", "in": "path", "required": True, "schema": {"type": "integer"}}],
+                    "responses": {"204": {"description": "User deleted"}, "404": {"description": "User not found"}},
+                },
             },
             "/api/auth/login": {
                 "post": {
@@ -511,25 +463,17 @@ def sample_openapi_schema():
                     "tags": ["authentication"],
                     "requestBody": {
                         "required": True,
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/LoginRequest"}
-                            }
-                        }
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginRequest"}}},
                     },
                     "responses": {
                         "200": {
                             "description": "Login successful",
-                            "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/LoginResponse"}
-                                }
-                            }
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginResponse"}}},
                         },
-                        "401": {"description": "Authentication failed"}
-                    }
+                        "401": {"description": "Authentication failed"},
+                    },
                 }
-            }
+            },
         },
         "components": {
             "schemas": {
@@ -539,35 +483,32 @@ def sample_openapi_schema():
                         "id": {"type": "integer"},
                         "name": {"type": "string"},
                         "email": {"type": "string", "format": "email"},
-                        "active": {"type": "boolean"}
-                    }
+                        "active": {"type": "boolean"},
+                    },
                 },
                 "UserCreate": {
                     "type": "object",
                     "required": ["name", "email"],
-                    "properties": {
-                        "name": {"type": "string"},
-                        "email": {"type": "string", "format": "email"}
-                    }
+                    "properties": {"name": {"type": "string"}, "email": {"type": "string", "format": "email"}},
                 },
                 "LoginRequest": {
                     "type": "object",
                     "properties": {
                         "username": {"type": "string"},
                         "password": {"type": "string"},
-                        "api_key": {"type": "string"}
-                    }
+                        "api_key": {"type": "string"},
+                    },
                 },
                 "LoginResponse": {
                     "type": "object",
                     "properties": {
                         "token": {"type": "string"},
                         "user": {"$ref": "#/components/schemas/User"},
-                        "expires_at": {"type": "string", "format": "date-time"}
-                    }
-                }
+                        "expires_at": {"type": "string", "format": "date-time"},
+                    },
+                },
             }
-        }
+        },
     }
 
 
@@ -575,28 +516,28 @@ def sample_openapi_schema():
 def mock_fastapi_app():
     """Create a mock FastAPI application for testing."""
     app = FastAPI(title="Test API", version="1.0.0", description="Test application")
-    
+
     # Add some mock routes
     @app.get("/api/users")
     async def list_users():
         return []
-    
+
     @app.post("/api/users")
     async def create_user():
         return {}
-    
+
     @app.get("/api/users/{user_id}")
     async def get_user(user_id: int):
         return {}
-    
+
     @app.delete("/api/users/{user_id}")
     async def delete_user(user_id: int):
         return {}
-    
+
     @app.post("/api/auth/login")
     async def login():
         return {}
-    
+
     return app
 
 
@@ -604,16 +545,12 @@ def mock_fastapi_app():
 def documentation_loader_config():
     """Configuration for MarkdownDocumentationLoader."""
     return {
-        'docs_directory': 'test_docs',
-        'recursive': True,
-        'cache_enabled': False,
-        'supported_languages': [
-            CodeLanguage.CURL,
-            CodeLanguage.PYTHON,
-            CodeLanguage.JAVASCRIPT
-        ],
-        'file_patterns': ['*.md', '*.markdown'],
-        'encoding': 'utf-8'
+        "docs_directory": "test_docs",
+        "recursive": True,
+        "cache_enabled": False,
+        "supported_languages": [CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
+        "file_patterns": ["*.md", "*.markdown"],
+        "encoding": "utf-8",
     }
 
 
@@ -621,18 +558,11 @@ def documentation_loader_config():
 def code_generator_config():
     """Configuration for CodeSampleGenerator."""
     return {
-        'base_url': 'https://api.example.com',
-        'server_urls': ['https://api.example.com', 'https://staging.example.com'],
-        'custom_headers': {
-            'User-Agent': 'TestApp/1.0',
-            'Accept': 'application/json'
-        },
-        'authentication_schemes': ['bearer', 'api_key'],
-        'code_sample_languages': [
-            CodeLanguage.CURL,
-            CodeLanguage.PYTHON,
-            CodeLanguage.JAVASCRIPT
-        ]
+        "base_url": "https://api.example.com",
+        "server_urls": ["https://api.example.com", "https://staging.example.com"],
+        "custom_headers": {"User-Agent": "TestApp/1.0", "Accept": "application/json"},
+        "authentication_schemes": ["bearer", "api_key"],
+        "code_sample_languages": [CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
     }
 
 
@@ -640,19 +570,13 @@ def code_generator_config():
 def openapi_enhancement_config():
     """Configuration for OpenAPI enhancement."""
     return {
-        'include_code_samples': True,
-        'include_response_examples': True,
-        'include_parameter_examples': True,
-        'base_url': 'https://api.example.com',
-        'code_sample_languages': [
-            CodeLanguage.CURL,
-            CodeLanguage.PYTHON,
-            CodeLanguage.JAVASCRIPT
-        ],
-        'custom_headers': {
-            'Authorization': 'Bearer test-token'
-        },
-        'authentication_schemes': ['bearer']
+        "include_code_samples": True,
+        "include_response_examples": True,
+        "include_parameter_examples": True,
+        "base_url": "https://api.example.com",
+        "code_sample_languages": [CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
+        "custom_headers": {"Authorization": "Bearer test-token"},
+        "authentication_schemes": ["bearer"],
     }
 
 
@@ -660,58 +584,58 @@ def openapi_enhancement_config():
 def sample_endpoint_documentation():
     """Sample endpoint documentation structure."""
     return {
-        'path': '/api/users',
-        'method': HTTPMethod.GET,
-        'summary': 'List all users',
-        'description': 'Retrieve a paginated list of users from the system',
-        'code_samples': [
+        "path": "/api/users",
+        "method": HTTPMethod.GET,
+        "summary": "List all users",
+        "description": "Retrieve a paginated list of users from the system",
+        "code_samples": [
             {
-                'language': CodeLanguage.PYTHON,
-                'code': 'import requests\nresponse = requests.get("/api/users")',
-                'description': 'Python example',
-                'title': 'Python Request'
+                "language": CodeLanguage.PYTHON,
+                "code": 'import requests\nresponse = requests.get("/api/users")',
+                "description": "Python example",
+                "title": "Python Request",
             },
             {
-                'language': CodeLanguage.CURL,
-                'code': 'curl -X GET "https://api.example.com/api/users"',
-                'description': 'cURL example',
-                'title': 'cURL Request'
-            }
+                "language": CodeLanguage.CURL,
+                "code": 'curl -X GET "https://api.example.com/api/users"',
+                "description": "cURL example",
+                "title": "cURL Request",
+            },
         ],
-        'response_examples': [
+        "response_examples": [
             {
-                'status_code': 200,
-                'description': 'Successful response',
-                'content': [{'id': 1, 'name': 'John Doe', 'email': 'john@example.com'}],
-                'headers': {'Content-Type': 'application/json'}
+                "status_code": 200,
+                "description": "Successful response",
+                "content": [{"id": 1, "name": "John Doe", "email": "john@example.com"}],
+                "headers": {"Content-Type": "application/json"},
             }
         ],
-        'parameters': [
+        "parameters": [
             {
-                'name': 'limit',
-                'description': 'Maximum number of users to return',
-                'example': 50,
-                'required': False,
-                'type': 'integer'
+                "name": "limit",
+                "description": "Maximum number of users to return",
+                "example": 50,
+                "required": False,
+                "type": "integer",
             }
         ],
-        'tags': ['users', 'list'],
-        'deprecated': False
+        "tags": ["users", "list"],
+        "deprecated": False,
     }
 
 
 # Test utilities
 class TestUtils:
     """Utility functions for tests."""
-    
+
     @staticmethod
     def create_markdown_file(temp_dir: Path, filename: str, content: str) -> Path:
         """Create a markdown file with the given content."""
         file_path = temp_dir / filename
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(content, encoding='utf-8')
+        file_path.write_text(content, encoding="utf-8")
         return file_path
-    
+
     @staticmethod
     def extract_app_routes(app: FastAPI) -> set[tuple[str, str]]:
         """Extract all routes from a FastAPI application."""
@@ -722,14 +646,14 @@ class TestUtils:
                     if method != "OPTIONS":
                         routes.add((method, route.path))
         return routes
-    
+
     @staticmethod
     def normalize_whitespace(text: str) -> str:
         """Normalize whitespace in text for comparison."""
-        return ' '.join(text.split())
+        return " ".join(text.split())
 
 
 @pytest.fixture
 def test_utils():
     """Provide test utilities."""
-    return TestUtils 
+    return TestUtils

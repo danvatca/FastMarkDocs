@@ -30,7 +30,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.openapi.utils import get_openapi
 from fastmarkdocs import enhance_openapi_with_docs
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 
 app = FastAPI(
     title="User Management API",

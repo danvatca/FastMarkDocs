@@ -363,7 +363,7 @@ class CachedMarkdownDocumentationLoader(MarkdownDocumentationLoader):
 Implement lazy loading for large documentation sets:
 
 ```python
-from typing import Dict, List, Iterator
+from typing import Dict, Iterator
 import os
 from pathlib import Path
 
@@ -417,7 +417,7 @@ Process multiple documentation files in parallel:
 import asyncio
 import aiofiles
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 class ParallelDocumentationLoader:
     def __init__(self, docs_directory: str, max_workers: int = 4):
@@ -639,7 +639,7 @@ Integrate with service discovery systems:
 
 ```python
 import consul
-from typing import Dict, List
+from typing import Dict
 from fastmarkdocs import enhance_openapi_with_docs
 
 class ServiceDiscoveryDocumentationManager:

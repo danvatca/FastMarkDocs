@@ -18,28 +18,28 @@ Example:
     ```python
     from fastapi import FastAPI
     from fastmarkdocs import MarkdownDocumentationLoader, enhance_openapi_with_docs
-    
+
     app = FastAPI()
-    
+
     # Load documentation from markdown files
     docs_loader = MarkdownDocumentationLoader("docs/api")
-    
+
     # Enhance OpenAPI schema with markdown documentation
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
-        
+
         openapi_schema = get_openapi(
             title="My API",
             version="1.0.0",
             routes=app.routes,
         )
-        
+
         # Enhance with markdown documentation
         enhanced_schema = enhance_openapi_with_docs(openapi_schema, docs_loader)
         app.openapi_schema = enhanced_schema
         return app.openapi_schema
-    
+
     app.openapi = custom_openapi
     ```
 """
@@ -50,31 +50,31 @@ __email__ = "dan.vatca@gmail.com"
 __license__ = "MIT"
 
 # Core components
-from .documentation_loader import MarkdownDocumentationLoader
-from .openapi_enhancer import enhance_openapi_with_docs, OpenAPIEnhancer
 from .code_samples import CodeSampleGenerator
+from .documentation_loader import MarkdownDocumentationLoader
 from .exceptions import (
-    FastAPIMarkdownDocsError,
-    DocumentationLoadError,
     CodeSampleGenerationError,
+    DocumentationLoadError,
+    FastAPIMarkdownDocsError,
     OpenAPIEnhancementError,
+)
+from .openapi_enhancer import OpenAPIEnhancer, enhance_openapi_with_docs
+
+# Type definitions
+from .types import (
+    CodeLanguage,
+    CodeSample,
+    DocumentationData,
+    HTTPMethod,
+    MarkdownDocumentationConfig,
+    OpenAPIEnhancementConfig,
 )
 
 # Utility functions
 from .utils import (
-    normalize_path,
     extract_code_samples,
+    normalize_path,
     validate_markdown_structure,
-)
-
-# Type definitions
-from .types import (
-    DocumentationData,
-    CodeSample,
-    OpenAPIEnhancementConfig,
-    MarkdownDocumentationConfig,
-    CodeLanguage,
-    HTTPMethod,
 )
 
 __all__ = [
@@ -83,26 +83,21 @@ __all__ = [
     "__author__",
     "__email__",
     "__license__",
-    
     # Core classes
     "MarkdownDocumentationLoader",
-    "OpenAPIEnhancer", 
+    "OpenAPIEnhancer",
     "CodeSampleGenerator",
-    
     # Main functions
     "enhance_openapi_with_docs",
-    
     # Exceptions
     "FastAPIMarkdownDocsError",
-    "DocumentationLoadError", 
+    "DocumentationLoadError",
     "CodeSampleGenerationError",
     "OpenAPIEnhancementError",
-    
     # Utilities
     "normalize_path",
     "extract_code_samples",
     "validate_markdown_structure",
-    
     # Types
     "DocumentationData",
     "CodeSample",
@@ -110,4 +105,4 @@ __all__ = [
     "MarkdownDocumentationConfig",
     "CodeLanguage",
     "HTTPMethod",
-] 
+]

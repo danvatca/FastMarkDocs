@@ -48,7 +48,6 @@ If you don't have a FastAPI application yet, create a simple one:
 # main.py
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import List
 
 app = FastAPI(
     title="My API",
@@ -61,7 +60,7 @@ class User(BaseModel):
     name: str
     email: str
 
-@app.get("/users", response_model=List[User])
+@app.get("/users", response_model=list[User])
 async def get_users():
     """Get all users."""
     return [
@@ -200,7 +199,6 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastmarkdocs import enhance_openapi_with_docs
 from pydantic import BaseModel
-from typing import List
 
 app = FastAPI(
     title="My API",
@@ -213,7 +211,7 @@ class User(BaseModel):
     name: str
     email: str
 
-@app.get("/users", response_model=List[User])
+@app.get("/users", response_model=list[User])
 async def get_users():
     """Get all users."""
     return [
