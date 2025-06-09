@@ -150,11 +150,14 @@ def create_enhanced_openapi():
         }
         
         # Load documentation and enhance schema
-        docs_loader = MarkdownDocumentationLoader(docs_config)
         enhanced_schema = enhance_openapi_with_docs(
-            openapi_schema, 
-            docs_loader, 
-            enhancement_config
+            openapi_schema=openapi_schema,
+            docs_directory=docs_config['docs_directory'],
+            base_url=enhancement_config['base_url'],
+            include_code_samples=enhancement_config['include_code_samples'],
+            include_response_examples=enhancement_config['include_response_examples'],
+            code_sample_languages=enhancement_config['code_sample_languages'],
+            custom_headers=enhancement_config['custom_headers']
         )
         
         app.openapi_schema = enhanced_schema

@@ -61,13 +61,11 @@ def test_documentation_loader():
         test_file.write_text(create_test_markdown())
         
         # Configure and test loader
-        config = {
-            'docs_directory': temp_dir,
-            'recursive': True,
-            'cache_enabled': False
-        }
-        
-        loader = MarkdownDocumentationLoader(**config)
+        loader = MarkdownDocumentationLoader(
+            docs_directory=temp_dir,
+            recursive=True,
+            cache_enabled=False
+        )
         
         try:
             documentation = loader.load_documentation()
@@ -95,12 +93,10 @@ def test_code_sample_generator():
     """Test the CodeSampleGenerator."""
     print("\nTesting CodeSampleGenerator...")
     
-    config = {
-        'base_url': 'https://api.example.com',
-        'code_sample_languages': [CodeLanguage.CURL, CodeLanguage.PYTHON]
-    }
-    
-    generator = CodeSampleGenerator(config)
+    generator = CodeSampleGenerator(
+        base_url='https://api.example.com',
+        code_sample_languages=[CodeLanguage.CURL, CodeLanguage.PYTHON]
+    )
     
     # Create test endpoint
     endpoint = {
@@ -116,7 +112,7 @@ def test_code_sample_generator():
     }
     
     try:
-        samples = generator.generate_samples(endpoint)
+        samples = generator.generate_samples_for_endpoint(endpoint)
         
         print(f"✓ Generated {len(samples)} code samples")
         
@@ -161,15 +157,16 @@ def test_openapi_enhancement():
         test_file = Path(temp_dir) / "test.md"
         test_file.write_text(create_test_markdown())
         
-        config = {
-            'docs_directory': temp_dir,
-            'cache_enabled': False
-        }
-        
-        loader = MarkdownDocumentationLoader(**config)
+        loader = MarkdownDocumentationLoader(
+            docs_directory=temp_dir,
+            cache_enabled=False
+        )
         
         try:
-            enhanced_schema = enhance_openapi_with_docs(openapi_schema, loader)
+            enhanced_schema = enhance_openapi_with_docs(
+                openapi_schema=openapi_schema,
+                docs_directory=temp_dir
+            )
             
             print("✓ OpenAPI schema enhanced successfully")
             
