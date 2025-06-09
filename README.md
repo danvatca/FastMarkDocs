@@ -281,6 +281,25 @@ pytest -m integration
 7. Push to the branch (`git push origin feature/amazing-feature`)
 8. Open a Pull Request
 
+## Documentation Development
+
+To build and test the documentation locally:
+
+```bash
+# First time setup
+./build-docs.sh setup
+
+# Build and serve locally with live reload
+./build-docs.sh serve
+
+# Or using Make
+make -f Makefile.docs docs-serve
+```
+
+The documentation will be available at `http://localhost:4000` with automatic reloading when you make changes.
+
+See [docs/BUILD.md](docs/BUILD.md) for detailed documentation build instructions.
+
 ## Development Setup
 
 ```bash

@@ -5,6 +5,8 @@ baseurl: "/fastmarkdocs"
 
 # Theme
 theme: minima
+
+# Plugins
 plugins:
   - jekyll-feed
   - jekyll-sitemap
@@ -26,23 +28,20 @@ twitter_username: danvatca
 markdown: kramdown
 highlighter: rouge
 kramdown:
+  input: GFM
   syntax_highlighter: rouge
-  syntax_highlighter_opts:
-    css_class: 'highlight'
-    span:
-      line_numbers: false
-    block:
-      line_numbers: false
+
+# GitHub Pages settings
+repository: danvatca/fastmarkdocs
 
 # Exclude files
 exclude:
   - Gemfile
   - Gemfile.lock
   - node_modules
-  - vendor/bundle/
-  - vendor/cache/
-  - vendor/gems/
-  - vendor/ruby/
+  - vendor/
+  - .bundle/
+  - BUILD.md
 
 # SEO
 author:
@@ -50,4 +49,8 @@ author:
   email: dan.vatca@gmail.com
 
 # Google Analytics (optional)
-# google_analytics: UA-XXXXXXXX-X 
+# google_analytics: UA-XXXXXXXX-X
+
+# Development settings (only used locally)
+livereload: true
+incremental: true 

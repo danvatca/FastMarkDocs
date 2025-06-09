@@ -1,18 +1,21 @@
 source "https://rubygems.org"
 
-# Jekyll and plugins
-gem "jekyll", "~> 4.3.0"
+# Use Jekyll 3.9 for better compatibility with older Ruby versions
+gem "jekyll", "~> 3.9.0"
 gem "minima", "~> 2.5"
 
-# GitHub Pages compatibility
-gem "github-pages", group: :jekyll_plugins
+# Required for GitHub Flavored Markdown
+gem "kramdown-parser-gfm"
 
-# Jekyll plugins
+# Basic plugins only
 group :jekyll_plugins do
   gem "jekyll-feed", "~> 0.12"
   gem "jekyll-sitemap"
   gem "jekyll-seo-tag"
 end
+
+# Required for Ruby 3.0+ but also works with older versions
+gem "webrick", "~> 1.7"
 
 # Windows and JRuby does not include zoneinfo files, so bundle the tzinfo-data gem
 # and associated library.

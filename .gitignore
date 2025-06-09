@@ -223,4 +223,13 @@ coverage.xml
 
 # Documentation builds
 docs/_build/
+docs/_site/
+docs/vendor/
+docs/.bundle/
 site/
+docs/.sass-cache
+
+# Jekyll
+.jekyll-cache/
+.jekyll-metadata
+Gemfile.lock

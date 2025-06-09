@@ -676,27 +676,27 @@ print(json.dumps(result, indent=2))
 /**
  * {description}
  */
-async function {methodLower}{PathCamelCase}() {{
+async function {methodLower}{PathCamelCase}() {
     const url = '{url}';
     const headers = {headers};
     
-    try {{
-        const response = await fetch(url, {{
+    try {
+        const response = await fetch(url, {
             method: '{method}',
             headers: headers
-        }});
+        });
         
-        if (!response.ok) {{
-            throw new Error(`HTTP error! status: ${{response.status}}`);
-        }}
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const data = await response.json();
         return data;
-    }} catch (error) {{
+    } catch (error) {
         console.error('Error:', error);
         throw error;
-    }}
-}}
+    }
+}
 
 // Usage
 {methodLower}{PathCamelCase}()

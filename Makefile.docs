@@ -1,0 +1,109 @@
+# FastMarkDocs Documentation Makefile
+# Provides simple commands for building and serving documentation
+
+.PHONY: docs-help docs-setup docs-build docs-serve docs-clean docs-validate
+
+# Default target
+docs-help:
+	@echo "FastMarkDocs Documentation Commands"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  docs-setup     Setup documentation environment"
+	@echo "  docs-build     Build documentation"
+	@echo "  docs-serve     Build and serve documentation locally"
+	@echo "  docs-clean     Clean build artifacts"
+	@echo "  docs-validate  Validate built documentation"
+	@echo "  docs-help      Show this help"
+	@echo ""
+	@echo "Environment variables:"
+	@echo "  DOCS_PORT      Port for local server (default: 4000)"
+	@echo "  DOCS_HOST      Host for local server (default: 127.0.0.1)"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make docs-setup"
+	@echo "  make docs-serve"
+	@echo "  make docs-serve DOCS_PORT=3000"
+
+# Setup documentation environment
+docs-setup:
+	@echo "Setting up documentation environment..."
+	@./build-docs.sh setup
+
+# Build documentation
+docs-build:
+	@echo "Building documentation..."
+	@./build-docs.sh build
+
+# Serve documentation locally
+docs-serve:
+	@echo "Starting documentation server..."
+	@./build-docs.sh serve
+
+# Clean build artifacts
+docs-clean:
+	@echo "Cleaning documentation build artifacts..."
+	@./build-docs.sh clean
+
+# Validate documentation build
+docs-validate:
+	@echo "Validating documentation build..."
+	@./build-docs.sh validate
+
+# Quick development server (alias for docs-serve)
+docs-dev: docs-serve
+
+# Full rebuild (clean + build + serve)
+docs-rebuild: docs-clean docs-serve
+
+# Check if Ruby and Jekyll are installed
+docs-check:
+	@echo "Checking documentation dependencies..."
+	@which ruby > /dev/null || (echo "Ruby not found. Please install Ruby first." && exit 1)
+	@which bundle > /dev/null || (echo "Bundler not found. Installing..." && gem install bundler)
+	@echo "Dependencies check completed."
+
+# Install only Jekyll dependencies (without building)
+docs-install:
+	@echo "Installing Jekyll dependencies..."
+	@cd docs && bundle install
+
+# Update Jekyll dependencies
+docs-update:
+	@echo "Updating Jekyll dependencies..."
+	@cd docs && bundle update
+
+# Show Jekyll version info
+docs-info:
+	@echo "Jekyll Environment Information:"
+	@echo "Ruby version: $$(ruby --version)"
+	@echo "Bundler version: $$(bundle --version)"
+	@cd docs && echo "Jekyll version: $$(bundle exec jekyll --version)"
+	@cd docs && echo "Theme: $$(bundle exec jekyll doctor | grep -i theme || echo 'minima')"
+
+# Production build (optimized)
+docs-production:
+	@echo "Building documentation for production..."
+	@cd docs && JEKYLL_ENV=production bundle exec jekyll build --verbose
+
+# Lint documentation (check for broken links, etc.)
+docs-lint:
+	@echo "Linting documentation..."
+	@cd docs && bundle exec jekyll doctor
+	@echo "Documentation lint completed."
+
+# Watch for changes and rebuild automatically
+docs-watch:
+	@echo "Watching for documentation changes..."
+	@cd docs && bundle exec jekyll build --watch --incremental
+
+# Generate site statistics
+docs-stats:
+	@echo "Documentation Statistics:"
+	@echo "Markdown files: $$(find docs -name '*.md' | wc -l)"
+	@echo "Total lines: $$(find docs -name '*.md' -exec wc -l {} + | tail -1)"
+	@if [ -d "docs/_site" ]; then \
+		echo "Generated HTML files: $$(find docs/_site -name '*.html' | wc -l)"; \
+		echo "Build size: $$(du -sh docs/_site | cut -f1)"; \
+	else \
+		echo "No build found. Run 'make docs-build' first."; \
+	fi 
