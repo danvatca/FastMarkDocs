@@ -24,7 +24,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add a minimal code sample that reproduces the issue:
 
 ```python
-from fastapi_markdown_docs import ...
+from fastmarkdocs import ...
 
 # Your code here
 ```

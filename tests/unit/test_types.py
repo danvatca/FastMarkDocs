@@ -7,7 +7,7 @@ Tests the type definitions, enums, and data structures used throughout the libra
 import pytest
 from typing import Dict, List, Any
 
-from fastapi_markdown_docs.types import (
+from fastmarkdocs.types import (
     CodeLanguage,
     HTTPMethod,
     DocumentationData,

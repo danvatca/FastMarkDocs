@@ -79,7 +79,7 @@ def main():
     # Add coverage if requested
     if args.coverage:
         cmd.extend([
-            "--cov=src/fastapi_markdown_docs",
+            "--cov=src/fastmarkdocs",
             "--cov-report=html:htmlcov",
             "--cov-report=term-missing",
             "--cov-report=xml"

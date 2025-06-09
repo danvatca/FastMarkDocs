@@ -46,7 +46,7 @@ jobs:
 
     - name: Run tests with pytest
       run: |
-        poetry run python -m pytest tests/ -v --cov=fastapi_markdown_docs --cov-report=xml --cov-report=term-missing
+        poetry run python -m pytest tests/ -v --cov=fastmarkdocs --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
@@ -95,7 +95,7 @@ jobs:
       run: poetry run ruff check .
 
     - name: Run mypy
-      run: poetry run mypy src/fastapi_markdown_docs
+      run: poetry run mypy src/fastmarkdocs
 
   security:
     runs-on: ubuntu-latest
@@ -125,4 +125,4 @@ jobs:
     - name: Run bandit security linter
       run: |
         poetry add --group dev bandit
-        poetry run bandit -r src/fastapi_markdown_docs/ 
+        poetry run bandit -r src/fastmarkdocs/ 

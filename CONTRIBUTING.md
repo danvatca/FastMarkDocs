@@ -95,7 +95,7 @@ poetry run ruff check .
 
 ```
 fastmarkdocs/
-├── src/fastapi_markdown_docs/    # Main package
+├── src/fastmarkdocs/    # Main package
 │   ├── __init__.py              # Public API
 │   ├── documentation_loader.py  # Markdown parsing
 │   ├── code_samples.py         # Code generation

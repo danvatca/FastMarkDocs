@@ -14,19 +14,19 @@ import tempfile
 import shutil
 from typing import List, Dict, Any
 
-from fastapi_markdown_docs import (
+from fastmarkdocs import (
     MarkdownDocumentationLoader,
     CodeSampleGenerator,
     OpenAPIEnhancer,
     enhance_openapi_with_docs
 )
-from fastapi_markdown_docs.types import (
+from fastmarkdocs.types import (
     DocumentationData,
     EndpointDocumentation,
     HTTPMethod,
     CodeLanguage
 )
-from fastapi_markdown_docs.exceptions import DocumentationLoadError
+from fastmarkdocs.exceptions import DocumentationLoadError
 
 
 class TestDoormanDocsIntegration:

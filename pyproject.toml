@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
     "Framework :: FastAPI",
 ]
-packages = [{include = "fastapi_markdown_docs", from = "src"}]
+packages = [{include = "fastmarkdocs", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.8.1"

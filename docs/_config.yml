@@ -1,0 +1,53 @@
+title: FastMarkDocs
+description: Enhanced OpenAPI documentation generation from markdown files for FastAPI applications
+url: "https://danvatca.github.io"
+baseurl: "/fastmarkdocs"
+
+# Theme
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Navigation
+header_pages:
+  - getting-started.md
+  - user-guide.md
+  - api-reference.md
+  - examples.md
+  - advanced.md
+
+# Social links
+github_username: danvatca
+twitter_username: danvatca
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: 'highlight'
+    span:
+      line_numbers: false
+    block:
+      line_numbers: false
+
+# Exclude files
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+
+# SEO
+author:
+  name: FastMarkDocs Contributors
+  email: dan.vatca@gmail.com
+
+# Google Analytics (optional)
+# google_analytics: UA-XXXXXXXX-X 

@@ -7,9 +7,9 @@ Tests the code sample generation for different programming languages and HTTP me
 import pytest
 from unittest.mock import patch, MagicMock
 
-from fastapi_markdown_docs.code_samples import CodeSampleGenerator
-from fastapi_markdown_docs.types import CodeLanguage, HTTPMethod, EndpointDocumentation
-from fastapi_markdown_docs.exceptions import CodeSampleGenerationError
+from fastmarkdocs.code_samples import CodeSampleGenerator
+from fastmarkdocs.types import CodeLanguage, HTTPMethod, EndpointDocumentation
+from fastmarkdocs.exceptions import CodeSampleGenerationError
 
 
 class TestCodeSampleGenerator:

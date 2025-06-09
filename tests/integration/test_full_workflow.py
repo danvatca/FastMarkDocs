@@ -10,13 +10,13 @@ import shutil
 from pathlib import Path
 from fastapi import FastAPI
 
-from fastapi_markdown_docs import (
+from fastmarkdocs import (
     MarkdownDocumentationLoader,
     CodeSampleGenerator,
     OpenAPIEnhancer,
     enhance_openapi_with_docs
 )
-from fastapi_markdown_docs.types import CodeLanguage, HTTPMethod
+from fastmarkdocs.types import CodeLanguage, HTTPMethod
 
 
 class TestFullWorkflow:

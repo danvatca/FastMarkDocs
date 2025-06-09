@@ -8,12 +8,12 @@ import pytest
 import copy
 from unittest.mock import patch, MagicMock
 
-from fastapi_markdown_docs.openapi_enhancer import OpenAPIEnhancer, enhance_openapi_with_docs
-from fastapi_markdown_docs.types import (
+from fastmarkdocs.openapi_enhancer import OpenAPIEnhancer, enhance_openapi_with_docs
+from fastmarkdocs.types import (
     CodeLanguage, HTTPMethod, EndpointDocumentation, 
     CodeSample, ResponseExample, DocumentationData
 )
-from fastapi_markdown_docs.exceptions import OpenAPIEnhancementError
+from fastmarkdocs.exceptions import OpenAPIEnhancementError
 
 
 class TestOpenAPIEnhancer:

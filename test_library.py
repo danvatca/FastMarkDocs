@@ -14,7 +14,7 @@ from pathlib import Path
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from fastapi_markdown_docs import (
+from fastmarkdocs import (
     MarkdownDocumentationLoader,
     CodeSampleGenerator,
     enhance_openapi_with_docs,
@@ -200,7 +200,7 @@ def test_types_and_imports():
         print("✓ Enums working correctly")
         
         # Test that all main classes can be imported
-        from fastapi_markdown_docs import (
+        from fastmarkdocs import (
             MarkdownDocumentationLoader,
             OpenAPIEnhancer,
             CodeSampleGenerator,
@@ -209,7 +209,7 @@ def test_types_and_imports():
         print("✓ All main classes imported successfully")
         
         # Test exception imports
-        from fastapi_markdown_docs import (
+        from fastmarkdocs import (
             FastAPIMarkdownDocsError,
             DocumentationLoadError,
             CodeSampleGenerationError,

@@ -10,9 +10,9 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch, mock_open, MagicMock
 
-from fastapi_markdown_docs.documentation_loader import MarkdownDocumentationLoader
-from fastapi_markdown_docs.types import CodeLanguage, HTTPMethod
-from fastapi_markdown_docs.exceptions import DocumentationLoadError, ValidationError
+from fastmarkdocs.documentation_loader import MarkdownDocumentationLoader
+from fastmarkdocs.types import CodeLanguage, HTTPMethod
+from fastmarkdocs.exceptions import DocumentationLoadError, ValidationError
 
 
 class TestMarkdownDocumentationLoader:

@@ -23,7 +23,7 @@ Describe the specific use case for this feature. How would it be used?
 If applicable, provide an example of how you'd like to use this feature:
 
 ```python
-from fastapi_markdown_docs import ...
+from fastmarkdocs import ...
 
 # Example usage of the proposed feature
 ```

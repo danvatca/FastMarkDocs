@@ -30,7 +30,7 @@ pip install fastmarkdocs
 
 ```python
 from fastapi import FastAPI
-from fastapi_markdown_docs import enhance_openapi_with_docs
+from fastmarkdocs import enhance_openapi_with_docs
 
 app = FastAPI()
 
@@ -111,7 +111,7 @@ const users = await response.json();
 ### Custom Code Generation
 
 ```python
-from fastapi_markdown_docs import CodeSampleGenerator
+from fastmarkdocs import CodeSampleGenerator
 
 generator = CodeSampleGenerator(
     base_url="https://api.example.com",
@@ -126,7 +126,7 @@ samples = generator.generate_samples_for_endpoint(endpoint_data)
 ### Template Customization
 
 ```python
-from fastapi_markdown_docs import DocumentationLoader
+from fastmarkdocs import DocumentationLoader
 
 loader = DocumentationLoader(
     docs_directory="docs/api",
@@ -145,7 +145,7 @@ def {method_lower}_{path_safe}():
 ### Caching Configuration
 
 ```python
-from fastapi_markdown_docs import DocumentationLoader
+from fastmarkdocs import DocumentationLoader
 
 loader = DocumentationLoader(
     docs_directory="docs/api",
@@ -238,7 +238,7 @@ The library supports code generation for:
 The library provides comprehensive error handling:
 
 ```python
-from fastapi_markdown_docs.exceptions import (
+from fastmarkdocs.exceptions import (
     DocumentationLoadError,
     CodeSampleGenerationError,
     OpenAPIEnhancementError,
@@ -263,7 +263,7 @@ pip install -e ".[dev]"
 pytest
 
 # Run with coverage
-pytest --cov=fastapi_markdown_docs
+pytest --cov=fastmarkdocs
 
 # Run specific test categories
 pytest -m unit

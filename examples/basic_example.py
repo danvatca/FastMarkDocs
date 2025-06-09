@@ -15,7 +15,7 @@ import os
 # Add the src directory to the path so we can import the library
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from fastapi_markdown_docs import (
+from fastmarkdocs import (
     MarkdownDocumentationLoader, 
     enhance_openapi_with_docs,
     CodeLanguage

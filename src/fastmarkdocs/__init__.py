@@ -15,7 +15,7 @@ Key Features:
 Example:
     ```python
     from fastapi import FastAPI
-    from fastapi_markdown_docs import MarkdownDocumentationLoader, enhance_openapi_with_docs
+    from fastmarkdocs import MarkdownDocumentationLoader, enhance_openapi_with_docs
     
     app = FastAPI()
     
@@ -44,7 +44,7 @@ Example:
 
 __version__ = "0.1.0"
 __author__ = "FastMarkDocs Contributors"
-__email__ = "contributors@fastmarkdocs.dev"
+__email__ = "dan.vatca@gmail.com"
 __license__ = "MIT"
 
 # Core components
