@@ -2,7 +2,7 @@
 
 A powerful library for enhancing FastAPI applications with rich markdown-based API documentation. Transform your API documentation workflow with beautiful, maintainable markdown files that generate comprehensive OpenAPI enhancements.
 
-[![PyPI version](https://badge.fury.io/py/fastmarkdocs.svg)](https://badge.fury.io/py/fastmarkdocs)
+[![PyPI version](https://badge.fury.io/py/FastMarkDocs.svg)](https://badge.fury.io/py/FastMarkDocs)
 [![Python Support](https://img.shields.io/pypi/pyversions/fastmarkdocs.svg)](https://pypi.org/project/fastmarkdocs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/danvatca/fastmarkdocs/workflows/CI/badge.svg)](https://github.com/danvatca/fastmarkdocs/actions)
