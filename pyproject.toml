@@ -32,6 +32,7 @@ fastapi = ">=0.68.0"
 pydantic = ">=1.8.0"
 mistune = ">=2.0.0"
 pyyaml = ">=5.4.0"
+pathvalidate = "^3.2.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import mistune
+import yaml
 
 from .exceptions import DocumentationLoadError
 from .types import (
@@ -593,12 +594,7 @@ class MarkdownDocumentationLoader:
 
                     # Parse YAML
                     try:
-                        import yaml
-
                         frontmatter = yaml.safe_load(yaml_content) or {}
-                    except ImportError:
-                        # If PyYAML is not available, try simple parsing
-                        frontmatter = self._parse_simple_yaml(yaml_content)
                     except yaml.YAMLError:
                         # If YAML parsing fails, ignore frontmatter
                         frontmatter = {}
@@ -612,44 +608,6 @@ class MarkdownDocumentationLoader:
             content_without_frontmatter = content
 
         return frontmatter, content_without_frontmatter
-
-    def _parse_simple_yaml(self, yaml_content: str) -> dict[str, Any]:
-        """
-        Simple YAML parser for basic key-value pairs (fallback when PyYAML is not available).
-
-        Args:
-            yaml_content: YAML content string
-
-        Returns:
-            Dictionary of parsed key-value pairs
-        """
-        result = {}
-
-        for line in yaml_content.split("\n"):
-            line = line.strip()
-            if ":" in line and not line.startswith("#"):
-                key, value = line.split(":", 1)
-                key = key.strip()
-                value = value.strip()
-
-                # Remove quotes if present
-                if value.startswith('"') and value.endswith('"'):
-                    value = value[1:-1]
-                elif value.startswith("'") and value.endswith("'"):
-                    value = value[1:-1]
-
-                # Try to convert to appropriate type
-                parsed_value: Any = value
-                if value.lower() in ["true", "false"]:
-                    parsed_value = value.lower() == "true"
-                elif value.isdigit():
-                    parsed_value = int(value)
-                elif value.replace(".", "").isdigit():
-                    parsed_value = float(value)
-
-                result[key] = parsed_value
-
-        return result
 
     def _create_endpoint_documentation(self, file_data: dict[str, Any]) -> EndpointDocumentation:
         """

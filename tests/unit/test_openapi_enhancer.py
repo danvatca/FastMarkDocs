@@ -5,6 +5,8 @@ Tests the OpenAPI schema enhancement functionality including code sample generat
 response example integration, and documentation enhancement.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 
 from fastmarkdocs.exceptions import OpenAPIEnhancementError
@@ -15,6 +17,7 @@ from fastmarkdocs.types import (
     DocumentationData,
     EndpointDocumentation,
     HTTPMethod,
+    ParameterDocumentation,
     ResponseExample,
 )
 
@@ -481,21 +484,293 @@ class TestOpenAPIEnhancer:
         assert "example_200" in examples
         assert examples["example_200"]["value"]["id"] == 2  # Last one wins
 
-    def test_operation_enhancement_with_none_values(self):
-        """Test operation enhancement with None values."""
-        operation = {"summary": "Original"}
+    def test_operation_enhancement_with_existing_content(self):
+        """Test that enhancement doesn't overwrite existing operation content."""
+        enhancer = OpenAPIEnhancer()
 
-        endpoint = EndpointDocumentation(
-            path="/test", method=HTTPMethod.GET, summary=None, description=None  # None summary  # None description
+        operation = {"summary": "Existing summary", "description": "Existing description", "tags": ["existing-tag"]}
+
+        endpoint_doc = EndpointDocumentation(
+            path="/test",
+            method=HTTPMethod.GET,
+            summary="New summary",
+            description="New description",
+            tags=["new-tag"],
+            code_samples=[],
+            response_examples=[],
+            parameters=[],
         )
 
-        enhancer = OpenAPIEnhancer()
-        enhancer._enhance_operation_description(operation, endpoint)
+        stats = {"descriptions_enhanced": 0, "code_samples_added": 0, "examples_added": 0, "endpoints_enhanced": 0}
 
-        # Original summary should be preserved when endpoint summary is None
-        assert operation["summary"] == "Original"
-        # Description should not be added when None
-        assert "description" not in operation or operation.get("description") is None
+        enhancer._enhance_operation(operation, endpoint_doc, stats)
+
+        # Should not overwrite existing content
+        assert operation["summary"] == "Existing summary"
+        assert operation["description"] == "Existing description"
+        # Should merge tags
+        assert "existing-tag" in operation["tags"]
+        assert "new-tag" in operation["tags"]
+        # Stats should not be incremented since nothing was enhanced
+        assert stats["descriptions_enhanced"] == 0
+
+    def test_response_examples_with_missing_status_codes(self):
+        """Test response example enhancement when operation doesn't have matching status codes."""
+        enhancer = OpenAPIEnhancer()
+
+        operation = {"responses": {"200": {"description": "Success"}}}
+
+        response_examples = [
+            ResponseExample(status_code=201, description="Created", content={"id": 123}),
+            ResponseExample(status_code=404, description="Not found", content={"error": "Not found"}),
+        ]
+
+        stats = {"examples_added": 0}
+
+        enhancer._add_response_examples_to_operation(operation, response_examples, stats)
+
+        # Should create new response entries for missing status codes
+        assert "201" in operation["responses"]
+        assert "404" in operation["responses"]
+        assert operation["responses"]["201"]["description"] == "Created"
+        assert operation["responses"]["404"]["description"] == "Not found"
+
+        # Should add examples to responses (in content.application/json.examples format)
+        assert "content" in operation["responses"]["201"]
+        assert "application/json" in operation["responses"]["201"]["content"]
+        assert "examples" in operation["responses"]["201"]["content"]["application/json"]
+
+        assert stats["examples_added"] == 2
+
+    def test_parameter_examples_enhancement_with_partial_matches(self):
+        """Test parameter example enhancement when only some parameters match."""
+        enhancer = OpenAPIEnhancer()
+
+        operation = {
+            "parameters": [
+                {"name": "limit", "in": "query", "schema": {"type": "integer"}},
+                {"name": "offset", "in": "query", "schema": {"type": "integer"}},
+                {"name": "sort", "in": "query", "schema": {"type": "string"}},
+            ]
+        }
+
+        parameters = [
+            ParameterDocumentation(
+                name="limit", description="Limit results", type="integer", required=False, example=10
+            ),
+            ParameterDocumentation(
+                name="unknown_param",
+                description="This parameter doesn't exist in operation",
+                type="string",
+                required=False,
+                example="test",
+            ),
+        ]
+
+        stats = {"examples_added": 0}
+
+        enhancer._add_parameter_examples(operation, parameters, stats)
+
+        # Should only enhance matching parameters
+        limit_param = next(p for p in operation["parameters"] if p["name"] == "limit")
+        assert "example" in limit_param
+        assert limit_param["example"] == 10
+
+        # Other parameters should remain unchanged
+        offset_param = next(p for p in operation["parameters"] if p["name"] == "offset")
+        assert "example" not in offset_param
+
+        # Should also add the unknown parameter as a new parameter
+        unknown_param = next((p for p in operation["parameters"] if p["name"] == "unknown_param"), None)
+        assert unknown_param is not None
+        assert unknown_param["example"] == "test"
+
+        # Note: The _add_parameter_examples method doesn't increment stats counter
+        # This is the actual behavior of the implementation
+
+    def test_global_info_enhancement_with_documentation_stats(self):
+        """Test global info enhancement includes documentation statistics."""
+        enhancer = OpenAPIEnhancer()
+
+        schema = {"openapi": "3.0.0", "info": {"title": "Test API", "version": "1.0.0"}}
+
+        # Mock documentation with stats
+        documentation = Mock()
+        documentation.endpoints = []
+        documentation.global_examples = []
+        documentation.metadata = {
+            "stats": Mock(
+                total_files=5,
+                total_endpoints=15,
+                total_code_samples=30,
+                languages_found=["python", "javascript", "curl"],
+                validation_errors=[],
+                load_time_ms=125.5,
+            )
+        }
+
+        stats = {"endpoints_enhanced": 12, "code_samples_added": 25, "descriptions_enhanced": 8, "examples_added": 8}
+
+        enhancer._enhance_global_info(schema, documentation, stats)
+
+        # Should add documentation stats to schema
+        assert "x-documentation-stats" in schema["info"]
+        doc_stats = schema["info"]["x-documentation-stats"]
+
+        assert doc_stats["endpoints_enhanced"] == 12
+        assert doc_stats["code_samples_added"] == 25
+        assert doc_stats["descriptions_enhanced"] == 8
+        assert doc_stats["examples_added"] == 8
+
+    def test_path_matching_with_parameter_variations(self):
+        """Test path matching handles parameter name variations correctly."""
+        enhancer = OpenAPIEnhancer()
+
+        # Test various parameter naming conventions
+        assert enhancer._paths_match("/users/{id}", "/users/{user_id}")
+        assert enhancer._paths_match("/users/{userId}", "/users/{id}")
+        assert enhancer._paths_match("/users/{user-id}", "/users/{id}")
+        assert enhancer._paths_match("/posts/{postId}/comments/{id}", "/posts/{id}/comments/{comment_id}")
+
+        # Test non-matching paths
+        assert not enhancer._paths_match("/users/{id}", "/posts/{id}")
+        assert not enhancer._paths_match("/users", "/users/{id}")
+        assert not enhancer._paths_match("/users/{id}/posts", "/users/{id}")
+
+    def test_code_sample_language_filtering_and_merging(self):
+        """Test that code samples are properly filtered by language and merged."""
+        enhancer = OpenAPIEnhancer(code_sample_languages=[CodeLanguage.PYTHON, CodeLanguage.CURL])
+
+        # Mock endpoint with existing code samples
+        endpoint = EndpointDocumentation(
+            path="/test",
+            method=HTTPMethod.GET,
+            summary="Test endpoint",
+            description="Test",
+            code_samples=[
+                CodeSample(language=CodeLanguage.JAVASCRIPT, code="// JS code", title="JS"),
+                CodeSample(language=CodeLanguage.PYTHON, code="# Python code", title="Python"),
+            ],
+            response_examples=[],
+            parameters=[],
+        )
+
+        operation = {}
+        stats = {"descriptions_enhanced": 0, "code_samples_added": 0, "examples_added": 0, "endpoints_enhanced": 0}
+
+        # Mock code generator to return additional samples
+        with patch.object(enhancer.code_generator, "generate_samples_for_endpoint") as mock_gen:
+            mock_gen.return_value = [
+                CodeSample(language=CodeLanguage.CURL, code="curl command", title="cURL"),
+                CodeSample(language=CodeLanguage.GO, code="// Go code", title="Go"),
+            ]
+
+            enhancer._enhance_operation(operation, endpoint, stats)
+
+            # Should include Python (from endpoint) and cURL (generated)
+            # Should exclude JavaScript (not in requested languages) and Go (not in requested languages)
+            assert "x-codeSamples" in operation
+            code_samples = operation["x-codeSamples"]
+
+            languages = [sample["lang"] for sample in code_samples]
+            assert "python" in languages
+            assert "curl" in languages
+            assert "javascript" not in languages
+            assert "go" not in languages
+
+    def test_schema_validation_comprehensive(self):
+        """Test comprehensive schema validation scenarios."""
+        enhancer = OpenAPIEnhancer()
+
+        # Test with None documentation
+        valid_schema = {"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0.0"}}
+
+        with pytest.raises(OpenAPIEnhancementError) as exc_info:
+            enhancer.enhance_openapi_schema(valid_schema, None)
+        assert "Documentation data cannot be None" in str(exc_info.value)
+
+        # Test with Swagger 2.0 schema (should be valid)
+        swagger_schema = {"swagger": "2.0", "info": {"title": "Test", "version": "1.0.0"}}
+
+        mock_documentation = Mock()
+        mock_documentation.endpoints = []
+        mock_documentation.global_examples = []
+        mock_documentation.metadata = {}
+
+        # Should not raise exception for Swagger schema
+        result = enhancer.enhance_openapi_schema(swagger_schema, mock_documentation)
+        assert result is not None
+        assert "swagger" in result
+
+    def test_operation_enhancement_error_recovery(self):
+        """Test that operation enhancement errors don't break the entire process."""
+        enhancer = OpenAPIEnhancer()
+
+        schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {
+                "/test1": {"get": {"summary": "Test 1"}},
+                "/test2": {"post": {"summary": "Test 2"}},
+                "/test3": {"put": {"summary": "Test 3"}},
+            },
+        }
+
+        endpoints = [
+            EndpointDocumentation(
+                path="/test1",
+                method=HTTPMethod.GET,
+                summary="Test 1",
+                description="",
+                code_samples=[],
+                response_examples=[],
+                parameters=[],
+            ),
+            EndpointDocumentation(
+                path="/test2",
+                method=HTTPMethod.POST,
+                summary="Test 2",
+                description="",
+                code_samples=[],
+                response_examples=[],
+                parameters=[],
+            ),
+            EndpointDocumentation(
+                path="/test3",
+                method=HTTPMethod.PUT,
+                summary="Test 3",
+                description="",
+                code_samples=[],
+                response_examples=[],
+                parameters=[],
+            ),
+        ]
+
+        documentation = Mock()
+        documentation.endpoints = endpoints
+        documentation.global_examples = []
+        documentation.metadata = {}
+
+        # Mock _enhance_operation to fail for the second endpoint
+        original_enhance = enhancer._enhance_operation
+        call_count = 0
+
+        def failing_enhance_operation(operation, endpoint_doc, stats):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 2:  # Fail on second call
+                raise Exception("Enhancement failed for test2")
+            return original_enhance(operation, endpoint_doc, stats)
+
+        enhancer._enhance_operation = failing_enhance_operation
+
+        # Should complete successfully despite one failure
+        result = enhancer.enhance_openapi_schema(schema, documentation)
+
+        assert result is not None
+        assert "paths" in result
+        # Should have processed all paths despite the error
+        assert len(result["paths"]) == 3
 
 
 class TestEnhanceOpenAPIWithDocs:

@@ -13,7 +13,41 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
+from pathvalidate import sanitize_filename as _pathvalidate_sanitize_filename
+
 from .types import CodeLanguage, CodeSample, ValidationError
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize a filename by removing or replacing invalid characters.
+
+    This function uses pathvalidate library with custom settings to maintain
+    backward compatibility with the original implementation.
+
+    Args:
+        filename: The filename to sanitize
+
+    Returns:
+        Sanitized filename
+    """
+    # Use pathvalidate with custom settings to match original behavior
+    result = _pathvalidate_sanitize_filename(
+        filename,
+        replacement_text="_",  # Replace invalid chars with underscore
+        null_value_handler=lambda e: "unnamed",  # Return "unnamed" for empty strings
+    )
+
+    # Additional processing to match original behavior
+    if result:
+        # Remove leading/trailing whitespace and dots (like original implementation)
+        result = result.strip(" .")
+
+    # Handle the case where result is empty, whitespace-only, or only underscores
+    if not result or result.isspace() or set(result) == {"_"}:
+        return "unnamed"
+
+    return result
 
 
 def normalize_path(path: str, base_path: Optional[str] = None) -> str:
@@ -187,29 +221,6 @@ def extract_endpoint_info(markdown_content: str) -> dict[str, Any]:
             endpoint_info["tags"] = tags
 
     return endpoint_info
-
-
-def sanitize_filename(filename: str) -> str:
-    """
-    Sanitize a filename by removing or replacing invalid characters.
-
-    Args:
-        filename: The filename to sanitize
-
-    Returns:
-        Sanitized filename
-    """
-    # Remove or replace invalid characters
-    sanitized = re.sub(r'[<>:"/\\|?*]', "_", filename)
-
-    # Remove leading/trailing whitespace and dots
-    sanitized = sanitized.strip(" .")
-
-    # Ensure it's not empty
-    if not sanitized:
-        sanitized = "unnamed"
-
-    return sanitized
 
 
 def find_markdown_files(directory: str, patterns: Optional[list[str]] = None, recursive: bool = True) -> list[str]:

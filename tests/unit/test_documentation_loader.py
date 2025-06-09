@@ -628,233 +628,97 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
 
             assert "Failed to process file" in str(exc_info.value)
 
-    def test_yaml_frontmatter_parsing_error(self, temp_docs_dir, test_utils):
-        """Test error handling for malformed YAML frontmatter."""
-        malformed_yaml_content = """---
-title: Test API
-version: 1.0.0
-invalid_yaml: [unclosed bracket
-description: This has malformed YAML
----
-
-# Test API
-
-## GET /api/test
-
-Test endpoint.
-"""
-
-        test_utils.create_markdown_file(temp_docs_dir, "malformed.md", malformed_yaml_content)
-
-        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
-
-        # Should handle malformed YAML gracefully
-        documentation = loader.load_documentation()
-        assert documentation is not None
-
-    def test_parse_simple_yaml_edge_cases(self):
-        """Test the simple YAML parser with edge cases."""
-        loader = MarkdownDocumentationLoader()
-
-        # Test empty YAML
-        result = loader._parse_simple_yaml("")
-        assert result == {}
-
-        # Test YAML with only whitespace
-        result = loader._parse_simple_yaml("   \n  \t  \n")
-        assert result == {}
-
-        # Test YAML with comments
-        yaml_with_comments = """
-# This is a comment
-title: Test API
-# Another comment
-version: v1.0.0
-"""
-        result = loader._parse_simple_yaml(yaml_with_comments)
-        assert result["title"] == "Test API"
-        assert result["version"] == "v1.0.0"  # String value that won't be parsed as float
-
-        # Test YAML with simple values only (simple parser limitations)
-        simple_yaml = """
-title: Test API
-description: A simple API
-"""
-        result = loader._parse_simple_yaml(simple_yaml)
-        assert result["title"] == "Test API"
-        assert result["description"] == "A simple API"
-
-    def test_extract_frontmatter_edge_cases(self):
-        """Test frontmatter extraction with edge cases."""
-        loader = MarkdownDocumentationLoader()
-
-        # Test content without frontmatter
-        content_no_frontmatter = """
-# API Documentation
-
-## GET /api/test
-
-Test endpoint.
-"""
-        metadata, content = loader._extract_frontmatter(content_no_frontmatter)
-        assert metadata == {}
-        assert "# API Documentation" in content
-
-        # Test content with only opening frontmatter delimiter
-        content_incomplete = """---
-title: Test
-# Missing closing delimiter
-
-## GET /api/test
-
-Test endpoint.
-"""
-        metadata, content = loader._extract_frontmatter(content_incomplete)
-        assert metadata == {}  # Should return empty metadata for malformed frontmatter
-
-        # Test content with frontmatter not at the beginning
-        content_middle_frontmatter = """
-Some content before
-
----
-title: Test
+    def test_yaml_frontmatter_parsing(self, temp_docs_dir, test_utils):
+        """Test YAML frontmatter parsing with PyYAML."""
+        content_with_yaml = """---
+title: Test API Documentation
+version: 1.2.3
+published: true
+priority: 10
+rate: 99.5
+description: API for testing purposes
 ---
 
 ## GET /api/test
-
-Test endpoint.
-"""
-        metadata, content = loader._extract_frontmatter(content_middle_frontmatter)
-        assert metadata == {}  # Frontmatter must be at the beginning
-
-    def test_extract_endpoints_with_no_endpoints(self):
-        """Test endpoint extraction from content with no endpoints."""
-        loader = MarkdownDocumentationLoader()
-
-        content_no_endpoints = """
-# API Documentation
-
-This is general documentation without specific endpoints.
-
-## Overview
-
-This API provides various functionality.
-
-### Authentication
-
-Use API keys for authentication.
+Test endpoint with frontmatter
 """
 
-        endpoints = loader._extract_endpoints_from_content(content_no_endpoints)
-        assert endpoints == []
+        file_path = test_utils.create_markdown_file(temp_docs_dir, "with_yaml.md", content_with_yaml)
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir))
 
-    def test_extract_endpoints_with_malformed_headers(self):
-        """Test endpoint extraction with malformed HTTP method headers."""
+        file_data = loader._load_file(str(file_path))
+
+        # Should parse YAML frontmatter
+        metadata = file_data["metadata"]
+        assert metadata["title"] == "Test API Documentation"
+        assert metadata["version"] == "1.2.3"
+        assert metadata["published"] is True
+        assert metadata["priority"] == 10
+        assert metadata["rate"] == 99.5
+        assert metadata["description"] == "API for testing purposes"
+
+    def test_response_examples_parsing_realistic(self):
+        """Test response example parsing with realistic content."""
         loader = MarkdownDocumentationLoader()
 
-        malformed_content = """
-# API Documentation
-
-## INVALID_METHOD /api/test
-
-This should not be parsed as an endpoint.
-
-## GET
-
-Missing path.
-
-## /api/missing-method
-
-Missing HTTP method.
-
-## GET /api/valid
-
-This is a valid endpoint.
-"""
-
-        endpoints = loader._extract_endpoints_from_content(malformed_content)
-
-        # Should only extract the valid endpoint
-        assert len(endpoints) == 1
-        assert endpoints[0].path == "/api/valid"
-        assert endpoints[0].method == HTTPMethod.GET
-
-    def test_extract_response_examples_edge_cases(self):
-        """Test response example extraction with edge cases."""
-        loader = MarkdownDocumentationLoader()
-
-        content_with_edge_cases = """
+        content_with_response_examples = """
 ## GET /api/test
 
 ### Response Examples
 
-#### 200 OK
 ```json
-{"valid": "json"}
-```
-
-#### 400 Bad Request
-```json
-{invalid json}
+{
+  "id": 123,
+  "name": "Test User",
+  "active": true
+}
 ```
 """
 
-        examples = loader._extract_response_examples(content_with_edge_cases)
+        examples = loader._extract_response_examples(content_with_response_examples)
+        assert len(examples) == 1
 
-        # Should handle valid and invalid JSON gracefully
-        assert len(examples) >= 0  # May extract some examples
+        example = examples[0]
+        assert example.status_code == 200  # Default status
+        assert example.content["id"] == 123
+        assert example.content["name"] == "Test User"
+        assert example.content["active"] is True
 
-        # If any examples were extracted, check for valid ones
-        if examples:
-            valid_examples = [ex for ex in examples if ex.status_code == 200]
-            if valid_examples:
-                assert valid_examples[0].content == {"valid": "json"}
-
-    def test_extract_parameters_edge_cases(self):
-        """Test parameter extraction with edge cases."""
+    def test_response_examples_with_status_codes_realistic(self):
+        """Test response example parsing with status codes in headers."""
         loader = MarkdownDocumentationLoader()
 
-        content_with_params = """
-## GET /api/test
+        content_with_status_codes = """
+## POST /api/users
 
-### Parameters
+### Response Examples
 
-- `valid_param` (string, required): A valid parameter
-- `optional_param` (integer): An optional parameter
-- `malformed_param`: Missing type information
-- (string): Missing parameter name
-- ``: Empty parameter name
-- `param_with_example` (string): Parameter with example value: `test_value`
+```json 201
+{
+  "id": 123,
+  "created": true
+}
+```
+
+```json 400
+{
+  "error": "Bad request"
+}
+```
 """
 
-        params = loader._extract_parameters(content_with_params)
+        examples = loader._extract_response_examples(content_with_status_codes)
+        assert len(examples) == 2
 
-        # Should extract valid parameters and handle malformed ones gracefully
-        assert len(params) >= 2  # At least the valid ones
+        # Check status codes are correctly parsed
+        status_codes = [ex.status_code for ex in examples]
+        assert 201 in status_codes
+        assert 400 in status_codes
 
-        # Check valid parameter
-        valid_param = next((p for p in params if p.name == "valid_param"), None)
-        assert valid_param is not None
-        assert valid_param.type == "string"
-        assert valid_param.required is True
-
-    def test_create_endpoint_documentation_edge_cases(self):
-        """Test endpoint documentation creation with edge cases."""
-        loader = MarkdownDocumentationLoader()
-
-        # Test extracting endpoints from content
-        content_with_endpoint = "## GET /api/minimal\n\nMinimal endpoint."
-        endpoints = loader._extract_endpoints_from_content(content_with_endpoint)
-
-        if endpoints:
-            endpoint = endpoints[0]
-            assert endpoint.path == "/api/minimal"
-            assert endpoint.method == HTTPMethod.GET
-
-        # Test with content that has no endpoints
-        content_no_endpoints = "# Just a title\n\nNo endpoints here."
-        endpoints = loader._extract_endpoints_from_content(content_no_endpoints)
-        assert len(endpoints) == 0
+        # Check content is correctly parsed
+        created_example = next(ex for ex in examples if ex.status_code == 201)
+        assert created_example.content["id"] == 123
+        assert created_example.content["created"] is True
 
     def test_is_cached_functionality(self, temp_docs_dir, test_utils):
         """Test file caching detection functionality."""
@@ -897,59 +761,166 @@ This is a valid endpoint.
 
     def test_load_file_with_encoding_issues(self, temp_docs_dir, test_utils):
         """Test file loading with encoding issues."""
-        # Create file with non-UTF8 content
-        file_path = temp_docs_dir / "encoded.md"
+        # Create file with special characters
+        content_with_special_chars = """
+# API Documentation with Special Characters
 
-        # Write content with latin-1 encoding
-        content = "# Test with special chars: café, naïve, résumé"
-        file_path.write_bytes(content.encode("latin-1"))
+## GET /api/café
+Get café information
 
-        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), encoding="utf-8")
+Description with émojis: 🚀 ✨ 🎉
 
-        # Should handle encoding errors gracefully
-        try:
-            file_data = loader._load_file(str(file_path))
-            # If it succeeds, content should be loaded
-            assert "content" in file_data
-        except DocumentationLoadError:
-            # If it fails, should raise DocumentationLoadError
-            pass  # This is acceptable behavior
+```python
+# Python code with special chars
+response = requests.get('/api/café')
+```
+"""
+
+        file_path = test_utils.create_markdown_file(temp_docs_dir, "special.md", content_with_special_chars)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir))
+
+        # Should handle special characters gracefully
+        file_data = loader._load_file(str(file_path))
+        assert "café" in file_data["content"]
+        assert "🚀" in file_data["content"]
 
     def test_split_content_by_endpoints_edge_cases(self):
-        """Test content splitting with edge cases."""
+        """Test edge cases in content splitting by endpoints."""
         loader = MarkdownDocumentationLoader()
 
         # Test content with no endpoint headers
-        no_endpoints = """
+        content_no_endpoints = """
 # API Documentation
 
-This is just general documentation.
+This is general documentation without specific endpoints.
 
-## Overview
-
-No endpoints here.
+Some general information about the API.
 """
-        sections = loader._split_content_by_endpoints(no_endpoints)
-        # The method may return sections even without endpoints
-        assert len(sections) >= 0
+        sections = loader._split_content_by_endpoints(content_no_endpoints)
+        assert len(sections) == 1
+        assert "API Documentation" in sections[0]
 
-        # Test content with nested headers
-        nested_content = """
-# API Documentation
-
-## GET /api/users
-
-### Nested Section
-
-#### Deep Nested
+        # Test content with multiple consecutive endpoint headers
+        content_multiple = """## GET /api/users
+Get all users
 
 ## POST /api/users
+Create a user
 
-### Another Nested
-
-## GET /api/posts
-
-Content here.
+## GET /api/users/{id}
+Get specific user
 """
-        sections = loader._split_content_by_endpoints(nested_content)
-        assert len(sections) >= 2  # Should find at least some endpoints
+        sections = loader._split_content_by_endpoints(content_multiple)
+        # Should have 3 sections for the 3 endpoints
+        assert len(sections) == 3
+        assert "GET /api/users" in sections[0]
+        assert "POST /api/users" in sections[1]
+        assert "GET /api/users/{id}" in sections[2]
+
+    def test_concurrent_loading_with_cache_failure_recovery(self, temp_docs_dir, sample_markdown_content, test_utils):
+        """Test recovery when concurrent loading fails and waiting threads need to retry."""
+        test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=True)
+
+        # Mock the internal loading to fail first, then succeed
+        original_load = loader._load_documentation_internal
+        call_count = 0
+
+        def failing_then_succeeding_load():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception("Simulated loading failure")
+            return original_load()
+
+        loader._load_documentation_internal = failing_then_succeeding_load
+
+        results = []
+        exceptions = []
+
+        def load_docs():
+            try:
+                result = loader.load_documentation()
+                results.append(result)
+            except Exception as e:
+                exceptions.append(e)
+
+        # Start multiple threads
+        threads = [threading.Thread(target=load_docs) for _ in range(3)]
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(timeout=5)
+
+        # At least one thread should succeed after the first failure
+        assert len(results) > 0
+        # The first attempt should fail, but subsequent ones should succeed
+        assert call_count >= 2
+
+    def test_file_modification_detection_in_cache(self, temp_docs_dir, test_utils):
+        """Test that cache properly detects file modifications."""
+        # Create initial file
+        file_path = test_utils.create_markdown_file(temp_docs_dir, "test.md", "## GET /api/v1\nOriginal content")
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=True)
+
+        # Load file to cache it
+        first_result = loader._load_file(str(file_path))
+        assert "Original content" in first_result["content"]
+        assert loader._is_cached(str(file_path))
+
+        # Modify the file
+        time.sleep(0.1)  # Ensure different modification time
+        file_path.write_text("## GET /api/v2\nModified content")
+
+        # Cache should detect modification and reload
+        assert not loader._is_cached(str(file_path))
+
+        second_result = loader._load_file(str(file_path))
+        assert "Modified content" in second_result["content"]
+
+    def test_response_examples_with_invalid_json_recovery(self):
+        """Test response example parsing gracefully handles invalid JSON."""
+        loader = MarkdownDocumentationLoader()
+
+        content_with_invalid_json = """
+## GET /api/test
+
+### Response Examples
+
+```json
+{
+  "valid": "start",
+  "invalid": json content here,
+  "missing": quotes
+}
+```
+"""
+
+        examples = loader._extract_response_examples(content_with_invalid_json)
+        assert len(examples) == 1
+
+        # Should wrap invalid JSON in raw_content
+        example = examples[0]
+        assert "raw_content" in example.content
+        assert "invalid" in example.content["raw_content"]
+
+    def test_cache_invalidation_on_file_access_errors(self, temp_docs_dir, test_utils):
+        """Test cache invalidation when file access fails."""
+        file_path = test_utils.create_markdown_file(temp_docs_dir, "test.md", "## GET /test\nContent")
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=True)
+
+        # Load file to cache it
+        loader._load_file(str(file_path))
+        assert loader._is_cached(str(file_path))
+
+        # Mock file stat to raise OSError (simulating file access issues)
+        with patch("os.path.getmtime", side_effect=OSError("Permission denied")):
+            # Should invalidate cache and return False
+            assert not loader._is_cached(str(file_path))
+            # Cache entry should be removed
+            assert str(file_path) not in loader._cache

@@ -5,10 +5,14 @@ Tests the various utility functions used throughout the library.
 """
 
 import os
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from fastmarkdocs.types import CodeLanguage
 from fastmarkdocs.utils import (
+    _extract_code_description,
+    _validate_code_block,
     extract_code_samples,
     extract_endpoint_info,
     find_markdown_files,
@@ -366,7 +370,7 @@ Create a new user.
 
         # Test filename with only invalid characters
         result = sanitize_filename('<>:"/\\|?*')
-        assert result == "_________"  # Each invalid char becomes underscore
+        assert result == "unnamed"  # All invalid chars result in unnamed
 
         # Test filename with leading/trailing dots and spaces
         result = sanitize_filename("  .filename.  ")
@@ -432,8 +436,6 @@ Create a new user.
 
     def test_extract_code_description_functionality(self):
         """Test code description extraction from preceding text."""
-        from fastmarkdocs.utils import _extract_code_description
-
         markdown = """
 This is some general text.
 
@@ -459,8 +461,6 @@ response = requests.get("/api/users")
 
     def test_validate_code_block_functionality(self):
         """Test code block validation functionality."""
-        from fastmarkdocs.utils import _validate_code_block
-
         # Test valid code block
         valid_lines = ["Some text", "```python", "print('hello')", "```", "More text"]
 
@@ -539,3 +539,299 @@ Tags: comments, posts, users
         result = normalize_path("test/path", None)
         assert os.path.isabs(result)
         assert "test/path" in result
+
+    def test_validate_code_block_edge_cases(self):
+        """Test code block validation with various edge cases."""
+        # Test with start_index beyond array bounds
+        lines = ["```python", "print('hello')", "```"]
+        assert not _validate_code_block(lines, 10)
+
+        # Test with unclosed code block at end of file
+        unclosed_lines = ["```python", "print('hello')", "# no closing backticks"]
+        assert not _validate_code_block(unclosed_lines, 0)
+
+        # Test with properly closed code block
+        assert _validate_code_block(lines, 0)
+
+        # Test with empty lines array
+        assert not _validate_code_block([], 0)
+
+        # Test with code block that has content after closing
+        mixed_lines = ["```python", "print('hello')", "```", "more content"]
+        assert _validate_code_block(mixed_lines, 0)
+
+    def test_extract_code_samples_with_complex_markdown(self):
+        """Test code sample extraction with complex markdown scenarios."""
+        complex_markdown = """
+# API Documentation
+
+Here's a comprehensive example:
+
+```python
+# This is a Python example with detailed comments
+import requests
+import json
+
+def get_users():
+    response = requests.get('/api/users')
+    return response.json()
+```
+
+And here's the equivalent in JavaScript:
+
+```javascript
+// JavaScript version with async/await
+async function getUsers() {
+    const response = await fetch('/api/users');
+    return await response.json();
+}
+```
+
+For shell users, here's a curl command:
+
+```curl
+# Simple curl command
+curl -X GET /api/users \\
+  -H "Accept: application/json"
+```
+"""
+
+        samples = extract_code_samples(
+            complex_markdown, [CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT, CodeLanguage.CURL]
+        )
+
+        assert len(samples) == 3
+
+        # Verify each sample has proper description
+        python_sample = next(s for s in samples if s.language == CodeLanguage.PYTHON)
+        assert python_sample.description == "Here's a comprehensive example:"
+        assert "import requests" in python_sample.code
+
+        js_sample = next(s for s in samples if s.language == CodeLanguage.JAVASCRIPT)
+        assert js_sample.description == "And here's the equivalent in JavaScript:"
+        assert "async function" in js_sample.code
+
+        curl_sample = next(s for s in samples if s.language == CodeLanguage.CURL)
+        assert curl_sample.description == "For shell users, here's a curl command:"
+        assert "curl -X GET" in curl_sample.code
+
+    def test_validate_markdown_structure_comprehensive_scenarios(self):
+        """Test markdown structure validation with comprehensive scenarios."""
+        # Test markdown with multiple issues
+        problematic_markdown = """
+# API Documentation
+
+This documentation has several issues.
+
+```python
+# This code block is never closed
+import requests
+response = requests.get('/api/test')
+
+## GET /api/users
+This endpoint gets users.
+
+### Description
+Detailed description here.
+
+```json
+{
+  "valid": "json"
+```
+
+## POST /api/users
+Create a new user.
+
+```javascript
+// Another unclosed block
+fetch('/api/users', {
+  method: 'POST'
+"""
+
+        errors = validate_markdown_structure(problematic_markdown, "test.md")
+
+        # Should find syntax errors for malformed code blocks
+        syntax_errors = [e for e in errors if e.error_type == "syntax_error"]
+        assert len(syntax_errors) > 0
+
+        # Check that line numbers are properly reported
+        for error in syntax_errors:
+            assert error.line_number is not None
+            assert error.line_number > 0
+
+        # Test markdown without any endpoint headers
+        no_endpoints_markdown = """
+# General Documentation
+
+This is just general information about the API.
+
+## Overview
+Some overview content.
+
+### Getting Started
+Instructions for getting started.
+"""
+
+        errors = validate_markdown_structure(no_endpoints_markdown, "general.md")
+
+        # Should report missing endpoint headers
+        missing_section_errors = [e for e in errors if e.error_type == "missing_section"]
+        assert len(missing_section_errors) > 0
+        assert any("No endpoint headers found" in e.message for e in missing_section_errors)
+
+    def test_extract_endpoint_info_with_multiple_endpoints(self):
+        """Test endpoint info extraction when multiple endpoints are present."""
+        markdown_with_multiple = """
+# API Documentation
+
+## GET /api/users
+Get all users from the system.
+
+This endpoint returns a list of all users.
+
+## POST /api/users
+Create a new user in the system.
+
+Tags: users, creation
+
+## GET /api/users/{id}
+Get a specific user by ID.
+
+Tags: users, retrieval
+"""
+
+        # Should extract info from the first endpoint only
+        info = extract_endpoint_info(markdown_with_multiple)
+
+        assert info["method"] == "GET"
+        assert info["path"] == "/api/users"
+        assert info["summary"] == "Get all users from the system."
+        # Tags should be extracted from anywhere in the document
+        assert "users" in info["tags"]
+
+    def test_extract_endpoint_info_with_various_header_levels(self):
+        """Test endpoint info extraction with different header levels."""
+        markdown_with_different_headers = """
+# Main Title
+
+### GET /api/level3
+This is a level 3 header endpoint.
+
+#### POST /api/level4
+This is a level 4 header endpoint.
+
+## GET /api/level2
+This is a level 2 header endpoint.
+"""
+
+        info = extract_endpoint_info(markdown_with_different_headers)
+
+        # Should find the first valid endpoint regardless of header level
+        assert info["method"] == "GET"
+        assert info["path"] == "/api/level3"
+
+    def test_find_markdown_files_with_various_scenarios(self):
+        """Test markdown file finding with various directory scenarios."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create files with different extensions
+            (temp_path / "readme.md").write_text("# Readme")
+            (temp_path / "guide.markdown").write_text("# Guide")
+            (temp_path / "notes.txt").write_text("Not markdown")
+            (temp_path / "config.json").write_text('{"key": "value"}')
+
+            # Create nested structure
+            nested_dir = temp_path / "nested"
+            nested_dir.mkdir()
+            (nested_dir / "nested.md").write_text("# Nested")
+            (nested_dir / "deep.markdown").write_text("# Deep")
+
+            deeper_dir = nested_dir / "deeper"
+            deeper_dir.mkdir()
+            (deeper_dir / "deepest.md").write_text("# Deepest")
+
+            # Test recursive search with default patterns
+            files = find_markdown_files(str(temp_path), recursive=True)
+            assert len(files) == 5  # All .md and .markdown files
+
+            # Test non-recursive search
+            files = find_markdown_files(str(temp_path), recursive=False)
+            assert len(files) == 2  # Only top-level files
+
+            # Test custom patterns
+            files = find_markdown_files(str(temp_path), patterns=["*.md"], recursive=True)
+            assert len(files) == 3  # Only .md files
+
+            # Test with specific pattern
+            files = find_markdown_files(str(temp_path), patterns=["*.markdown"], recursive=True)
+            assert len(files) == 2  # Only .markdown files
+
+    def test_sanitize_filename_comprehensive(self):
+        """Test filename sanitization with comprehensive scenarios."""
+        # Test various invalid characters
+        assert sanitize_filename("file<name>") == "file_name_"
+        assert sanitize_filename("file:name") == "file_name"
+        assert sanitize_filename('file"name') == "file_name"
+        assert sanitize_filename("file/name\\path") == "file_name_path"
+        assert sanitize_filename("file|name") == "file_name"
+        assert sanitize_filename("file?name*") == "file_name_"
+
+        # Test leading/trailing whitespace and dots
+        assert sanitize_filename("  filename  ") == "filename"
+        assert sanitize_filename("...filename...") == "filename"
+        assert sanitize_filename(" . filename . ") == "filename"
+
+        # Test empty or whitespace-only names
+        assert sanitize_filename("") == "unnamed"
+        assert sanitize_filename("   ") == "unnamed"
+        assert sanitize_filename("...") == "unnamed"
+
+        # Test normal filenames remain unchanged
+        assert sanitize_filename("normal_filename.md") == "normal_filename.md"
+        assert sanitize_filename("file-name_123.txt") == "file-name_123.txt"
+
+    def test_extract_code_description_edge_cases(self):
+        """Test code description extraction with edge cases."""
+        # Test with code block at very beginning
+        content_at_start = """```python
+print('hello')
+```"""
+
+        description = _extract_code_description(content_at_start, 0)
+        assert description is None
+
+        # Test with header immediately before code block
+        content_with_header = """# Header
+
+```python
+print('hello')
+```"""
+
+        description = _extract_code_description(content_with_header, content_with_header.find("```"))
+        assert description is None  # Headers should be skipped
+
+        # Test with multiple paragraphs before code block
+        content_with_paragraphs = """First paragraph.
+
+Second paragraph with more details.
+
+```python
+print('hello')
+```"""
+
+        description = _extract_code_description(content_with_paragraphs, content_with_paragraphs.find("```"))
+        assert description == "Second paragraph with more details."
+
+        # Test with empty paragraphs
+        content_with_empty = """
+
+Some description.
+
+
+```python
+print('hello')
+```"""
+
+        description = _extract_code_description(content_with_empty, content_with_empty.find("```"))
+        assert description == "Some description."

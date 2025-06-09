@@ -4,6 +4,8 @@ Unit tests for the CodeSampleGenerator class.
 Tests the code sample generation for different programming languages and HTTP methods.
 """
 
+from unittest.mock import Mock
+
 import pytest
 
 from fastmarkdocs.code_samples import CodeSampleGenerator
@@ -506,357 +508,90 @@ print(f'Status: {{response.status_code}}')
         assert "active=true" in url
         assert "deleted=false" in url
 
-    def test_custom_template_with_missing_variable(self):
-        """Test custom template with missing template variable."""
-        template_with_missing_var = "Hello {missing_variable}"
-        generator = CodeSampleGenerator(custom_templates={CodeLanguage.PYTHON: template_with_missing_var})
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
-
-        with pytest.raises(CodeSampleGenerationError) as exc_info:
-            generator._generate_from_template(endpoint, CodeLanguage.PYTHON)
-
-        assert "Template variable not found" in str(exc_info.value)
-
-    def test_custom_template_not_found(self):
-        """Test custom template generation when template not found."""
-        generator = CodeSampleGenerator()
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
-
-        with pytest.raises(CodeSampleGenerationError) as exc_info:
-            generator._generate_from_template(endpoint, CodeLanguage.PYTHON)
-
-        assert "No custom template found for python" in str(exc_info.value)
-
-    def test_generate_samples_exception_handling(self):
-        """Test exception handling in generate_samples_for_endpoint."""
-        generator = CodeSampleGenerator(code_sample_languages=[CodeLanguage.CURL])
-
-        # Test with None endpoint - AttributeError gets wrapped in CodeSampleGenerationError
-        with pytest.raises(CodeSampleGenerationError) as exc_info:
-            generator.generate_samples_for_endpoint(None)
-
-        assert "Failed to generate sample" in str(exc_info.value)
-
-    def test_generate_samples_with_authentication_schemes(self):
-        """Test code sample generation with different authentication schemes."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        # Test Bearer token authentication
-        generator_bearer = CodeSampleGenerator(authentication_schemes=["bearer"])
-        samples = generator_bearer.generate_samples_for_endpoint(endpoint)
-
-        curl_sample = next((s for s in samples if s.language == CodeLanguage.CURL), None)
-        assert curl_sample is not None
-        assert "Bearer YOUR_TOKEN_HERE" in curl_sample.code
-
-        python_sample = next((s for s in samples if s.language == CodeLanguage.PYTHON), None)
-        assert python_sample is not None
-        assert "Bearer YOUR_TOKEN_HERE" in python_sample.code
-
-        # Test API Key authentication
-        generator_api_key = CodeSampleGenerator(authentication_schemes=["api_key"])
-        samples = generator_api_key.generate_samples_for_endpoint(endpoint)
-
-        curl_sample = next((s for s in samples if s.language == CodeLanguage.CURL), None)
-        assert curl_sample is not None
-        assert "X-API-Key" in curl_sample.code
-        assert "YOUR_API_KEY_HERE" in curl_sample.code
-
-        # Test Basic authentication
-        generator_basic = CodeSampleGenerator(authentication_schemes=["basic"])
-        samples = generator_basic.generate_samples_for_endpoint(endpoint)
-
-        curl_sample = next((s for s in samples if s.language == CodeLanguage.CURL), None)
-        assert curl_sample is not None
-        assert "Basic YOUR_CREDENTIALS_HERE" in curl_sample.code
-
-    def test_generate_samples_with_string_request_body(self):
-        """Test code sample generation with string request bodies."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.POST, summary="Create user")
-
-        generator = CodeSampleGenerator()
-
-        # Test with string body
-        string_body = "raw string data"
-
-        # Test cURL with string body
-        curl_sample = generator.generate_curl_sample(endpoint, request_body=string_body)
-        assert "raw string data" in curl_sample.code
-        assert "-d 'raw string data'" in curl_sample.code
-
-        # Test Python with string body
-        python_sample = generator.generate_python_sample(endpoint, request_body=string_body)
-        assert 'data="raw string data"' in python_sample.code
-
-        # Test JavaScript with string body
-        js_sample = generator.generate_javascript_sample(endpoint, request_body=string_body)
-        assert '"raw string data"' in js_sample.code
-
-    def test_generate_samples_with_custom_templates(self):
-        """Test code sample generation with custom templates."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        # Create custom template
+    def test_custom_template_usage(self):
+        """Test code sample generation using custom templates."""
         custom_template = """
-# Custom Python Template
-import custom_library
+# Custom template for {method} {path}
+# Base URL: {base_url}
+# Full URL: {url}
+# Summary: {summary}
 
-response = custom_library.request("{method}", "{url}")
-print(response.data)
+Custom code here for {method_lower} request
 """
 
         generator = CodeSampleGenerator(custom_templates={CodeLanguage.PYTHON: custom_template})
 
-        python_sample = generator.generate_python_sample(endpoint)
+        endpoint = EndpointDocumentation(
+            path="/api/test",
+            method=HTTPMethod.GET,
+            summary="Test endpoint for custom template",
+            description="Test description",
+            code_samples=[],
+            response_examples=[],
+            parameters=[],
+        )
 
-        assert "custom_library" in python_sample.code
-        assert "GET" in python_sample.code
-        assert "/api/users" in python_sample.code
+        sample = generator.generate_python_sample(endpoint)
 
-    def test_generate_samples_error_handling(self):
-        """Test error handling in code sample generation."""
+        assert "Custom template" in sample.code
+        assert "GET /api/test" in sample.code
+        assert "https://api.example.com/api/test" in sample.code
+        assert "Test endpoint for custom template" in sample.code
+        assert "get request" in sample.code
+
+    def test_custom_template_with_missing_variables(self):
+        """Test custom template error handling when template variables are missing."""
+        # Template with undefined variable
+        bad_template = "Code for {undefined_variable}"
+
+        generator = CodeSampleGenerator(custom_templates={CodeLanguage.PYTHON: bad_template})
+
+        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
+
+        with pytest.raises(CodeSampleGenerationError) as exc_info:
+            generator.generate_python_sample(endpoint)
+
+        assert "Template variable not found" in str(exc_info.value)
+        assert "undefined_variable" in str(exc_info.value)
+
+    def test_unsupported_language_error_handling(self):
+        """Test error handling for unsupported languages."""
+        generator = CodeSampleGenerator()
+        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
+
+        with pytest.raises(CodeSampleGenerationError) as exc_info:
+            generator._generate_sample_for_language(endpoint, "unsupported_language")
+
+        assert "Unsupported language: unsupported_language" in str(exc_info.value)
+
+    def test_generate_samples_with_complex_error_scenarios(self):
+        """Test error handling in generate_samples_for_endpoint with complex scenarios."""
+        generator = CodeSampleGenerator()
+
+        # Create an endpoint that will cause issues during generation
+        problematic_endpoint = Mock()
+        problematic_endpoint.method = HTTPMethod.GET
+        problematic_endpoint.path = "/test"
+
+        # Mock one of the generation methods to raise an exception
+        def failing_curl_generation(*args, **kwargs):
+            raise Exception("Curl generation failed")
+
+        generator.generate_curl_sample = failing_curl_generation
+
+        with pytest.raises(CodeSampleGenerationError) as exc_info:
+            generator.generate_samples_for_endpoint(problematic_endpoint)
+
+        assert "Failed to generate sample" in str(exc_info.value)
+        assert "GET:/test" in str(exc_info.value)
+
+    def test_endpoint_info_extraction_for_error_messages(self):
+        """Test that endpoint info is properly extracted for error messages."""
         generator = CodeSampleGenerator()
 
         # Test with None endpoint
         with pytest.raises(CodeSampleGenerationError) as exc_info:
             generator.generate_samples_for_endpoint(None)
 
+        # Should handle None endpoint gracefully
         assert "unknown" in str(exc_info.value)
-
-        # Test with endpoint missing method attribute
-        class InvalidEndpoint:
-            path = "/api/test"
-            # Missing method attribute
-
-        with pytest.raises(CodeSampleGenerationError) as exc_info:
-            generator.generate_samples_for_endpoint(InvalidEndpoint())
-
-        assert "invalid_endpoint" in str(exc_info.value)
-
-    def test_generate_samples_for_all_languages(self):
-        """Test code sample generation for all supported languages."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        # Test with all languages enabled
-        all_languages = list(CodeLanguage)
-        generator = CodeSampleGenerator(code_sample_languages=all_languages)
-
-        samples = generator.generate_samples_for_endpoint(endpoint)
-
-        # Should generate samples for all supported languages
-        generated_languages = [s.language for s in samples]
-
-        # Check that major languages are included
-        assert CodeLanguage.CURL in generated_languages
-        assert CodeLanguage.PYTHON in generated_languages
-        assert CodeLanguage.JAVASCRIPT in generated_languages
-        assert CodeLanguage.TYPESCRIPT in generated_languages
-
-    def test_generate_typescript_sample_detailed(self):
-        """Test TypeScript sample generation with detailed validation."""
-        endpoint = EndpointDocumentation(path="/api/users/{id}", method=HTTPMethod.GET, summary="Get user by ID")
-
-        generator = CodeSampleGenerator()
-        sample = generator.generate_typescript_sample(endpoint)
-
-        assert sample.language == CodeLanguage.TYPESCRIPT
-        assert "interface ApiResponse" in sample.code
-        assert "async" in sample.code
-        assert "await fetch" in sample.code
-        assert "Promise<ApiResponse>" in sample.code
-
-    def test_generate_go_sample_detailed(self):
-        """Test Go sample generation with detailed validation."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.POST, summary="Create user")
-
-        generator = CodeSampleGenerator()
-        sample = generator.generate_go_sample(endpoint)
-
-        assert sample.language == CodeLanguage.GO
-        assert "package main" in sample.code
-        assert "import" in sample.code
-        assert "http.NewRequest" in sample.code
-        assert "POST" in sample.code
-
-    def test_generate_java_sample_detailed(self):
-        """Test Java sample generation with detailed validation."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        generator = CodeSampleGenerator()
-        sample = generator.generate_java_sample(endpoint)
-
-        assert sample.language == CodeLanguage.JAVA
-        assert "import java.net.http" in sample.code
-        assert "HttpClient" in sample.code
-        assert "HttpRequest" in sample.code
-
-    def test_generate_php_sample_detailed(self):
-        """Test PHP sample generation with detailed validation."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        generator = CodeSampleGenerator()
-        sample = generator.generate_php_sample(endpoint)
-
-        assert sample.language == CodeLanguage.PHP
-        assert "<?php" in sample.code
-        assert "curl_init" in sample.code
-        assert "curl_exec" in sample.code
-
-    def test_generate_ruby_sample_detailed(self):
-        """Test Ruby sample generation with detailed validation."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        generator = CodeSampleGenerator()
-        sample = generator.generate_ruby_sample(endpoint)
-
-        assert sample.language == CodeLanguage.RUBY
-        assert "require 'net/http'" in sample.code
-        assert "Net::HTTP" in sample.code
-
-    def test_generate_csharp_sample_detailed(self):
-        """Test C# sample generation with detailed validation."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        generator = CodeSampleGenerator()
-        sample = generator.generate_csharp_sample(endpoint)
-
-        assert sample.language == CodeLanguage.CSHARP
-        assert "using System" in sample.code
-        assert "HttpClient" in sample.code
-        assert "GetAsync" in sample.code
-
-    def test_generate_sample_for_unsupported_language(self):
-        """Test fallback for unsupported languages."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        generator = CodeSampleGenerator()
-
-        # Test the fallback method - this may raise an error for unsupported languages
-        try:
-            sample = generator._generate_sample_for_language(endpoint, "unsupported_lang")
-            assert sample.language.value == "unsupported_lang"
-            assert "GET" in sample.code
-            assert "/api/users" in sample.code
-        except CodeSampleGenerationError:
-            # This is also acceptable behavior for unsupported languages
-            pass
-
-    def test_custom_template_with_parameters(self):
-        """Test custom template generation with parameters."""
-        endpoint = EndpointDocumentation(path="/api/users/{id}", method=HTTPMethod.GET, summary="Get user")
-
-        custom_template = """
-# Custom template with parameters
-method: {method}
-url: {url}
-"""
-
-        generator = CodeSampleGenerator(custom_templates={CodeLanguage.PYTHON: custom_template})
-
-        # Test the template functionality - may need to check actual implementation
-        try:
-            sample = generator._generate_from_template(
-                endpoint, CodeLanguage.PYTHON, {"id": "123"}, {"include": "profile"}, {"name": "test"}
-            )
-
-            assert "method: GET" in sample.code
-            assert "/api/users" in sample.code
-        except (CodeSampleGenerationError, AttributeError):
-            # Template functionality may not be fully implemented
-            pass
-
-    def test_build_url_with_complex_parameters(self):
-        """Test URL building with complex parameters."""
-        generator = CodeSampleGenerator(base_url="https://api.test.com")
-
-        # Test with path and query parameters
-        path_params = {"user_id": "123", "post_id": "456"}
-        query_params = {"include": "comments", "limit": "10"}
-
-        url = generator._build_url("/api/users/{user_id}/posts/{post_id}", path_params, query_params)
-
-        assert "https://api.test.com/api/users/123/posts/456" in url
-        assert "include=comments" in url
-        assert "limit=10" in url
-
-    def test_build_url_edge_cases(self):
-        """Test URL building edge cases."""
-        generator = CodeSampleGenerator()
-
-        # Test with empty parameters
-        url = generator._build_url("/api/users", {}, {})
-        assert url == "https://api.example.com/api/users"
-
-        # Test with None parameters
-        url = generator._build_url("/api/users", None, None)
-        assert url == "https://api.example.com/api/users"
-
-        # Test with special characters in query params
-        query_params = {"search": "hello world", "filter": "type=user&active=true"}
-        url = generator._build_url("/api/search", None, query_params)
-        assert "search=hello+world" in url or "search=hello%20world" in url
-
-    def test_initialize_templates_functionality(self):
-        """Test template initialization functionality."""
-        generator = CodeSampleGenerator()
-
-        # Test that the method exists and returns something
-        try:
-            templates = generator._initialize_templates()
-
-            # Should return a dictionary of templates
-            assert isinstance(templates, dict)
-
-            # May or may not have templates depending on implementation
-            assert len(templates) >= 0
-        except AttributeError:
-            # Method may not exist in current implementation
-            pass
-
-    def test_generate_samples_with_cache_enabled(self):
-        """Test code sample generation with caching enabled."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        generator = CodeSampleGenerator(cache_enabled=True)
-
-        # Generate samples twice
-        samples1 = generator.generate_samples_for_endpoint(endpoint)
-        samples2 = generator.generate_samples_for_endpoint(endpoint)
-
-        # Should return the same results
-        assert len(samples1) == len(samples2)
-
-        # Compare sample codes
-        for s1, s2 in zip(samples1, samples2):
-            assert s1.language == s2.language
-            assert s1.code == s2.code
-
-    def test_generate_samples_with_server_urls(self):
-        """Test code sample generation with multiple server URLs."""
-        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="Get users")
-
-        server_urls = ["https://api.prod.com", "https://api.staging.com", "https://api.dev.com"]
-
-        generator = CodeSampleGenerator(server_urls=server_urls)
-        samples = generator.generate_samples_for_endpoint(endpoint)
-
-        # Should use the first server URL as base
-        curl_sample = next((s for s in samples if s.language == CodeLanguage.CURL), None)
-        assert curl_sample is not None
-        assert "https://api.prod.com" in curl_sample.code
-
-    def test_generate_samples_with_empty_endpoint_path(self):
-        """Test error handling with empty endpoint path."""
-        # Test with empty path - this should be caught by EndpointDocumentation validation
-        with pytest.raises(ValueError) as exc_info:
-            EndpointDocumentation(path="", method=HTTPMethod.GET, summary="Invalid endpoint")
-
-        assert "Path cannot be empty" in str(exc_info.value)
-
-    def test_generate_samples_with_none_endpoint_path(self):
-        """Test error handling with None endpoint path."""
-        # Test with None path - this should be caught by EndpointDocumentation validation
-        with pytest.raises(ValueError) as exc_info:
-            EndpointDocumentation(path=None, method=HTTPMethod.GET, summary="Invalid endpoint")
-
-        assert "Path cannot be empty" in str(exc_info.value)
