@@ -8,6 +8,7 @@ for enhancing OpenAPI schemas with documentation loaded from markdown files.
 """
 
 import copy
+import time
 from typing import Any, Optional
 
 from .code_samples import CodeSampleGenerator
@@ -208,7 +209,7 @@ class OpenAPIEnhancer:
                             warnings.append(f"No documentation found for {endpoint_key}")
 
             # Add global information
-            self._enhance_global_info(enhanced_schema, documentation)
+            self._enhance_global_info(enhanced_schema, documentation, stats)
 
             return enhanced_schema
 
@@ -392,13 +393,16 @@ class OpenAPIEnhancer:
             if param_doc.required is not None:
                 existing_param["required"] = param_doc.required
 
-    def _enhance_global_info(self, schema: dict[str, Any], documentation: DocumentationData) -> None:
+    def _enhance_global_info(
+        self, schema: dict[str, Any], documentation: DocumentationData, stats: dict[str, int]
+    ) -> None:
         """
         Enhance global schema information with documentation metadata.
 
         Args:
             schema: OpenAPI schema
             documentation: Documentation data
+            stats: Enhancement statistics
         """
         if documentation.metadata:
             info = schema.get("info", {})
@@ -409,6 +413,25 @@ class OpenAPIEnhancer:
                     info[key] = documentation.metadata[key]
 
             schema["info"] = info
+
+        # Add documentation enhancement statistics (only if there were enhancements)
+        if (
+            stats["endpoints_enhanced"] > 0
+            or stats["code_samples_added"] > 0
+            or stats["descriptions_enhanced"] > 0
+            or stats["examples_added"] > 0
+        ):
+            if "info" not in schema:
+                schema["info"] = {}
+
+            schema["info"]["x-documentation-stats"] = {
+                "endpoints_enhanced": stats["endpoints_enhanced"],
+                "code_samples_added": stats["code_samples_added"],
+                "descriptions_enhanced": stats["descriptions_enhanced"],
+                "examples_added": stats["examples_added"],
+                "total_endpoints": len(documentation.endpoints),
+                "enhancement_timestamp": time.time(),
+            }
 
     def _paths_match(self, openapi_path: str, doc_path: str) -> bool:
         """

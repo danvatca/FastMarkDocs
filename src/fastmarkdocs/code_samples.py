@@ -104,8 +104,16 @@ class CodeSampleGenerator:
                     samples.append(sample)
 
             except Exception as e:
+                # Handle case where endpoint is None
+                endpoint_info = "unknown"
+                if endpoint:
+                    try:
+                        endpoint_info = f"{endpoint.method}:{endpoint.path}"
+                    except AttributeError:
+                        endpoint_info = "invalid_endpoint"
+
                 raise CodeSampleGenerationError(
-                    language.value, f"{endpoint.method}:{endpoint.path}", f"Failed to generate sample: {str(e)}"
+                    language.value, endpoint_info, f"Failed to generate sample: {str(e)}"
                 ) from e
 
         return samples

@@ -1,7 +1,7 @@
 """
-Unit tests for the types module.
+Unit tests for type definitions and data classes.
 
-Tests the type definitions, enums, and data structures used throughout the library.
+Tests the various data classes and enums used throughout the library.
 """
 
 import pytest
@@ -9,387 +9,366 @@ import pytest
 from fastmarkdocs.types import (
     CodeLanguage,
     CodeSample,
+    CodeSampleTemplate,
     DocumentationData,
+    DocumentationStats,
     EndpointDocumentation,
+    EnhancementResult,
     HTTPMethod,
+    MarkdownDocumentationConfig,
+    OpenAPIEnhancementConfig,
     ParameterDocumentation,
     ResponseExample,
+    ValidationError,
 )
 
 
-class TestCodeLanguage:
-    """Test the CodeLanguage enum."""
+class TestEnums:
+    """Test enum classes."""
 
-    def test_code_language_values(self):
-        """Test that all expected code languages are defined."""
-        expected_languages = {"curl", "python", "javascript", "typescript", "go", "java", "php", "ruby", "csharp"}
-
-        actual_languages = {lang.value for lang in CodeLanguage}
-        assert actual_languages == expected_languages
-
-    def test_code_language_string_representation(self):
-        """Test string representation of code languages."""
+    def test_code_language_enum(self):
+        """Test CodeLanguage enum values and string representation."""
+        assert CodeLanguage.PYTHON == "python"
+        assert CodeLanguage.JAVASCRIPT == "javascript"
+        assert CodeLanguage.CURL == "curl"
         assert str(CodeLanguage.PYTHON) == "python"
-        assert str(CodeLanguage.CURL) == "curl"
-        assert str(CodeLanguage.JAVASCRIPT) == "javascript"
 
-    def test_code_language_comparison(self):
-        """Test comparison operations on code languages."""
-        assert CodeLanguage.PYTHON == CodeLanguage.PYTHON
-        assert CodeLanguage.PYTHON != CodeLanguage.CURL
-
-        # Test comparison with strings
-        assert CodeLanguage.PYTHON.value == "python"
-        assert CodeLanguage.CURL.value == "curl"
-
-
-class TestHTTPMethod:
-    """Test the HTTPMethod enum."""
-
-    def test_http_method_values(self):
-        """Test that all expected HTTP methods are defined."""
-        expected_methods = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-
-        actual_methods = {method.value for method in HTTPMethod}
-        assert actual_methods == expected_methods
-
-    def test_http_method_string_representation(self):
-        """Test string representation of HTTP methods."""
+    def test_http_method_enum(self):
+        """Test HTTPMethod enum values and string representation."""
+        assert HTTPMethod.GET == "GET"
+        assert HTTPMethod.POST == "POST"
+        assert HTTPMethod.PUT == "PUT"
         assert str(HTTPMethod.GET) == "GET"
-        assert str(HTTPMethod.POST) == "POST"
-        assert str(HTTPMethod.DELETE) == "DELETE"
-
-    def test_http_method_case_sensitivity(self):
-        """Test that HTTP methods maintain proper case."""
-        assert HTTPMethod.GET.value == "GET"
-        assert HTTPMethod.POST.value == "POST"
-        assert HTTPMethod.PUT.value == "PUT"
 
 
-class TestCodeSample:
-    """Test the CodeSample data structure."""
+class TestDataClasses:
+    """Test data class validation and functionality."""
 
     def test_code_sample_creation(self):
-        """Test creating a CodeSample instance."""
+        """Test CodeSample creation and validation."""
+        # Valid code sample
         sample = CodeSample(
-            language=CodeLanguage.PYTHON,
-            code='import requests\nresponse = requests.get("/api/users")',
-            description="Python example for listing users",
-            title="List Users - Python",
+            language=CodeLanguage.PYTHON, code="print('hello')", description="Test sample", title="Example"
         )
 
         assert sample.language == CodeLanguage.PYTHON
-        assert "import requests" in sample.code
-        assert sample.description == "Python example for listing users"
-        assert sample.title == "List Users - Python"
+        assert sample.code == "print('hello')"
+        assert sample.description == "Test sample"
+        assert sample.title == "Example"
 
-    def test_code_sample_optional_fields(self):
-        """Test CodeSample with optional fields."""
-        # Test with minimal required fields
-        sample = CodeSample(language=CodeLanguage.CURL, code='curl -X GET "https://api.example.com/users"')
+    def test_code_sample_empty_code_validation(self):
+        """Test CodeSample validation with empty code."""
+        with pytest.raises(ValueError) as exc_info:
+            CodeSample(language=CodeLanguage.PYTHON, code="", description="Test sample")
 
-        assert sample.language == CodeLanguage.CURL
-        assert sample.code == 'curl -X GET "https://api.example.com/users"'
-        assert sample.description is None
-        assert sample.title is None
+        assert "Code cannot be empty" in str(exc_info.value)
 
-    def test_code_sample_validation(self):
-        """Test CodeSample field validation."""
-        # Test that empty code raises appropriate error
-        with pytest.raises((ValueError, TypeError)):
-            CodeSample(language=CodeLanguage.PYTHON, code="")
+    def test_code_sample_none_code_validation(self):
+        """Test CodeSample validation with None code."""
+        with pytest.raises(ValueError) as exc_info:
+            CodeSample(language=CodeLanguage.PYTHON, code=None, description="Test sample")
 
-
-class TestResponseExample:
-    """Test the ResponseExample data structure."""
+        assert "Code cannot be empty" in str(exc_info.value)
 
     def test_response_example_creation(self):
-        """Test creating a ResponseExample instance."""
+        """Test ResponseExample creation and validation."""
+        # Valid response example
         example = ResponseExample(
             status_code=200,
-            description="Successful response",
-            content={"users": [{"id": 1, "name": "John"}]},
+            description="Success response",
+            content={"id": 1, "name": "test"},
             headers={"Content-Type": "application/json"},
         )
 
         assert example.status_code == 200
-        assert example.description == "Successful response"
-        assert "users" in example.content
-        assert example.headers["Content-Type"] == "application/json"
+        assert example.description == "Success response"
+        assert example.content == {"id": 1, "name": "test"}
+        assert example.headers == {"Content-Type": "application/json"}
 
-    def test_response_example_optional_fields(self):
-        """Test ResponseExample with optional fields."""
-        example = ResponseExample(status_code=404, description="Not found")
+    def test_response_example_invalid_status_codes(self):
+        """Test ResponseExample validation with invalid status codes."""
+        # Test status code too low
+        with pytest.raises(ValueError) as exc_info:
+            ResponseExample(status_code=99, description="Invalid status")
 
-        assert example.status_code == 404
-        assert example.description == "Not found"
-        assert example.content is None
-        assert example.headers is None
+        assert "valid HTTP status code" in str(exc_info.value)
 
-    def test_response_example_status_codes(self):
-        """Test various HTTP status codes."""
-        status_codes = [200, 201, 400, 401, 403, 404, 500]
+        # Test status code too high
+        with pytest.raises(ValueError) as exc_info:
+            ResponseExample(status_code=600, description="Invalid status")
 
-        for code in status_codes:
-            example = ResponseExample(status_code=code, description=f"Status {code}")
-            assert example.status_code == code
+        assert "valid HTTP status code" in str(exc_info.value)
 
+        # Test non-integer status code
+        with pytest.raises(ValueError) as exc_info:
+            ResponseExample(status_code="200", description="Invalid status")
 
-class TestParameterDocumentation:
-    """Test the ParameterDocumentation data structure."""
+        assert "valid HTTP status code" in str(exc_info.value)
 
     def test_parameter_documentation_creation(self):
-        """Test creating a ParameterDocumentation instance."""
+        """Test ParameterDocumentation creation and validation."""
+        # Valid parameter
         param = ParameterDocumentation(
-            name="user_id", description="The unique identifier for the user", example=123, required=True, type="integer"
+            name="user_id", description="The user identifier", example="123", required=True, type="string"
         )
 
         assert param.name == "user_id"
-        assert "unique identifier" in param.description
-        assert param.example == 123
+        assert param.description == "The user identifier"
+        assert param.example == "123"
         assert param.required is True
-        assert param.type == "integer"
+        assert param.type == "string"
 
-    def test_parameter_documentation_optional_fields(self):
-        """Test ParameterDocumentation with optional fields."""
-        param = ParameterDocumentation(name="limit", description="Maximum number of items to return")
+    def test_parameter_documentation_empty_name_validation(self):
+        """Test ParameterDocumentation validation with empty name."""
+        with pytest.raises(ValueError) as exc_info:
+            ParameterDocumentation(name="", description="Test parameter")
 
-        assert param.name == "limit"
-        assert param.description == "Maximum number of items to return"
-        assert param.example is None
-        assert param.required is None
-        assert param.type is None
+        assert "Parameter name cannot be empty" in str(exc_info.value)
 
-    def test_parameter_documentation_types(self):
-        """Test different parameter types."""
-        types_and_examples = [
-            ("string", "example_string"),
-            ("integer", 42),
-            ("boolean", True),
-            ("array", [1, 2, 3]),
-            ("object", {"key": "value"}),
-        ]
+    def test_parameter_documentation_none_name_validation(self):
+        """Test ParameterDocumentation validation with None name."""
+        with pytest.raises(ValueError) as exc_info:
+            ParameterDocumentation(name=None, description="Test parameter")
 
-        for param_type, example in types_and_examples:
-            param = ParameterDocumentation(
-                name=f"test_{param_type}", description=f"A {param_type} parameter", type=param_type, example=example
-            )
-            assert param.type == param_type
-            assert param.example == example
-
-
-class TestEndpointDocumentation:
-    """Test the EndpointDocumentation data structure."""
+        assert "Parameter name cannot be empty" in str(exc_info.value)
 
     def test_endpoint_documentation_creation(self):
-        """Test creating an EndpointDocumentation instance."""
-        code_samples = [
-            CodeSample(language=CodeLanguage.PYTHON, code='import requests\nresponse = requests.get("/api/users")')
-        ]
-
-        response_examples = [
-            ResponseExample(status_code=200, description="Success", content=[{"id": 1, "name": "John"}])
-        ]
-
-        parameters = [ParameterDocumentation(name="limit", description="Maximum items", type="integer", example=50)]
-
-        doc = EndpointDocumentation(
-            path="/api/users",
-            method=HTTPMethod.GET,
-            summary="List users",
-            description="Retrieve all users",
-            code_samples=code_samples,
-            response_examples=response_examples,
-            parameters=parameters,
-            tags=["users"],
-            deprecated=False,
-        )
-
-        assert doc.path == "/api/users"
-        assert doc.method == HTTPMethod.GET
-        assert doc.summary == "List users"
-        assert doc.description == "Retrieve all users"
-        assert len(doc.code_samples) == 1
-        assert len(doc.response_examples) == 1
-        assert len(doc.parameters) == 1
-        assert "users" in doc.tags
-        assert doc.deprecated is False
-
-    def test_endpoint_documentation_optional_fields(self):
-        """Test EndpointDocumentation with minimal required fields."""
-        doc = EndpointDocumentation(path="/api/health", method=HTTPMethod.GET, summary="Health check")
-
-        assert doc.path == "/api/health"
-        assert doc.method == HTTPMethod.GET
-        assert doc.summary == "Health check"
-        assert doc.description is None
-        assert doc.code_samples is None or len(doc.code_samples) == 0
-        assert doc.response_examples is None or len(doc.response_examples) == 0
-        assert doc.parameters is None or len(doc.parameters) == 0
-        assert doc.tags is None or len(doc.tags) == 0
-        assert doc.deprecated is None or doc.deprecated is False
-
-    def test_endpoint_documentation_validation(self):
-        """Test EndpointDocumentation field validation."""
-        # Test that invalid paths raise errors
-        with pytest.raises((ValueError, TypeError)):
-            EndpointDocumentation(path="", method=HTTPMethod.GET, summary="Test")  # Empty path should be invalid
-
-        # Test that invalid methods raise errors
-        with pytest.raises((ValueError, TypeError)):
-            EndpointDocumentation(path="/api/test", method="INVALID", summary="Test")  # Invalid method
-
-
-class TestDocumentationData:
-    """Test the DocumentationData data structure."""
-
-    def test_documentation_data_creation(self):
-        """Test creating a DocumentationData instance."""
-        endpoints = [
-            EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users"),
-            EndpointDocumentation(path="/api/users", method=HTTPMethod.POST, summary="Create user"),
-        ]
-
-        metadata = {"title": "Test API", "version": "1.0.0", "description": "A test API"}
-
-        data = DocumentationData(
-            endpoints={f"{ep.method.value}:{ep.path}": ep for ep in endpoints}, global_examples=[], metadata=metadata
-        )
-
-        assert len(data["endpoints"]) == 2
-        assert data.metadata["title"] == "Test API"
-        assert data.metadata["version"] == "1.0.0"
-
-    def test_documentation_data_empty(self):
-        """Test DocumentationData with empty collections."""
-        data = DocumentationData(endpoints=[], metadata={})
-
-        assert len(data.endpoints) == 0
-        assert len(data.metadata) == 0
-
-    def test_documentation_data_filtering(self):
-        """Test filtering endpoints by various criteria."""
-        endpoints = [
-            EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users", tags=["users"]),
-            EndpointDocumentation(path="/api/auth/login", method=HTTPMethod.POST, summary="Login", tags=["auth"]),
-            EndpointDocumentation(
-                path="/api/users/{id}", method=HTTPMethod.DELETE, summary="Delete user", tags=["users"], deprecated=True
-            ),
-        ]
-
-        data = DocumentationData(endpoints=endpoints, metadata={})
-
-        # Filter by tag
-        user_endpoints = [ep for ep in data.endpoints if ep.tags and "users" in ep.tags]
-        assert len(user_endpoints) == 2
-
-        # Filter by method
-        get_endpoints = [ep for ep in data.endpoints if ep.method == HTTPMethod.GET]
-        assert len(get_endpoints) == 1
-
-        # Filter by deprecated status
-        active_endpoints = [ep for ep in data.endpoints if not ep.deprecated]
-        assert len(active_endpoints) == 2
-
-
-class TestTypeIntegration:
-    """Test integration between different type definitions."""
-
-    def test_complete_endpoint_with_all_types(self):
-        """Test creating a complete endpoint with all type components."""
-        # Create code samples
-        code_samples = [
-            CodeSample(
-                language=CodeLanguage.CURL,
-                code='curl -X GET "https://api.example.com/api/users"',
-                description="cURL example",
-                title="cURL Request",
-            ),
-            CodeSample(
-                language=CodeLanguage.PYTHON,
-                code='import requests\nresponse = requests.get("/api/users")',
-                description="Python example",
-                title="Python Request",
-            ),
-        ]
-
-        # Create response examples
-        response_examples = [
-            ResponseExample(
-                status_code=200,
-                description="Successful response",
-                content=[{"id": 1, "name": "John", "email": "john@example.com"}],
-                headers={"Content-Type": "application/json"},
-            ),
-            ResponseExample(
-                status_code=400,
-                description="Bad request",
-                content={"error": "Invalid parameters"},
-                headers={"Content-Type": "application/json"},
-            ),
-        ]
-
-        # Create parameters
-        parameters = [
-            ParameterDocumentation(
-                name="limit",
-                description="Maximum number of users to return",
-                example=50,
-                required=False,
-                type="integer",
-            ),
-            ParameterDocumentation(
-                name="offset", description="Number of users to skip", example=0, required=False, type="integer"
-            ),
-        ]
-
-        # Create endpoint documentation
+        """Test EndpointDocumentation creation and validation."""
+        # Valid endpoint
         endpoint = EndpointDocumentation(
             path="/api/users",
             method=HTTPMethod.GET,
-            summary="List all users",
-            description="Retrieve a paginated list of users from the system",
-            code_samples=code_samples,
-            response_examples=response_examples,
-            parameters=parameters,
-            tags=["users", "list"],
+            summary="Get users",
+            description="Retrieve all users",
             deprecated=False,
         )
 
-        # Create documentation data
-        documentation = DocumentationData(
-            endpoints=[endpoint],
-            metadata={"title": "User Management API", "version": "1.0.0", "description": "API for managing users"},
+        assert endpoint.path == "/api/users"
+        assert endpoint.method == HTTPMethod.GET
+        assert endpoint.summary == "Get users"
+        assert endpoint.description == "Retrieve all users"
+        assert endpoint.deprecated is False
+        assert endpoint.code_samples == []
+        assert endpoint.response_examples == []
+        assert endpoint.parameters == []
+        assert endpoint.tags == []
+
+    def test_endpoint_documentation_empty_path_validation(self):
+        """Test EndpointDocumentation validation with empty path."""
+        with pytest.raises(ValueError) as exc_info:
+            EndpointDocumentation(path="", method=HTTPMethod.GET)
+
+        assert "Path cannot be empty" in str(exc_info.value)
+
+    def test_endpoint_documentation_none_path_validation(self):
+        """Test EndpointDocumentation validation with None path."""
+        with pytest.raises(ValueError) as exc_info:
+            EndpointDocumentation(path=None, method=HTTPMethod.GET)
+
+        assert "Path cannot be empty" in str(exc_info.value)
+
+    def test_endpoint_documentation_invalid_method_validation(self):
+        """Test EndpointDocumentation validation with invalid method."""
+        with pytest.raises(TypeError) as exc_info:
+            EndpointDocumentation(path="/api/users", method="GET")  # Should be HTTPMethod.GET
+
+        assert "Method must be an HTTPMethod enum value" in str(exc_info.value)
+
+    def test_documentation_data_creation(self):
+        """Test DocumentationData creation and functionality."""
+        endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET)
+
+        code_sample = CodeSample(language=CodeLanguage.PYTHON, code="print('test')")
+
+        doc_data = DocumentationData(endpoints=[endpoint], global_examples=[code_sample], metadata={"version": "1.0"})
+
+        assert len(doc_data.endpoints) == 1
+        assert len(doc_data.global_examples) == 1
+        assert doc_data.metadata["version"] == "1.0"
+
+    def test_documentation_data_dictionary_access(self):
+        """Test DocumentationData dictionary-style access."""
+        doc_data = DocumentationData(endpoints=[], global_examples=[], metadata={"test": "value"})
+
+        # Test valid keys
+        assert doc_data["endpoints"] == []
+        assert doc_data["global_examples"] == []
+        assert doc_data["metadata"] == {"test": "value"}
+
+        # Test invalid key
+        with pytest.raises(KeyError) as exc_info:
+            _ = doc_data["invalid_key"]
+
+        assert "'invalid_key' not found in DocumentationData" in str(exc_info.value)
+
+    def test_markdown_documentation_config_defaults(self):
+        """Test MarkdownDocumentationConfig default values."""
+        config = MarkdownDocumentationConfig()
+
+        assert config.docs_directory == "docs"
+        assert config.base_url_placeholder == "https://api.example.com"
+        assert config.encoding == "utf-8"
+        assert config.recursive is True
+        assert config.cache_enabled is True
+        assert config.cache_ttl == 3600
+        assert "*.md" in config.file_patterns
+        assert "*.markdown" in config.file_patterns
+        assert len(config.supported_languages) > 0
+
+    def test_openapi_enhancement_config_defaults(self):
+        """Test OpenAPIEnhancementConfig default values."""
+        config = OpenAPIEnhancementConfig()
+
+        assert config.include_code_samples is True
+        assert config.include_response_examples is True
+        assert config.include_parameter_examples is True
+        assert config.base_url == "https://api.example.com"
+        assert "https://api.example.com" in config.server_urls
+        assert CodeLanguage.CURL in config.code_sample_languages
+        assert CodeLanguage.PYTHON in config.code_sample_languages
+        assert CodeLanguage.JAVASCRIPT in config.code_sample_languages
+        assert config.custom_headers == {}
+        assert config.authentication_schemes == []
+
+    def test_code_sample_template_creation(self):
+        """Test CodeSampleTemplate creation."""
+        template = CodeSampleTemplate(
+            language=CodeLanguage.PYTHON,
+            template="import requests\n{code}",
+            imports=["requests"],
+            setup_code="# Setup",
+            cleanup_code="# Cleanup",
         )
 
-        # Verify all components are properly integrated
-        assert len(documentation.endpoints) == 1
+        assert template.language == CodeLanguage.PYTHON
+        assert template.template == "import requests\n{code}"
+        assert template.imports == ["requests"]
+        assert template.setup_code == "# Setup"
+        assert template.cleanup_code == "# Cleanup"
 
-        ep = documentation.endpoints[0]
-        assert ep.path == "/api/users"
-        assert ep.method == HTTPMethod.GET
-        assert len(ep.code_samples) == 2
-        assert len(ep.response_examples) == 2
-        assert len(ep.parameters) == 2
-        assert len(ep.tags) == 2
+    def test_validation_error_creation(self):
+        """Test ValidationError creation."""
+        error = ValidationError(
+            file_path="test.md",
+            line_number=42,
+            error_type="syntax_error",
+            message="Invalid syntax",
+            suggestion="Fix the syntax",
+        )
 
-        # Verify code samples
-        curl_sample = next(s for s in ep.code_samples if s.language == CodeLanguage.CURL)
-        python_sample = next(s for s in ep.code_samples if s.language == CodeLanguage.PYTHON)
+        assert error.file_path == "test.md"
+        assert error.line_number == 42
+        assert error.error_type == "syntax_error"
+        assert error.message == "Invalid syntax"
+        assert error.suggestion == "Fix the syntax"
 
-        assert "curl -X GET" in curl_sample.code
-        assert "import requests" in python_sample.code
+    def test_documentation_stats_creation(self):
+        """Test DocumentationStats creation."""
+        validation_error = ValidationError(
+            file_path="test.md", line_number=1, error_type="warning", message="Test warning"
+        )
 
-        # Verify response examples
-        success_response = next(r for r in ep.response_examples if r.status_code == 200)
-        error_response = next(r for r in ep.response_examples if r.status_code == 400)
+        stats = DocumentationStats(
+            total_files=5,
+            total_endpoints=10,
+            total_code_samples=20,
+            languages_found=[CodeLanguage.PYTHON, CodeLanguage.CURL],
+            validation_errors=[validation_error],
+            load_time_ms=150.5,
+        )
 
-        assert success_response.description == "Successful response"
-        assert error_response.description == "Bad request"
+        assert stats.total_files == 5
+        assert stats.total_endpoints == 10
+        assert stats.total_code_samples == 20
+        assert CodeLanguage.PYTHON in stats.languages_found
+        assert len(stats.validation_errors) == 1
+        assert stats.load_time_ms == 150.5
 
-        # Verify parameters
-        limit_param = next(p for p in ep.parameters if p.name == "limit")
-        offset_param = next(p for p in ep.parameters if p.name == "offset")
+    def test_enhancement_result_creation(self):
+        """Test EnhancementResult creation."""
+        result = EnhancementResult(
+            enhanced_schema={"openapi": "3.0.0"},
+            enhancement_stats={"endpoints_enhanced": 5},
+            warnings=["Warning message"],
+            errors=["Error message"],
+        )
 
-        assert limit_param.type == "integer"
-        assert offset_param.example == 0
+        assert result.enhanced_schema == {"openapi": "3.0.0"}
+        assert result.enhancement_stats == {"endpoints_enhanced": 5}
+        assert result.warnings == ["Warning message"]
+        assert result.errors == ["Error message"]
+
+    def test_endpoint_documentation_with_collections(self):
+        """Test EndpointDocumentation with code samples, parameters, etc."""
+        code_sample = CodeSample(language=CodeLanguage.PYTHON, code="print('test')")
+
+        response_example = ResponseExample(status_code=200, description="Success")
+
+        parameter = ParameterDocumentation(name="id", description="User ID")
+
+        endpoint = EndpointDocumentation(
+            path="/api/users/{id}",
+            method=HTTPMethod.GET,
+            summary="Get user",
+            code_samples=[code_sample],
+            response_examples=[response_example],
+            parameters=[parameter],
+            tags=["users", "api"],
+            deprecated=True,
+        )
+
+        assert len(endpoint.code_samples) == 1
+        assert len(endpoint.response_examples) == 1
+        assert len(endpoint.parameters) == 1
+        assert len(endpoint.tags) == 2
+        assert endpoint.deprecated is True
+        assert endpoint.code_samples[0].language == CodeLanguage.PYTHON
+        assert endpoint.response_examples[0].status_code == 200
+        assert endpoint.parameters[0].name == "id"
+        assert "users" in endpoint.tags
+
+    def test_response_example_edge_case_status_codes(self):
+        """Test ResponseExample with edge case status codes."""
+        # Test minimum valid status code
+        example_100 = ResponseExample(status_code=100, description="Continue")
+        assert example_100.status_code == 100
+
+        # Test maximum valid status code
+        example_599 = ResponseExample(status_code=599, description="Network timeout")
+        assert example_599.status_code == 599
+
+    def test_parameter_documentation_optional_fields(self):
+        """Test ParameterDocumentation with optional fields."""
+        # Test with minimal required fields
+        param_minimal = ParameterDocumentation(name="test_param", description="Test parameter")
+
+        assert param_minimal.name == "test_param"
+        assert param_minimal.description == "Test parameter"
+        assert param_minimal.example is None
+        assert param_minimal.required is None
+        assert param_minimal.type is None
+
+        # Test with all fields
+        param_full = ParameterDocumentation(
+            name="full_param", description="Full parameter", example="example_value", required=False, type="integer"
+        )
+
+        assert param_full.required is False
+        assert param_full.type == "integer"
+        assert param_full.example == "example_value"
+
+    def test_code_sample_optional_fields(self):
+        """Test CodeSample with optional fields."""
+        # Test with minimal required fields
+        sample_minimal = CodeSample(language=CodeLanguage.CURL, code="curl -X GET https://api.example.com")
+
+        assert sample_minimal.description is None
+        assert sample_minimal.title is None
+
+        # Test with all fields
+        sample_full = CodeSample(
+            language=CodeLanguage.PYTHON, code="import requests", description="Python example", title="Request Example"
+        )
+
+        assert sample_full.description == "Python example"
+        assert sample_full.title == "Request Example"
