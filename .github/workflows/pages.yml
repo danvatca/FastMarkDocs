@@ -27,49 +27,39 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
           bundler-cache: true
           working-directory: ./src/docs
-      
-      - name: Setup Pages
-        id: pages
-        uses: actions/configure-pages@v4
-      
-      - name: Create output directory
-        run: mkdir -p docs
-      
-      - name: Verify Jekyll setup
+      - name: Verify Jekyll version
         run: |
           cd src/docs
           echo "Jekyll version:"
           bundle exec jekyll --version
-          echo "Ruby version:"
-          ruby --version
-          echo "Bundler version:"
-          bundle --version
-      
+          echo "Gem list:"
+          bundle list | grep jekyll
+        shell: bash
       - name: Build with Jekyll
         run: |
           cd src/docs
-          bundle exec jekyll build --destination ../../docs --baseurl "${{ steps.pages.outputs.base_path }}" --verbose
-        env:
-          JEKYLL_ENV: production
-      
+          mkdir -p ../../docs
+          bundle exec jekyll build --destination ../../docs --verbose
+        shell: bash
+      - name: Create .nojekyll file
+        run: touch docs/.nojekyll
       - name: Verify build output
         run: |
           echo "Build output directory contents:"
           ls -la docs/
-          echo "Assets directory:"
-          ls -la docs/assets/ || echo "No assets directory"
-          echo "Logo file exists:"
-          ls -la docs/assets/logo.svg || echo "Logo not found"
-      
+          echo "Total size:"
+          du -sh docs/
+        shell: bash
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v3.0.1
         with:
           path: ./docs
 
