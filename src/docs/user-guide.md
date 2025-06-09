@@ -1,3 +1,9 @@
+---
+layout: default
+title: User Guide
+nav_order: 2
+---
+
 # User Guide
 
 This comprehensive guide covers everything you need to know about using FastMarkDocs to enhance your FastAPI applications with rich markdown-based documentation.

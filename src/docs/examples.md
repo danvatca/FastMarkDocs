@@ -2,6 +2,7 @@
 layout: default
 title: Examples
 description: Real-world examples and tutorials for FastMarkDocs
+nav_order: 4
 ---
 
 # Examples

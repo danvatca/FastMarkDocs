@@ -2,6 +2,7 @@
 layout: default
 title: API Reference
 description: Complete API reference for FastMarkDocs
+nav_order: 3
 ---
 
 # API Reference

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Blue background with rounded corners -->
+  <rect width="200" height="200" fill="#2c5282" rx="40"/>
+  
+  <!-- Document background -->
+  <rect x="60" y="40" width="80" height="100" fill="white" rx="8"/>
+  
+  <!-- Document fold corner -->
+  <path d="M 120 40 L 140 40 L 140 60 L 120 40" fill="#e2e8f0"/>
+  
+  <!-- Orange arrow and speed lines -->
+  <g fill="#ff8c00">
+    <!-- Speed lines -->
+    <rect x="30" y="70" width="20" height="4" rx="2"/>
+    <rect x="25" y="80" width="30" height="4" rx="2"/>
+    <rect x="30" y="90" width="25" height="4" rx="2"/>
+    <rect x="25" y="100" width="20" height="4" rx="2"/>
+    
+    <!-- Arrow pointing right -->
+    <path d="M 45 85 L 65 75 L 65 80 L 75 80 L 75 90 L 65 90 L 65 95 Z"/>
+  </g>
+  
+  <!-- Document lines -->
+  <g fill="#2c5282">
+    <rect x="100" y="55" width="25" height="3" rx="1"/>
+    <rect x="100" y="65" width="30" height="3" rx="1"/>
+    <rect x="100" y="75" width="20" height="3" rx="1"/>
+    <rect x="100" y="95" width="35" height="3" rx="1"/>
+    <rect x="100" y="105" width="25" height="3" rx="1"/>
+    <rect x="100" y="115" width="30" height="3" rx="1"/>
+  </g>
+  
+  <!-- FastMarkDocs text -->
+  <text x="100" y="165" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">FASTMARK</text>
+  <text x="100" y="185" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">DOCS</text>
+</svg> 

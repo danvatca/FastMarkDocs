@@ -233,3 +233,16 @@ docs/.sass-cache
 .jekyll-cache/
 .jekyll-metadata
 Gemfile.lock
+
+# Jekyll build products and intermediate files
+src/docs/.jekyll-metadata
+src/docs/.jekyll-cache/
+src/docs/.sass-cache/
+src/docs/.bundle/
+src/docs/vendor/
+src/docs/_site/
+
+# Generated documentation site (output directory)
+# The docs/ directory contains only generated HTML/CSS/JS files
+# Source files are in src/docs/
+/docs/

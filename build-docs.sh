@@ -13,10 +13,11 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-DOCS_DIR="docs"
+DOCS_SRC_DIR="src/docs"
+DOCS_OUTPUT_DIR="docs"
 BUILD_DIR="_site"
-PORT=4000
-HOST="127.0.0.1"
+PORT=4001
+HOST="0.0.0.0"
 
 # Function to print colored output
 print_status() {
@@ -63,7 +64,7 @@ check_dependencies() {
 install_dependencies() {
     print_status "Installing Jekyll dependencies..."
     
-    cd "$DOCS_DIR"
+    cd "$DOCS_SRC_DIR"
     
     # Configure bundler to install gems locally to avoid permission issues
     if [ ! -f ".bundle/config" ]; then
@@ -79,15 +80,16 @@ install_dependencies() {
         bundle update
     fi
     
-    cd ..
+    cd - > /dev/null
     print_success "Dependencies installed"
 }
 
 # Function to build the documentation
 build_docs() {
     print_status "Building documentation..."
+    print_status "Source: $DOCS_SRC_DIR/ -> Output: $DOCS_OUTPUT_DIR/"
     
-    cd "$DOCS_DIR"
+    cd "$DOCS_SRC_DIR"
     
     # Clean previous build
     if [ -d "$BUILD_DIR" ]; then
@@ -95,23 +97,31 @@ build_docs() {
         print_status "Cleaned previous build"
     fi
     
-    # Build the site
-    bundle exec jekyll build --verbose
+    # Clean output directory
+    if [ -d "../../$DOCS_OUTPUT_DIR" ]; then
+        rm -rf "../../$DOCS_OUTPUT_DIR"
+        print_status "Cleaned output directory"
+    fi
     
-    cd ..
+    # Build the site
+    bundle exec jekyll build --destination "../../$DOCS_OUTPUT_DIR" --verbose
+    
+    cd - > /dev/null
     print_success "Documentation built successfully"
 }
 
 # Function to serve the documentation locally
 serve_docs() {
     print_status "Starting local server..."
+    print_status "Source: $DOCS_SRC_DIR/ -> Output: $DOCS_OUTPUT_DIR/"
     print_status "Documentation will be available at: http://$HOST:$PORT"
     print_status "Press Ctrl+C to stop the server"
     
-    cd "$DOCS_DIR"
+    cd "$DOCS_SRC_DIR"
     
     # Serve with live reload
     bundle exec jekyll serve \
+        --destination "../../$DOCS_OUTPUT_DIR" \
         --host "$HOST" \
         --port "$PORT" \
         --livereload \
@@ -123,20 +133,20 @@ serve_docs() {
 validate_build() {
     print_status "Validating build..."
     
-    if [ ! -d "$DOCS_DIR/$BUILD_DIR" ]; then
-        print_error "Build directory not found"
+    if [ ! -d "$DOCS_OUTPUT_DIR" ]; then
+        print_error "Output directory not found: $DOCS_OUTPUT_DIR"
         exit 1
     fi
     
-    if [ ! -f "$DOCS_DIR/$BUILD_DIR/index.html" ]; then
+    if [ ! -f "$DOCS_OUTPUT_DIR/index.html" ]; then
         print_error "Index file not generated"
         exit 1
     fi
     
     # Check for common files
-    local files=("getting-started/index.html" "user-guide/index.html" "api-reference/index.html")
+    local files=("getting-started.html" "user-guide.md" "api-reference.html")
     for file in "${files[@]}"; do
-        if [ ! -f "$DOCS_DIR/$BUILD_DIR/$file" ]; then
+        if [ ! -f "$DOCS_OUTPUT_DIR/$file" ]; then
             print_warning "Expected file not found: $file"
         fi
     done
@@ -148,14 +158,31 @@ validate_build() {
 clean_build() {
     print_status "Cleaning build artifacts..."
     
-    if [ -d "$DOCS_DIR/$BUILD_DIR" ]; then
-        rm -rf "$DOCS_DIR/$BUILD_DIR"
-        print_status "Removed build directory"
+    # Clean output directory
+    if [ -d "$DOCS_OUTPUT_DIR" ]; then
+        rm -rf "$DOCS_OUTPUT_DIR"
+        print_status "Removed output directory: $DOCS_OUTPUT_DIR"
     fi
     
-    if [ -f "$DOCS_DIR/.jekyll-cache" ]; then
-        rm -rf "$DOCS_DIR/.jekyll-cache"
+    # Clean Jekyll cache and build files in source directory
+    if [ -d "$DOCS_SRC_DIR/$BUILD_DIR" ]; then
+        rm -rf "$DOCS_SRC_DIR/$BUILD_DIR"
+        print_status "Removed source build directory"
+    fi
+    
+    if [ -d "$DOCS_SRC_DIR/.jekyll-cache" ]; then
+        rm -rf "$DOCS_SRC_DIR/.jekyll-cache"
         print_status "Removed Jekyll cache"
+    fi
+    
+    if [ -f "$DOCS_SRC_DIR/.jekyll-metadata" ]; then
+        rm -f "$DOCS_SRC_DIR/.jekyll-metadata"
+        print_status "Removed Jekyll metadata"
+    fi
+    
+    if [ -d "$DOCS_SRC_DIR/.sass-cache" ]; then
+        rm -rf "$DOCS_SRC_DIR/.sass-cache"
+        print_status "Removed Sass cache"
     fi
     
     print_success "Clean completed"
@@ -181,8 +208,8 @@ show_help() {
     echo "  $0 build     # Build only"
     echo ""
     echo "Environment Variables:"
-    echo "  DOCS_PORT   Port for local server (default: 4000)"
-    echo "  DOCS_HOST   Host for local server (default: 127.0.0.1)"
+    echo "  DOCS_PORT   Port for local server (default: 4001)"
+    echo "  DOCS_HOST   Host for local server (default: 0.0.0.0)"
 }
 
 # Function to setup environment
@@ -199,8 +226,8 @@ setup_environment() {
 # Main script logic
 main() {
     # Check if we're in the right directory
-    if [ ! -d "$DOCS_DIR" ]; then
-        print_error "Documentation directory '$DOCS_DIR' not found"
+    if [ ! -d "$DOCS_SRC_DIR" ]; then
+        print_error "Documentation directory '$DOCS_SRC_DIR' not found"
         print_error "Please run this script from the project root directory"
         exit 1
     fi

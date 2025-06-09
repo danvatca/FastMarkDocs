@@ -1,3 +1,9 @@
+---
+layout: default
+title: Advanced Guide
+nav_order: 5
+---
+
 # Advanced Guide
 
 This guide covers advanced usage patterns, performance optimization, custom implementations, and production deployment scenarios for FastMarkDocs.

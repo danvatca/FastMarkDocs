@@ -1,0 +1,47 @@
+<style>
+.site-title {
+  display: flex !important;
+  align-items: center !important;
+  text-decoration: none !important;
+  color: #006aff !important;
+  font-weight: 600 !important;
+  font-size: 1.25rem !important;
+}
+
+.site-logo {
+  height: 32px !important;
+  width: 32px !important;
+  margin-right: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 768px) {
+  .site-logo {
+    height: 28px !important;
+    width: 28px !important;
+    margin-right: 8px !important;
+  }
+  
+  .site-title {
+    font-size: 1.1rem !important;
+  }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Find the site title element
+  const siteTitle = document.querySelector('.site-title');
+  
+  if (siteTitle) {
+    // Create logo element
+    const logo = document.createElement('img');
+    logo.src = '{{ "/assets/logo.svg" | relative_url }}';
+    logo.alt = '{{ site.title }} Logo';
+    logo.className = 'site-logo';
+    
+    // Insert logo at the beginning of the title
+    siteTitle.insertBefore(logo, siteTitle.firstChild);
+  }
+});
+</script> 

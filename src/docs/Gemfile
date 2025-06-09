@@ -1,7 +1,14 @@
 source "https://rubygems.org"
 
-# Use Jekyll 3.9 for better compatibility with older Ruby versions
-gem "jekyll", "~> 3.9.0"
+# Use Jekyll 4.x for Just the Docs compatibility
+gem "jekyll", "~> 4.3.0"
+
+# Force FFI recompilation to fix native extension loading
+gem "ffi", "~> 1.15.5", platforms: :ruby
+
+# Use sassc instead of sass-embedded to avoid protobuf issues
+gem "sassc", "~> 2.4.0"
+gem "jekyll-sass-converter", "~> 2.2.0"
 
 # Required for GitHub Flavored Markdown
 gem "kramdown-parser-gfm"
@@ -12,6 +19,7 @@ group :jekyll_plugins do
   gem "jekyll-sitemap"
   gem "jekyll-seo-tag"
   gem "jekyll-remote-theme"
+  gem "jekyll-include-cache"
 end
 
 # Required for Ruby 3.0+ but also works with older versions

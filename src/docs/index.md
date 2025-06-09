@@ -2,6 +2,7 @@
 layout: default
 title: FastMarkDocs
 description: Enhanced OpenAPI documentation generation from markdown files for FastAPI applications
+nav_exclude: true
 ---
 
 # FastMarkDocs

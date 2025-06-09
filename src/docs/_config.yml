@@ -6,8 +6,20 @@ description: Enhanced OpenAPI documentation generation from markdown files for F
 url: "https://danvatca.github.io"
 baseurl: "/FastMarkDocs"
 
-# Theme - Using minima with custom dark CSS
-remote_theme: jekyll/minima
+# Theme - Using Just the Docs with custom brand colors
+remote_theme: just-the-docs/just-the-docs
+
+# Just the Docs configuration
+color_scheme: nil  # Default light theme with custom CSS overrides
+favicon_ico: "/favicon.ico"
+
+# Defaults for all pages
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
 
 # Plugins (GitHub Pages compatible)
 plugins:
@@ -16,13 +28,7 @@ plugins:
   - jekyll-seo-tag
   - jekyll-remote-theme
 
-# Navigation
-header_pages:
-  - getting-started.md
-  - user-guide.md
-  - api-reference.md
-  - examples.md
-  - advanced.md
+# Just the Docs navigation is handled by nav_order in front matter
 
 # Social links
 github_username: danvatca
@@ -37,6 +43,17 @@ kramdown:
   syntax_highlighter_opts:
     block:
       line_numbers: false
+
+# Output directory (relative to source directory)
+destination: ../../docs
+
+# Keep source directory clean - no intermediate files
+keep_files: []
+safe: true
+
+# Cache and metadata settings
+jekyll_cache_dir: /tmp/jekyll-cache-fastmarkdocs
+metadata_file: /tmp/jekyll-metadata-fastmarkdocs
 
 # GitHub Pages settings
 repository: danvatca/FastMarkDocs
@@ -53,6 +70,14 @@ exclude:
   - Makefile.docs
   - "*.sh"
   - GITHUB_PAGES_TROUBLESHOOTING.md
+  - .jekyll-cache/
+  - .jekyll-metadata
+  - .sass-cache/
+  - _site/
+  - "*.tmp"
+  - "*.temp"
+  - .DS_Store
+  - README.md
 
 # SEO
 author:

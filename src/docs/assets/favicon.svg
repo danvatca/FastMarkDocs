@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Blue background with rounded corners -->
+  <rect width="32" height="32" fill="#2c5282" rx="6"/>
+  
+  <!-- Document background -->
+  <rect x="10" y="6" width="12" height="16" fill="white" rx="1"/>
+  
+  <!-- Document fold corner -->
+  <path d="M 19 6 L 22 6 L 22 9 L 19 6" fill="#e2e8f0"/>
+  
+  <!-- Orange arrow and speed lines -->
+  <g fill="#ff8c00">
+    <!-- Speed lines -->
+    <rect x="5" y="11" width="3" height="1" rx="0.5"/>
+    <rect x="4" y="13" width="5" height="1" rx="0.5"/>
+    <rect x="5" y="15" width="4" height="1" rx="0.5"/>
+    
+    <!-- Arrow pointing right -->
+    <path d="M 7 14 L 10 12 L 10 13 L 12 13 L 12 15 L 10 15 L 10 16 Z"/>
+  </g>
+  
+  <!-- Document lines -->
+  <g fill="#2c5282">
+    <rect x="16" y="9" width="4" height="0.5" rx="0.25"/>
+    <rect x="16" y="11" width="5" height="0.5" rx="0.25"/>
+    <rect x="16" y="13" width="3" height="0.5" rx="0.25"/>
+    <rect x="16" y="15" width="5" height="0.5" rx="0.25"/>
+    <rect x="16" y="17" width="4" height="0.5" rx="0.25"/>
+    <rect x="16" y="19" width="5" height="0.5" rx="0.25"/>
+  </g>
+  
+  <!-- FastMarkDocs text (simplified for small size) -->
+  <text x="16" y="28" font-family="Arial, sans-serif" font-size="3" font-weight="bold" text-anchor="middle" fill="white">FM</text>
+</svg> 

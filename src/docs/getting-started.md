@@ -2,6 +2,7 @@
 layout: default
 title: Getting Started
 description: Learn how to install and set up FastMarkDocs for your FastAPI application
+nav_order: 1
 ---
 
 # Getting Started

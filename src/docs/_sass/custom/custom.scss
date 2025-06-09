@@ -1,0 +1,75 @@
+// Color Overrides
+// This file overrides Just the Docs default styles with different colors
+
+// Override link colors with blue
+a {
+  color: #006aff !important;
+  
+  &:hover {
+    color: #0055cc !important;
+  }
+  
+  &:visited {
+    color: #0055cc !important;
+  }
+}
+
+// Navigation sidebar styling
+.side-bar {
+  background-color: #f5f7fd !important;
+  
+  .navigation-list-item {
+    .navigation-list-link {
+      color: #0055cc !important;
+      
+      &:hover {
+        color: #006aff !important;
+        background-color: rgba(0, 106, 255, 0.1) !important;
+      }
+      
+      &.active {
+        color: #003580 !important;
+        font-weight: 600 !important;
+        background-color: rgba(0, 106, 255, 0.15) !important;
+      }
+    }
+  }
+}
+
+// Main content area
+.main-content {
+  background-color: #fcfdfe !important;
+}
+
+// Headings with different colors
+h1, h2, h3, h4, h5, h6 {
+  color: #003580 !important;
+}
+
+// Search input styling
+.search-input {
+  background-color: #fcfdfe !important;
+  border-color: #c4c6ca !important;
+  
+  &:focus {
+    border-color: #006aff !important;
+    box-shadow: 0 0 0 2px rgba(0, 106, 255, 0.2) !important;
+  }
+}
+
+// Button styling
+.btn-primary {
+  background-color: #006aff !important;
+  border-color: #006aff !important;
+  
+  &:hover {
+    background-color: #0055cc !important;
+    border-color: #0055cc !important;
+  }
+}
+
+// Code blocks
+pre, code {
+  background-color: #f5f7fd !important;
+  border-color: #c4c6ca !important;
+} 
