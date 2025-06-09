@@ -10,7 +10,7 @@ This guide will walk you through installing FastMarkDocs and setting up your fir
 
 ## Prerequisites
 
-- Python 3.8 or higher
+- Python 3.9 or higher
 - FastAPI application (existing or new)
 - Basic familiarity with markdown
 
