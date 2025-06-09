@@ -53,7 +53,7 @@ class CodeSample:
     description: Optional[str] = None
     title: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.code:
             raise ValueError("Code cannot be empty")
 
@@ -67,7 +67,7 @@ class ResponseExample:
     content: Optional[dict[str, Any]] = None
     headers: Optional[dict[str, str]] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not isinstance(self.status_code, int) or self.status_code < 100 or self.status_code >= 600:
             raise ValueError("Status code must be a valid HTTP status code (100-599)")
 
@@ -82,7 +82,7 @@ class ParameterDocumentation:
     required: Optional[bool] = None
     type: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("Parameter name cannot be empty")
 
@@ -101,7 +101,7 @@ class EndpointDocumentation:
     tags: list[str] = field(default_factory=list)
     deprecated: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.path:
             raise ValueError("Path cannot be empty")
         if not isinstance(self.method, HTTPMethod):
@@ -116,7 +116,7 @@ class DocumentationData:
     global_examples: list[CodeSample] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         """Allow dictionary-style access for backwards compatibility."""
         if key == "endpoints":
             return self.endpoints

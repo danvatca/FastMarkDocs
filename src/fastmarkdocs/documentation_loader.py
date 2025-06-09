@@ -49,8 +49,8 @@ class MarkdownDocumentationLoader:
         self,
         docs_directory: str = "docs",
         base_url_placeholder: str = "https://api.example.com",
-        supported_languages: list[CodeLanguage] = None,
-        file_patterns: list[str] = None,
+        supported_languages: Optional[list[CodeLanguage]] = None,
+        file_patterns: Optional[list[str]] = None,
         encoding: str = "utf-8",
         recursive: bool = True,
         cache_enabled: bool = True,
@@ -82,7 +82,7 @@ class MarkdownDocumentationLoader:
         if self.docs_directory.is_absolute() and not self.docs_directory.exists():
             raise DocumentationLoadError(str(self.docs_directory), "Documentation directory does not exist")
 
-        self._cache: dict[str, Any] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
         self._cache_timestamps: dict[str, float] = {}
         self._documentation_cache: Optional[DocumentationData] = None
         self._documentation_cache_timestamp: Optional[float] = None
@@ -174,7 +174,7 @@ class MarkdownDocumentationLoader:
 
         try:
             # Normalize the docs directory path
-            docs_path = normalize_path(self.docs_directory)
+            docs_path = normalize_path(str(self.docs_directory))
 
             if not os.path.exists(docs_path):
                 raise DocumentationLoadError(docs_path, "Documentation directory does not exist")
@@ -259,7 +259,7 @@ class MarkdownDocumentationLoader:
             raise
         except Exception as e:
             raise DocumentationLoadError(
-                self.docs_directory, f"Unexpected error during documentation loading: {str(e)}"
+                str(self.docs_directory), f"Unexpected error during documentation loading: {str(e)}"
             ) from e
 
     def _parse_markdown_file(self, file_path: Path) -> list[EndpointDocumentation]:
@@ -416,8 +416,8 @@ class MarkdownDocumentationLoader:
             List of content sections, each containing one endpoint
         """
         lines = content.split("\n")
-        sections = []
-        current_section = []
+        sections: list[str] = []
+        current_section: list[str] = []
 
         for line in lines:
             # Check if this line is an endpoint header
@@ -450,7 +450,7 @@ class MarkdownDocumentationLoader:
 
         in_response_section = False
         in_code_block = False
-        current_code = []
+        current_code: list[str] = []
         current_status = 200  # Default status code
 
         for line in lines:
@@ -579,7 +579,7 @@ class MarkdownDocumentationLoader:
         Returns:
             Tuple of (frontmatter_dict, content_without_frontmatter)
         """
-        frontmatter = {}
+        frontmatter: dict[str, Any] = {}
 
         # Check if content starts with YAML frontmatter
         if content.startswith("---\n"):
@@ -639,14 +639,15 @@ class MarkdownDocumentationLoader:
                     value = value[1:-1]
 
                 # Try to convert to appropriate type
+                parsed_value: Any = value
                 if value.lower() in ["true", "false"]:
-                    value = value.lower() == "true"
+                    parsed_value = value.lower() == "true"
                 elif value.isdigit():
-                    value = int(value)
+                    parsed_value = int(value)
                 elif value.replace(".", "").isdigit():
-                    value = float(value)
+                    parsed_value = float(value)
 
-                result[key] = value
+                result[key] = parsed_value
 
         return result
 
@@ -733,7 +734,7 @@ class MarkdownDocumentationLoader:
 
         return True
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear the documentation cache (thread-safe)."""
         with self._cache_lock:
             self._cache.clear()

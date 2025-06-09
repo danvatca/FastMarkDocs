@@ -8,7 +8,7 @@ code samples in multiple programming languages from API endpoint definitions.
 """
 
 import json
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlencode, urljoin
 
 from .exceptions import CodeSampleGenerationError
@@ -27,11 +27,11 @@ class CodeSampleGenerator:
     def __init__(
         self,
         base_url: str = "https://api.example.com",
-        custom_headers: dict[str, str] = None,
-        code_sample_languages: list[CodeLanguage] = None,
-        server_urls: list[str] = None,
-        authentication_schemes: list[str] = None,
-        custom_templates: dict[CodeLanguage, str] = None,
+        custom_headers: Optional[dict[str, str]] = None,
+        code_sample_languages: Optional[list[CodeLanguage]] = None,
+        server_urls: Optional[list[str]] = None,
+        authentication_schemes: Optional[list[str]] = None,
+        custom_templates: Optional[dict[CodeLanguage, str]] = None,
         cache_enabled: bool = False,
     ):
         """
@@ -57,7 +57,7 @@ class CodeSampleGenerator:
         self.authentication_schemes = authentication_schemes or []
         self.custom_templates = custom_templates or {}
         self.cache_enabled = cache_enabled
-        self._cache = {} if cache_enabled else None
+        self._cache: Optional[dict[str, Any]] = {} if cache_enabled else None
 
         # Initialize templates
         self._templates = self._initialize_templates()
@@ -113,8 +113,8 @@ class CodeSampleGenerator:
     def generate_curl_sample(
         self,
         endpoint: EndpointDocumentation,
-        path_params: dict[str, Any] = None,
-        query_params: dict[str, Any] = None,
+        path_params: Optional[dict[str, Any]] = None,
+        query_params: Optional[dict[str, Any]] = None,
         request_body: Any = None,
     ) -> CodeSample:
         """Generate a cURL code sample."""
@@ -157,8 +157,8 @@ class CodeSampleGenerator:
     def generate_python_sample(
         self,
         endpoint: EndpointDocumentation,
-        path_params: dict[str, Any] = None,
-        query_params: dict[str, Any] = None,
+        path_params: Optional[dict[str, Any]] = None,
+        query_params: Optional[dict[str, Any]] = None,
         request_body: Any = None,
     ) -> CodeSample:
         """Generate a Python code sample."""
@@ -208,8 +208,8 @@ class CodeSampleGenerator:
     def generate_javascript_sample(
         self,
         endpoint: EndpointDocumentation,
-        path_params: dict[str, Any] = None,
-        query_params: dict[str, Any] = None,
+        path_params: Optional[dict[str, Any]] = None,
+        query_params: Optional[dict[str, Any]] = None,
         request_body: Any = None,
     ) -> CodeSample:
         """Generate a JavaScript code sample."""
@@ -218,10 +218,11 @@ class CodeSampleGenerator:
         code_lines = []
 
         # Prepare fetch options
-        options = {"method": endpoint.method.value, "headers": dict(self.custom_headers)}
+        headers = dict(self.custom_headers)
+        options: dict[str, Any] = {"method": endpoint.method.value, "headers": headers}
 
         if request_body:
-            options["headers"]["Content-Type"] = "application/json"
+            headers["Content-Type"] = "application/json"
             if isinstance(request_body, (dict, list)):
                 options["body"] = "JSON.stringify(" + json.dumps(request_body) + ")"
             else:
@@ -230,9 +231,9 @@ class CodeSampleGenerator:
         code_lines.append(f'fetch("{url}", {{')
         code_lines.append(f"  method: '{endpoint.method.value}',")
 
-        if options["headers"]:
+        if headers:
             code_lines.append("  headers: {")
-            for key, value in options["headers"].items():
+            for key, value in headers.items():
                 code_lines.append(f'    "{key}": "{value}",')
             code_lines.append("  },")
 
@@ -445,8 +446,8 @@ class Program
         self,
         endpoint: EndpointDocumentation,
         language: CodeLanguage,
-        path_params: dict[str, Any] = None,
-        query_params: dict[str, Any] = None,
+        path_params: Optional[dict[str, Any]] = None,
+        query_params: Optional[dict[str, Any]] = None,
         request_body: Any = None,
     ) -> CodeSample:
         """Generate a code sample from a custom template."""
@@ -482,7 +483,9 @@ class Program
                 language.value, f"{endpoint.method}:{endpoint.path}", f"Template variable not found: {e}"
             ) from e
 
-    def _build_url(self, path: str, path_params: dict[str, Any] = None, query_params: dict[str, Any] = None) -> str:
+    def _build_url(
+        self, path: str, path_params: Optional[dict[str, Any]] = None, query_params: Optional[dict[str, Any]] = None
+    ) -> str:
         """
         Build a complete URL from path and parameters.
 

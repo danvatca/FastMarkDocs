@@ -8,7 +8,7 @@ for enhancing OpenAPI schemas with documentation loaded from markdown files.
 """
 
 import copy
-from typing import Any
+from typing import Any, Optional
 
 from .code_samples import CodeSampleGenerator
 from .documentation_loader import MarkdownDocumentationLoader
@@ -31,8 +31,8 @@ def enhance_openapi_with_docs(
     base_url: str = "https://api.example.com",
     include_code_samples: bool = True,
     include_response_examples: bool = True,
-    code_sample_languages: list[CodeLanguage] = None,
-    custom_headers: dict[str, str] = None,
+    code_sample_languages: Optional[list[CodeLanguage]] = None,
+    custom_headers: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     """
     Enhance an OpenAPI schema with documentation from markdown files.
@@ -99,11 +99,11 @@ class OpenAPIEnhancer:
         include_code_samples: bool = True,
         include_response_examples: bool = True,
         include_parameter_examples: bool = True,
-        code_sample_languages: list[CodeLanguage] = None,
+        code_sample_languages: Optional[list[CodeLanguage]] = None,
         base_url: str = "https://api.example.com",
-        server_urls: list[str] = None,
-        custom_headers: dict[str, str] = None,
-        authentication_schemes: list[str] = None,
+        server_urls: Optional[list[str]] = None,
+        custom_headers: Optional[dict[str, str]] = None,
+        authentication_schemes: Optional[list[str]] = None,
     ):
         """
         Initialize the OpenAPI enhancer.
@@ -215,7 +215,9 @@ class OpenAPIEnhancer:
         except Exception as e:
             raise OpenAPIEnhancementError("schema_root", f"Schema enhancement failed: {str(e)}") from e
 
-    def _enhance_operation(self, operation: dict[str, Any], endpoint_doc: EndpointDocumentation, stats: dict[str, int]):
+    def _enhance_operation(
+        self, operation: dict[str, Any], endpoint_doc: EndpointDocumentation, stats: dict[str, int]
+    ) -> None:
         """
         Enhance a single OpenAPI operation with endpoint documentation.
 
@@ -273,8 +275,8 @@ class OpenAPIEnhancer:
             self._add_parameter_examples(operation, endpoint_doc.parameters, stats)
 
     def _add_code_samples_to_operation(
-        self, operation: dict[str, Any], code_samples: list[CodeSample], stats: dict[str, int] = None
-    ):
+        self, operation: dict[str, Any], code_samples: list[CodeSample], stats: Optional[dict[str, int]] = None
+    ) -> None:
         """
         Add code samples to an OpenAPI operation.
 
@@ -302,8 +304,11 @@ class OpenAPIEnhancer:
                 stats["code_samples_added"] += len(openapi_samples)
 
     def _add_response_examples_to_operation(
-        self, operation: dict[str, Any], response_examples: list[ResponseExample], stats: dict[str, int] = None
-    ):
+        self,
+        operation: dict[str, Any],
+        response_examples: list[ResponseExample],
+        stats: Optional[dict[str, int]] = None,
+    ) -> None:
         """
         Add response examples to an OpenAPI operation.
 
@@ -345,7 +350,7 @@ class OpenAPIEnhancer:
 
     def _add_parameter_examples(
         self, operation: dict[str, Any], parameters: list[ParameterDocumentation], stats: dict[str, int]
-    ):
+    ) -> None:
         """
         Add parameter examples to an OpenAPI operation.
 
@@ -387,7 +392,7 @@ class OpenAPIEnhancer:
             if param_doc.required is not None:
                 existing_param["required"] = param_doc.required
 
-    def _enhance_global_info(self, schema: dict[str, Any], documentation: DocumentationData):
+    def _enhance_global_info(self, schema: dict[str, Any], documentation: DocumentationData) -> None:
         """
         Enhance global schema information with documentation metadata.
 
@@ -463,7 +468,7 @@ class OpenAPIEnhancer:
         """
         return openapi_method.upper() == doc_method.value
 
-    def _enhance_operation_description(self, operation: dict[str, Any], endpoint_doc: EndpointDocumentation):
+    def _enhance_operation_description(self, operation: dict[str, Any], endpoint_doc: EndpointDocumentation) -> None:
         """
         Enhance operation description with markdown formatting.
 

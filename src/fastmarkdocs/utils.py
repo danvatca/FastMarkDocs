@@ -16,7 +16,7 @@ from typing import Any, Optional
 from .types import CodeLanguage, CodeSample, ValidationError
 
 
-def normalize_path(path: str, base_path: str = None) -> str:
+def normalize_path(path: str, base_path: Optional[str] = None) -> str:
     """
     Normalize a file path, making it absolute and resolving any relative components.
 
@@ -33,7 +33,9 @@ def normalize_path(path: str, base_path: str = None) -> str:
     return os.path.abspath(os.path.expanduser(path))
 
 
-def extract_code_samples(markdown_content: str, supported_languages: list[CodeLanguage] = None) -> list[CodeSample]:
+def extract_code_samples(
+    markdown_content: str, supported_languages: Optional[list[CodeLanguage]] = None
+) -> list[CodeSample]:
     """
     Extract code samples from markdown content.
 
@@ -95,7 +97,7 @@ def extract_code_samples(markdown_content: str, supported_languages: list[CodeLa
     return code_samples
 
 
-def validate_markdown_structure(markdown_content: str, file_path: str = None) -> list[ValidationError]:
+def validate_markdown_structure(markdown_content: str, file_path: Optional[str] = None) -> list[ValidationError]:
     """
     Validate the structure of markdown documentation.
 
@@ -163,7 +165,7 @@ def extract_endpoint_info(markdown_content: str) -> dict[str, Any]:
     Returns:
         Dictionary containing endpoint information
     """
-    endpoint_info = {"path": None, "method": None, "summary": None, "description": None, "tags": []}
+    endpoint_info: dict[str, Any] = {"path": None, "method": None, "summary": None, "description": None, "tags": []}
 
     lines = markdown_content.split("\n")
 
@@ -210,7 +212,7 @@ def sanitize_filename(filename: str) -> str:
     return sanitized
 
 
-def find_markdown_files(directory: str, patterns: list[str] = None, recursive: bool = True) -> list[str]:
+def find_markdown_files(directory: str, patterns: Optional[list[str]] = None, recursive: bool = True) -> list[str]:
     """
     Find all markdown files in a directory.
 
@@ -226,7 +228,7 @@ def find_markdown_files(directory: str, patterns: list[str] = None, recursive: b
         patterns = ["*.md", "*.markdown"]
 
     directory_path = Path(directory)
-    markdown_files = []
+    markdown_files: list[Path] = []
 
     for pattern in patterns:
         if recursive:
