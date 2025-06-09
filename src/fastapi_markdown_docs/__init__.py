@@ -1,0 +1,111 @@
+"""
+FastAPI Markdown Docs - Enhanced OpenAPI documentation generation from markdown files.
+
+This library provides sophisticated tools for generating rich, interactive API documentation
+from structured markdown files for FastAPI applications. It combines markdown parsing,
+multi-language code sample generation, and OpenAPI schema enhancement.
+
+Key Features:
+- Advanced markdown parsing with code sample extraction
+- Multi-language code sample generation (cURL, Python, JavaScript, etc.)
+- OpenAPI schema enhancement with examples and descriptions
+- Production-ready with comprehensive error handling
+- Framework-agnostic design (works with any OpenAPI-compatible framework)
+
+Example:
+    ```python
+    from fastapi import FastAPI
+    from fastapi_markdown_docs import MarkdownDocumentationLoader, enhance_openapi_with_docs
+    
+    app = FastAPI()
+    
+    # Load documentation from markdown files
+    docs_loader = MarkdownDocumentationLoader("docs/api")
+    
+    # Enhance OpenAPI schema with markdown documentation
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        
+        openapi_schema = get_openapi(
+            title="My API",
+            version="1.0.0",
+            routes=app.routes,
+        )
+        
+        # Enhance with markdown documentation
+        enhanced_schema = enhance_openapi_with_docs(openapi_schema, docs_loader)
+        app.openapi_schema = enhanced_schema
+        return app.openapi_schema
+    
+    app.openapi = custom_openapi
+    ```
+"""
+
+__version__ = "0.1.0"
+__author__ = "FastAPI Markdown Docs Contributors"
+__email__ = "contributors@fastapi-markdown-docs.dev"
+__license__ = "MIT"
+
+# Core components
+from .documentation_loader import MarkdownDocumentationLoader
+from .openapi_enhancer import enhance_openapi_with_docs, OpenAPIEnhancer
+from .code_samples import CodeSampleGenerator
+from .exceptions import (
+    FastAPIMarkdownDocsError,
+    DocumentationLoadError,
+    CodeSampleGenerationError,
+    OpenAPIEnhancementError,
+)
+
+# Utility functions
+from .utils import (
+    normalize_path,
+    extract_code_samples,
+    validate_markdown_structure,
+)
+
+# Type definitions
+from .types import (
+    DocumentationData,
+    CodeSample,
+    OpenAPIEnhancementConfig,
+    MarkdownDocumentationConfig,
+    CodeLanguage,
+    HTTPMethod,
+)
+
+__all__ = [
+    # Version info
+    "__version__",
+    "__author__",
+    "__email__",
+    "__license__",
+    
+    # Core classes
+    "MarkdownDocumentationLoader",
+    "OpenAPIEnhancer", 
+    "CodeSampleGenerator",
+    
+    # Main functions
+    "enhance_openapi_with_docs",
+    
+    # Exceptions
+    "FastAPIMarkdownDocsError",
+    "DocumentationLoadError", 
+    "CodeSampleGenerationError",
+    "OpenAPIEnhancementError",
+    
+    # Utilities
+    "normalize_path",
+    "extract_code_samples",
+    "validate_markdown_structure",
+    
+    # Types
+    "DocumentationData",
+    "CodeSample",
+    "OpenAPIEnhancementConfig",
+    "MarkdownDocumentationConfig",
+    "CodeLanguage",
+    "HTTPMethod",
+] 
