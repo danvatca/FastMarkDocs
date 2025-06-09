@@ -65,6 +65,7 @@ from .types import (
     CodeLanguage,
     CodeSample,
     DocumentationData,
+    EndpointDocumentation,
     HTTPMethod,
     MarkdownDocumentationConfig,
     OpenAPIEnhancementConfig,
@@ -101,6 +102,7 @@ __all__ = [
     # Types
     "DocumentationData",
     "CodeSample",
+    "EndpointDocumentation",
     "OpenAPIEnhancementConfig",
     "MarkdownDocumentationConfig",
     "CodeLanguage",

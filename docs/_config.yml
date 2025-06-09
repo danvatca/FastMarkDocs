@@ -1,12 +1,17 @@
 title: FastMarkDocs
 description: Enhanced OpenAPI documentation generation from markdown files for FastAPI applications
+
+# GitHub Pages URL configuration
+# For GitHub Pages, these should match your repository settings
 url: "https://danvatca.github.io"
-baseurl: "/fastmarkdocs"
+baseurl: "/FastMarkDocs"
 
-# Theme
+# Theme - Using minima as base with custom dark styling
 theme: minima
+minima:
+  skin: dark
 
-# Plugins
+# Plugins (GitHub Pages compatible)
 plugins:
   - jekyll-feed
   - jekyll-sitemap
@@ -30,11 +35,14 @@ highlighter: rouge
 kramdown:
   input: GFM
   syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
 
 # GitHub Pages settings
-repository: danvatca/fastmarkdocs
+repository: danvatca/FastMarkDocs
 
-# Exclude files
+# Exclude files from processing
 exclude:
   - Gemfile
   - Gemfile.lock
@@ -42,6 +50,10 @@ exclude:
   - vendor/
   - .bundle/
   - BUILD.md
+  - build-docs.sh
+  - Makefile.docs
+  - "*.sh"
+  - GITHUB_PAGES_TROUBLESHOOTING.md
 
 # SEO
 author:
@@ -51,6 +63,16 @@ author:
 # Google Analytics (optional)
 # google_analytics: UA-XXXXXXXX-X
 
+# GitHub Pages specific settings
+github: [metadata]
+
 # Development settings (only used locally)
 livereload: true
-incremental: true 
+incremental: true
+
+# Ensure proper asset handling
+sass:
+  style: compressed
+
+# Timezone
+timezone: UTC 

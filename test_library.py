@@ -15,6 +15,7 @@ from pathlib import Path
 from fastmarkdocs import (
     CodeLanguage,
     CodeSampleGenerator,
+    EndpointDocumentation,
     HTTPMethod,
     MarkdownDocumentationLoader,
     enhance_openapi_with_docs,
@@ -82,9 +83,9 @@ def test_documentation_loader():
 
         except Exception as e:
             print(f"✗ Error loading documentation: {e}")
-            return False
+            raise AssertionError(f"Error loading documentation: {e}") from e
 
-    return True
+    assert True
 
 
 def test_code_sample_generator():
@@ -96,17 +97,17 @@ def test_code_sample_generator():
     )
 
     # Create test endpoint
-    endpoint = {
-        "method": HTTPMethod.GET,
-        "path": "/test/endpoint",
-        "summary": "Test endpoint",
-        "description": "A test endpoint for demonstration",
-        "code_samples": [],
-        "response_examples": [],
-        "parameters": [],
-        "tags": ["test"],
-        "deprecated": False,
-    }
+    endpoint = EndpointDocumentation(
+        method=HTTPMethod.GET,
+        path="/test/endpoint",
+        summary="Test endpoint",
+        description="A test endpoint for demonstration",
+        code_samples=[],
+        response_examples=[],
+        parameters=[],
+        tags=["test"],
+        deprecated=False,
+    )
 
     try:
         samples = generator.generate_samples_for_endpoint(endpoint)
@@ -114,15 +115,15 @@ def test_code_sample_generator():
         print(f"✓ Generated {len(samples)} code samples")
 
         for sample in samples:
-            print(f"✓ {sample['language'].value} sample generated")
-            print(f"  Title: {sample.get('title', 'N/A')}")
-            print(f"  Code length: {len(sample['code'])} characters")
+            print(f"✓ {sample.language.value} sample generated")
+            print(f"  Title: {sample.title or 'N/A'}")
+            print(f"  Code length: {len(sample.code)} characters")
 
     except Exception as e:
         print(f"✗ Error generating code samples: {e}")
-        return False
+        raise AssertionError(f"Error generating code samples: {e}") from e
 
-    return True
+    assert True
 
 
 def test_openapi_enhancement():
@@ -164,9 +165,9 @@ def test_openapi_enhancement():
 
         except Exception as e:
             print(f"✗ Error enhancing OpenAPI schema: {e}")
-            return False
+            raise AssertionError(f"Error enhancing OpenAPI schema: {e}") from e
 
-    return True
+    assert True
 
 
 def test_types_and_imports():
@@ -189,9 +190,9 @@ def test_types_and_imports():
 
     except Exception as e:
         print(f"✗ Error with types/imports: {e}")
-        return False
+        raise AssertionError(f"Error with types/imports: {e}") from e
 
-    return True
+    assert True
 
 
 def main():
@@ -206,10 +207,10 @@ def main():
 
     for test in tests:
         try:
-            if test():
-                passed += 1
-            else:
-                print("Test failed!")
+            test()
+            passed += 1
+        except AssertionError as e:
+            print(f"Test failed: {e}")
         except Exception as e:
             print(f"Test crashed: {e}")
 

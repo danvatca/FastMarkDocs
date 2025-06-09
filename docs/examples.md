@@ -663,8 +663,8 @@ def {method_lower}_{path_safe}() -> Dict[str, Any]:
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error: {{e}}")
-        return {{"error": str(e)}}
+        print(f"Error: {e}")
+        return {"error": str(e)}
 
 # Usage
 result = {method_lower}_{path_safe}()
