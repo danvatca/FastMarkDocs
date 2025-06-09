@@ -6,7 +6,7 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 [![Python Support](https://img.shields.io/pypi/pyversions/fastmarkdocs.svg)](https://pypi.org/project/fastmarkdocs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/danvatca/fastmarkdocs/workflows/CI/badge.svg)](https://github.com/danvatca/fastmarkdocs/actions)
-[![codecov](https://codecov.io/gh/danvatca/fastmarkdocs/branch/main/graph/badge.svg)](https://codecov.io/gh/danvatca/fastmarkdocs)
+[![codecov](https://codecov.io/gh/danvatca/FastMarkDocs/branch/main/graph/badge.svg)](https://codecov.io/gh/danvatca/FastMarkDocs)
 
 ## Features
 

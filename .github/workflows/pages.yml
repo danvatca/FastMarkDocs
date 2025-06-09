@@ -35,6 +35,22 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
           working-directory: ./src/docs
+      - name: Setup Python for coverage
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies and generate coverage
+        run: |
+          poetry install --no-interaction
+          poetry run python -m pytest tests/ -v --cov=fastmarkdocs --cov-report=html --cov-report=xml
+          mkdir -p docs/coverage
+          cp -r htmlcov/* docs/coverage/ 2>/dev/null || echo "No HTML coverage report found"
       - name: Verify Jekyll version
         run: |
           cd src/docs
