@@ -1,5 +1,5 @@
 """
-Basic example demonstrating FastAPI Markdown Docs usage.
+Basic example demonstrating FastMarkDocs usage.
 
 This example shows how to enhance a FastAPI application with documentation
 loaded from markdown files.
@@ -24,7 +24,7 @@ from fastapi_markdown_docs import (
 # Create FastAPI app
 app = FastAPI(
     title="Example API",
-    description="An example API demonstrating FastAPI Markdown Docs",
+    description="An example API demonstrating FastMarkDocs",
     version="1.0.0"
 )
 

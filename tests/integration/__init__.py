@@ -1,6 +1,6 @@
 """
-Integration tests for FastAPI Markdown Docs library.
+Integration tests for FastMarkDocs library.
 
-This package contains integration tests that test the interaction between
-multiple components and real-world usage scenarios.
+This package contains integration tests that test the library components
+working together in realistic scenarios.
 """ 

@@ -1,5 +1,5 @@
 """
-Documentation loader for FastAPI Markdown Docs.
+Documentation loader for FastMarkDocs.
 
 This module provides the MarkdownDocumentationLoader class for loading
 and parsing markdown documentation files into structured data.

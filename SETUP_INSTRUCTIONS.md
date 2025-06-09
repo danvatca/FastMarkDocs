@@ -1,11 +1,11 @@
 # Setup Instructions for GitHub and PyPI Publishing
 
-This document provides step-by-step instructions for setting up the FastAPI Markdown Docs project on GitHub with automated PyPI publishing.
+This document provides step-by-step instructions for setting up the FastMarkDocs project on GitHub with automated PyPI publishing.
 
 ## 1. Create GitHub Repository
 
 1. Go to [GitHub](https://github.com) and create a new repository:
-   - Repository name: `fastapi-markdown-docs`
+   - Repository name: `fastmarkdocs`
    - Description: "A powerful library for enhancing FastAPI applications with rich markdown-based API documentation"
    - Make it **Public**
    - Don't initialize with README (we already have one)
@@ -14,9 +14,9 @@ This document provides step-by-step instructions for setting up the FastAPI Mark
    ```bash
    git init
    git add .
-   git commit -m "Initial commit: FastAPI Markdown Docs library"
+   git commit -m "Initial commit: FastMarkDocs library"
    git branch -M main
-   git remote add origin https://github.com/danvatca/fastapi-markdown-docs.git
+   git remote add origin https://github.com/danvatca/fastmarkdocs.git
    git push -u origin main
    ```
 
@@ -46,9 +46,9 @@ This document provides step-by-step instructions for setting up the FastAPI Mark
 ### Configure Trusted Publishing (Recommended)
 1. Go to PyPI → Account Settings → Publishing
 2. Add a new pending publisher:
-   - PyPI project name: `fastapi-markdown-docs`
+   - PyPI project name: `fastmarkdocs`
    - Owner: `danvatca`
-   - Repository name: `fastapi-markdown-docs`
+   - Repository name: `fastmarkdocs`
    - Workflow name: `publish.yml`
    - Environment name: `pypi`
 

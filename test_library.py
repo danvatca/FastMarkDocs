@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple test script to verify the FastAPI Markdown Docs library functionality.
+Simple test script to verify the FastMarkDocs library functionality.
 
 This script tests the core components of the library to ensure they work correctly.
 """
@@ -225,7 +225,7 @@ def test_types_and_imports():
 
 def main():
     """Run all tests."""
-    print("FastAPI Markdown Docs - Library Test Suite")
+    print("FastMarkDocs - Library Test Suite")
     print("=" * 50)
     
     tests = [

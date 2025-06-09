@@ -1,5 +1,6 @@
 """
-Unit tests for FastAPI Markdown Docs library.
+Unit tests for FastMarkDocs library.
 
-This package contains unit tests for individual components and functions.
+This package contains unit tests for individual components and functions
+of the library.
 """ 

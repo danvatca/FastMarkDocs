@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for FastAPI Markdown Docs library.
+Test runner for FastMarkDocs library.
 
 This script provides a convenient way to run different types of tests
 with various options and configurations.
@@ -31,7 +31,7 @@ def run_command(cmd, description):
 
 def main():
     """Main test runner function."""
-    parser = argparse.ArgumentParser(description="Run tests for FastAPI Markdown Docs library")
+    parser = argparse.ArgumentParser(description="Run tests for FastMarkDocs library")
     parser.add_argument(
         "--type", 
         choices=["unit", "integration", "all"], 

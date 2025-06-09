@@ -1,7 +1,7 @@
 """
 Integration tests using real-world API documentation test fixtures.
 
-This test suite validates that the FastAPI Markdown Docs library can correctly
+This test suite validates that the FastMarkDocs library can correctly
 parse and process complex, real-world documentation files. The test fixtures
 are static copies of documentation from the Syneto Doorman project, providing
 a comprehensive regression test base while keeping the library completely
@@ -217,7 +217,7 @@ class TestDoormanDocsIntegration:
             "info": {
                 "title": "Example API",
                 "version": "1.0.0",
-                "description": "Example API for testing FastAPI Markdown Docs"
+                "description": "Example API for testing FastMarkDocs"
             },
             "paths": {
                 "/v1/session": {

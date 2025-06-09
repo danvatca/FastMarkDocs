@@ -1,5 +1,5 @@
 """
-OpenAPI schema enhancement for FastAPI Markdown Docs.
+OpenAPI schema enhancement for FastMarkDocs.
 
 This module provides the OpenAPIEnhancer class and enhance_openapi_with_docs function
 for enhancing OpenAPI schemas with documentation loaded from markdown files.

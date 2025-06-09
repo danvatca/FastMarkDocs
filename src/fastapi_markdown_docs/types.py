@@ -1,8 +1,8 @@
 """
-Type definitions for FastAPI Markdown Docs.
+Type definitions for FastMarkDocs.
 
-This module contains all the type definitions used throughout the library,
-including data structures for documentation, code samples, and configuration.
+This module contains all type definitions, enums, and data classes used throughout
+the library for type safety and better IDE support.
 """
 
 from typing import Dict, List, Optional, Union, Any

@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "fastapi-markdown-docs"
+name = "fastmarkdocs"
 version = "0.1.0"
 description = "A powerful library for enhancing FastAPI applications with rich markdown-based API documentation"
 authors = ["Dan Vatca <dan@danvatca.com>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/danvatca/fastapi-markdown-docs"
-repository = "https://github.com/danvatca/fastapi-markdown-docs"
-documentation = "https://github.com/danvatca/fastapi-markdown-docs"
+homepage = "https://github.com/danvatca/fastmarkdocs"
+repository = "https://github.com/danvatca/fastmarkdocs"
+documentation = "https://github.com/danvatca/fastmarkdocs"
 keywords = ["fastapi", "markdown", "documentation", "openapi", "api", "docs"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -46,8 +46,8 @@ requests = "^2.28.0"
 uvicorn = "^0.20.0"
 
 [tool.poetry.urls]
-"Bug Tracker" = "https://github.com/danvatca/fastapi-markdown-docs/issues"
-"Changelog" = "https://github.com/danvatca/fastapi-markdown-docs/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/danvatca/fastmarkdocs/issues"
+"Changelog" = "https://github.com/danvatca/fastmarkdocs/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

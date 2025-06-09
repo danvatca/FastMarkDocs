@@ -1,13 +1,14 @@
 """
-Custom exceptions for FastAPI Markdown Docs.
+Custom exceptions for FastMarkDocs.
 
-This module defines all custom exceptions used throughout the library,
-providing clear error messages and proper exception hierarchy.
+This module defines custom exception classes for handling various error conditions
+that can occur during documentation processing, code sample generation, and
+OpenAPI schema enhancement.
 """
 
 
 class FastAPIMarkdownDocsError(Exception):
-    """Base exception for all FastAPI Markdown Docs errors."""
+    """Base exception for all FastMarkDocs errors."""
     
     def __init__(self, message: str, details: str = None):
         self.message = message

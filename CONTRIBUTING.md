@@ -1,6 +1,6 @@
-# Contributing to FastAPI Markdown Docs
+# Contributing to FastMarkDocs
 
-Thank you for your interest in contributing to FastAPI Markdown Docs! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to FastMarkDocs! This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
@@ -51,8 +51,8 @@ Enhancement suggestions are welcome! Please provide:
 
 ```bash
 # Clone your fork
-git clone https://github.com/yourusername/fastapi-markdown-docs.git
-cd fastapi-markdown-docs
+git clone https://github.com/yourusername/fastmarkdocs.git
+cd fastmarkdocs
 
 # Install dependencies
 poetry install
@@ -94,7 +94,7 @@ poetry run ruff check .
 ## Project Structure
 
 ```
-fastapi-markdown-docs/
+fastmarkdocs/
 ├── src/fastapi_markdown_docs/    # Main package
 │   ├── __init__.py              # Public API
 │   ├── documentation_loader.py  # Markdown parsing
@@ -144,11 +144,11 @@ Releases are automated through GitHub Actions:
 
 ## Getting Help
 
-- Check the [documentation](https://github.com/danvatca/fastapi-markdown-docs)
-- Search existing [issues](https://github.com/danvatca/fastapi-markdown-docs/issues)
+- Check the [documentation](https://github.com/danvatca/fastmarkdocs)
+- Search existing [issues](https://github.com/danvatca/fastmarkdocs/issues)
 - Create a new issue for bugs or feature requests
 - Contact the maintainer: [dan@danvatca.com](mailto:dan@danvatca.com)
 
 ## Recognition
 
-Contributors will be recognized in the project's README and release notes. Thank you for helping make FastAPI Markdown Docs better! 
+Contributors will be recognized in the project's README and release notes. Thank you for helping make FastMarkDocs better! 

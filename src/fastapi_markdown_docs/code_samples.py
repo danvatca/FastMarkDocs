@@ -1,5 +1,5 @@
 """
-Code sample generation for FastAPI Markdown Docs.
+Code sample generation for FastMarkDocs.
 
 This module provides the CodeSampleGenerator class for generating
 code samples in multiple programming languages from API endpoint definitions.

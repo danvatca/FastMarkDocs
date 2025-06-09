@@ -1,12 +1,12 @@
-# FastAPI Markdown Docs
+# FastMarkDocs
 
 A powerful library for enhancing FastAPI applications with rich markdown-based API documentation. Transform your API documentation workflow with beautiful, maintainable markdown files that generate comprehensive OpenAPI enhancements.
 
-[![PyPI version](https://badge.fury.io/py/fastapi-markdown-docs.svg)](https://badge.fury.io/py/fastapi-markdown-docs)
-[![Python Support](https://img.shields.io/pypi/pyversions/fastapi-markdown-docs.svg)](https://pypi.org/project/fastapi-markdown-docs/)
+[![PyPI version](https://badge.fury.io/py/fastmarkdocs.svg)](https://badge.fury.io/py/fastmarkdocs)
+[![Python Support](https://img.shields.io/pypi/pyversions/fastmarkdocs.svg)](https://pypi.org/project/fastmarkdocs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/danvatca/fastapi-markdown-docs/workflows/CI/badge.svg)](https://github.com/danvatca/fastapi-markdown-docs/actions)
-[![codecov](https://codecov.io/gh/danvatca/fastapi-markdown-docs/branch/main/graph/badge.svg)](https://codecov.io/gh/danvatca/fastapi-markdown-docs)
+[![CI](https://github.com/danvatca/fastmarkdocs/workflows/CI/badge.svg)](https://github.com/danvatca/fastmarkdocs/actions)
+[![codecov](https://codecov.io/gh/danvatca/fastmarkdocs/branch/main/graph/badge.svg)](https://codecov.io/gh/danvatca/fastmarkdocs)
 
 ## Features
 
@@ -23,7 +23,7 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 ### Installation
 
 ```bash
-pip install fastapi-markdown-docs
+pip install fastmarkdocs
 ```
 
 ### Basic Usage
@@ -285,8 +285,8 @@ pytest -m integration
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/fastapi-markdown-docs.git
-cd fastapi-markdown-docs
+git clone https://github.com/yourusername/fastmarkdocs.git
+cd fastmarkdocs
 
 # Install Poetry (if not already installed)
 curl -sSL https://install.python-poetry.org | python3 -
@@ -311,9 +311,9 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
 
 ## Support
 
-- 📖 [Documentation](https://github.com/danvatca/fastapi-markdown-docs)
-- 🐛 [Issue Tracker](https://github.com/danvatca/fastapi-markdown-docs/issues)
-- 💬 [Discussions](https://github.com/danvatca/fastapi-markdown-docs/discussions)
+- 📖 [Documentation](https://github.com/danvatca/fastmarkdocs)
+- 🐛 [Issue Tracker](https://github.com/danvatca/fastmarkdocs/issues)
+- 💬 [Discussions](https://github.com/danvatca/fastmarkdocs/discussions)
 
 ## Related Projects
 

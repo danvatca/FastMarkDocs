@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of FastAPI Markdown Docs
+- Initial release of FastMarkDocs
 - Markdown-based API documentation enhancement for FastAPI
 - Multi-language code sample generation (Python, JavaScript, TypeScript, Go, Java, PHP, Ruby, C#, cURL)
 - OpenAPI schema enhancement with documentation data

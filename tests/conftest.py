@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared fixtures for FastAPI Markdown Docs tests.
+Pytest configuration and shared fixtures for FastMarkDocs tests.
 
 This module provides common fixtures and configuration used across all tests.
 """

@@ -1,5 +1,5 @@
 """
-FastAPI Markdown Docs - Enhanced OpenAPI documentation generation from markdown files.
+FastMarkDocs - Enhanced OpenAPI documentation generation from markdown files.
 
 This library provides sophisticated tools for generating rich, interactive API documentation
 from structured markdown files for FastAPI applications. It combines markdown parsing,
@@ -43,8 +43,8 @@ Example:
 """
 
 __version__ = "0.1.0"
-__author__ = "FastAPI Markdown Docs Contributors"
-__email__ = "contributors@fastapi-markdown-docs.dev"
+__author__ = "FastMarkDocs Contributors"
+__email__ = "contributors@fastmarkdocs.dev"
 __license__ = "MIT"
 
 # Core components

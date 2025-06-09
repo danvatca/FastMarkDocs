@@ -1,5 +1,5 @@
 """
-Integration tests for the complete FastAPI Markdown Docs workflow.
+Integration tests for the complete FastMarkDocs workflow.
 
 Tests the end-to-end functionality from markdown files to enhanced OpenAPI schemas.
 """

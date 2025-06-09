@@ -40,7 +40,7 @@ Paste the error output here
  - OS: [e.g. Ubuntu 20.04, macOS 12.0, Windows 11]
  - Python version: [e.g. 3.9.7]
  - FastAPI version: [e.g. 0.68.0]
- - fastapi-markdown-docs version: [e.g. 0.1.0]
+ - fastmarkdocs version: [e.g. 0.1.0]
 
 **Additional context**
 Add any other context about the problem here. 

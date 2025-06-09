@@ -1,8 +1,9 @@
 """
-Utility functions for FastAPI Markdown Docs.
+Utility functions for FastMarkDocs.
 
-This module provides common utility functions used throughout the library,
-including path manipulation, markdown parsing helpers, and validation utilities.
+This module provides various utility functions used throughout the library
+for path normalization, code sample extraction, validation, and other
+common operations.
 """
 
 import re
