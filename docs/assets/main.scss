@@ -1,0 +1,98 @@
+@import "minima";
+
+// Custom Dark Theme Override
+body {
+  background-color: #0d1117 !important;
+  color: #c9d1d9 !important;
+}
+
+.site-header {
+  background-color: #161b22 !important;
+  border-bottom: 1px solid #30363d !important;
+}
+
+.site-title, .site-title:visited {
+  color: #f0f6fc !important;
+}
+
+.site-nav .page-link {
+  color: #c9d1d9 !important;
+}
+
+.site-nav .page-link:hover {
+  color: #58a6ff !important;
+}
+
+.page-content {
+  background-color: #0d1117 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #f0f6fc !important;
+}
+
+p, li {
+  color: #c9d1d9 !important;
+}
+
+a {
+  color: #58a6ff !important;
+}
+
+a:visited {
+  color: #8b949e !important;
+}
+
+a:hover {
+  color: #79c0ff !important;
+}
+
+pre, code {
+  background-color: #161b22 !important;
+  border: 1px solid #30363d !important;
+  color: #c9d1d9 !important;
+}
+
+blockquote {
+  background-color: #161b22 !important;
+  border-left: 4px solid #58a6ff !important;
+  color: #8b949e !important;
+}
+
+table {
+  background-color: #161b22 !important;
+  border: 1px solid #30363d !important;
+  color: #c9d1d9 !important;
+}
+
+table th {
+  background-color: #21262d !important;
+  border: 1px solid #30363d !important;
+  color: #f0f6fc !important;
+}
+
+table td {
+  border: 1px solid #30363d !important;
+}
+
+table tr:nth-child(even) {
+  background-color: #0d1117 !important;
+}
+
+.site-footer {
+  background-color: #161b22 !important;
+  border-top: 1px solid #30363d !important;
+  color: #8b949e !important;
+}
+
+.footer-heading {
+  color: #f0f6fc !important;
+}
+
+.site-footer a {
+  color: #8b949e !important;
+}
+
+.site-footer a:hover {
+  color: #58a6ff !important;
+} 

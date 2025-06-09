@@ -6,10 +6,8 @@ description: Enhanced OpenAPI documentation generation from markdown files for F
 url: "https://danvatca.github.io"
 baseurl: "/FastMarkDocs"
 
-# Theme - Using minima 3.0+ via remote_theme for dark skin support
+# Theme - Using minima with custom dark CSS
 remote_theme: jekyll/minima
-minima:
-  skin: dark
 
 # Plugins (GitHub Pages compatible)
 plugins:
