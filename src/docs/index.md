@@ -13,6 +13,7 @@ nav_exclude: true
 [![Python Support](https://img.shields.io/pypi/pyversions/fastmarkdocs.svg)](https://pypi.org/project/fastmarkdocs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/danvatca/fastmarkdocs/workflows/CI/badge.svg)](https://github.com/danvatca/fastmarkdocs/actions)
+[![codecov](https://codecov.io/gh/danvatca/FastMarkDocs/branch/main/graph/badge.svg)](https://codecov.io/gh/danvatca/FastMarkDocs)
 
 FastMarkDocs is a powerful library that transforms your API documentation workflow by allowing you to write beautiful, maintainable markdown files that automatically enhance your FastAPI OpenAPI schemas with rich content, multi-language code samples, and comprehensive examples.
 
