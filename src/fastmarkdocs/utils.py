@@ -191,17 +191,20 @@ def validate_markdown_structure(markdown_content: str, file_path: Optional[str] 
 
 def extract_endpoint_info(markdown_content: str) -> dict[str, Any]:
     """
-    Extract endpoint information from markdown content.
+    Extract comprehensive endpoint information from markdown content.
 
     Args:
         markdown_content: The markdown content to parse
 
     Returns:
-        Dictionary containing endpoint information
+        Dictionary containing endpoint information including full description
     """
     endpoint_info: dict[str, Any] = {"path": None, "method": None, "summary": None, "description": None, "tags": []}
 
     lines = markdown_content.split("\n")
+    description_lines: list[str] = []
+    in_description = False
+    found_endpoint = False
 
     for line in lines:
         # Extract endpoint from header (only take the first one found)
@@ -209,16 +212,45 @@ def extract_endpoint_info(markdown_content: str) -> dict[str, Any]:
         if endpoint_match and not endpoint_info["method"]:
             endpoint_info["method"] = endpoint_match.group(1)
             endpoint_info["path"] = endpoint_match.group(2).strip()
+            found_endpoint = True
+            in_description = True  # Start collecting description after endpoint header
+            continue
 
-        # Extract summary from first paragraph
-        if not endpoint_info["summary"] and line.strip() and not line.startswith("#"):
-            endpoint_info["summary"] = line.strip()
+        # Stop description collection at next major section header (#### or higher level)
+        if in_description and re.match(r"^#{4,}\s+", line):
+            in_description = False
+
+        # Collect description content (everything between endpoint header and next section)
+        if in_description and found_endpoint:
+            # Skip empty lines at the start
+            if not description_lines and not line.strip():
+                continue
+
+            # Add line to description
+            description_lines.append(line)
+
+            # Extract summary from first meaningful line (often bold text)
+            if not endpoint_info["summary"] and line.strip() and not line.startswith("#"):
+                # Clean up summary - remove markdown formatting for summary
+                summary = line.strip()
+                # Remove bold formatting for summary
+                summary = re.sub(r"\*\*(.*?)\*\*", r"\1", summary)
+                endpoint_info["summary"] = summary
 
         # Extract tags from metadata
         tag_match = re.match(r"^Tags?:\s*(.+)", line, re.IGNORECASE)
         if tag_match:
             tags = [tag.strip() for tag in tag_match.group(1).split(",")]
             endpoint_info["tags"] = tags
+
+    # Build full description from collected lines
+    if description_lines:
+        # Remove trailing empty lines
+        while description_lines and not description_lines[-1].strip():
+            description_lines.pop()
+
+        if description_lines:
+            endpoint_info["description"] = "\n".join(description_lines).strip()
 
     return endpoint_info
 

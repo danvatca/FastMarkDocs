@@ -162,6 +162,18 @@ class TestOpenAPIEnhancer:
         assert python_sample is not None
         assert "import requests" in python_sample["source"]
 
+    def test_add_code_samples_to_operation_empty_list(self):
+        """Test early return when no code samples are provided."""
+        enhancer = OpenAPIEnhancer()
+        operation = {"summary": "Test"}
+        stats = {"code_samples_added": 0}
+
+        # Should return early and not modify operation
+        enhancer._add_code_samples_to_operation(operation, [], stats)
+
+        assert "x-codeSamples" not in operation
+        assert stats["code_samples_added"] == 0
+
     def test_add_response_examples_to_operation(self):
         """Test adding response examples to an operation."""
         operation = {
@@ -183,6 +195,22 @@ class TestOpenAPIEnhancer:
         json_content = operation["responses"]["200"]["content"]["application/json"]
         assert "examples" in json_content
         assert "example_200" in json_content["examples"]
+
+    def test_add_response_examples_to_operation_no_responses(self):
+        """Test response examples when operation has no responses initially."""
+        enhancer = OpenAPIEnhancer()
+        operation = {"summary": "Test"}  # No responses key
+
+        response_examples = [ResponseExample(status_code=200, description="Success", content={"result": "ok"})]
+
+        stats = {"examples_added": 0}
+
+        enhancer._add_response_examples_to_operation(operation, response_examples, stats)
+
+        # Should create responses section
+        assert "responses" in operation
+        assert "200" in operation["responses"]
+        assert stats["examples_added"] == 1
 
     def test_merge_response_examples_with_existing(self):
         """Test merging response examples with existing examples."""
@@ -270,6 +298,56 @@ class TestOpenAPIEnhancer:
 
         with pytest.raises(OpenAPIEnhancementError):
             enhancer.enhance_openapi_schema(None, DocumentationData(endpoints=[], metadata={}))
+
+    def test_error_handling_invalid_schema_type(self):
+        """Test error handling when schema is not a dictionary."""
+        enhancer = OpenAPIEnhancer()
+        documentation = DocumentationData(endpoints=[], metadata={})
+
+        # Test with non-dict schema
+        with pytest.raises(OpenAPIEnhancementError) as exc_info:
+            enhancer.enhance_openapi_schema("not a dict", documentation)
+
+        assert "OpenAPI schema must be a dictionary" in str(exc_info.value)
+
+    def test_error_handling_root_exception(self):
+        """Test error handling for root-level exceptions during enhancement."""
+        enhancer = OpenAPIEnhancer()
+
+        # Create a schema that will cause an exception during deep copy
+        class BadDict(dict):
+            def __deepcopy__(self, memo):
+                raise Exception("Deep copy failed")
+
+        bad_schema = BadDict({"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0.0"}})
+
+        documentation = DocumentationData(endpoints=[], metadata={})
+
+        with pytest.raises(OpenAPIEnhancementError) as exc_info:
+            enhancer.enhance_openapi_schema(bad_schema, documentation)
+
+        assert "Schema enhancement failed" in str(exc_info.value)
+
+    def test_error_handling_operation_enhancement_exception(self):
+        """Test error handling when _enhance_operation raises an exception."""
+        enhancer = OpenAPIEnhancer()
+
+        # Create a mock that will raise an exception
+        with patch.object(enhancer, "_enhance_operation", side_effect=Exception("Test error")):
+            schema = {
+                "openapi": "3.0.0",
+                "info": {"title": "Test", "version": "1.0.0"},
+                "paths": {"/test": {"get": {"summary": "Test endpoint"}}},
+            }
+
+            documentation = DocumentationData(
+                endpoints=[EndpointDocumentation(path="/test", method=HTTPMethod.GET, summary="Test endpoint")],
+                metadata={},
+            )
+
+            # Should not raise exception, but should handle it gracefully
+            result = enhancer.enhance_openapi_schema(schema, documentation)
+            assert result is not None
 
     def test_disable_code_samples(self, sample_openapi_schema):
         """Test disabling code sample enhancement."""
@@ -485,12 +563,42 @@ class TestOpenAPIEnhancer:
         assert examples["example_200"]["value"]["id"] == 2  # Last one wins
 
     def test_operation_enhancement_with_existing_content(self):
-        """Test that enhancement doesn't overwrite existing operation content."""
+        """Test that enhancement properly adds rich markdown descriptions while preserving meaningful existing content."""
         enhancer = OpenAPIEnhancer()
 
-        operation = {"summary": "Existing summary", "description": "Existing description", "tags": ["existing-tag"]}
+        # Test case 1: Auto-generated summary should be overridden
+        operation1 = {"summary": "Authorize", "description": "", "tags": ["existing-tag"]}
+        endpoint_doc1 = EndpointDocumentation(
+            path="/test",
+            method=HTTPMethod.GET,
+            summary="Authenticate user with JWT token",
+            description="This endpoint authenticates a user using a JWT token and returns user information along with access permissions.",
+            tags=["new-tag"],
+            code_samples=[],
+            response_examples=[],
+            parameters=[],
+        )
+        stats1 = {"descriptions_enhanced": 0, "code_samples_added": 0, "examples_added": 0, "endpoints_enhanced": 0}
 
-        endpoint_doc = EndpointDocumentation(
+        enhancer._enhance_operation(operation1, endpoint_doc1, stats1)
+
+        # Should override auto-generated summary and add rich description
+        assert operation1["summary"] == "Authenticate user with JWT token"
+        assert (
+            operation1["description"]
+            == "This endpoint authenticates a user using a JWT token and returns user information along with access permissions."
+        )
+        assert "existing-tag" in operation1["tags"]
+        assert "new-tag" in operation1["tags"]
+        assert stats1["descriptions_enhanced"] == 2  # Both summary and description enhanced
+
+        # Test case 2: Meaningful existing content should be preserved
+        operation2 = {
+            "summary": "Comprehensive user authentication endpoint",
+            "description": "This is a detailed existing description that provides meaningful information about the endpoint functionality.",
+            "tags": ["existing-tag"],
+        }
+        endpoint_doc2 = EndpointDocumentation(
             path="/test",
             method=HTTPMethod.GET,
             summary="New summary",
@@ -500,19 +608,19 @@ class TestOpenAPIEnhancer:
             response_examples=[],
             parameters=[],
         )
+        stats2 = {"descriptions_enhanced": 0, "code_samples_added": 0, "examples_added": 0, "endpoints_enhanced": 0}
 
-        stats = {"descriptions_enhanced": 0, "code_samples_added": 0, "examples_added": 0, "endpoints_enhanced": 0}
+        enhancer._enhance_operation(operation2, endpoint_doc2, stats2)
 
-        enhancer._enhance_operation(operation, endpoint_doc, stats)
-
-        # Should not overwrite existing content
-        assert operation["summary"] == "Existing summary"
-        assert operation["description"] == "Existing description"
-        # Should merge tags
-        assert "existing-tag" in operation["tags"]
-        assert "new-tag" in operation["tags"]
-        # Stats should not be incremented since nothing was enhanced
-        assert stats["descriptions_enhanced"] == 0
+        # Should preserve meaningful existing content
+        assert operation2["summary"] == "Comprehensive user authentication endpoint"
+        assert (
+            operation2["description"]
+            == "This is a detailed existing description that provides meaningful information about the endpoint functionality."
+        )
+        assert "existing-tag" in operation2["tags"]
+        assert "new-tag" in operation2["tags"]
+        assert stats2["descriptions_enhanced"] == 0  # Nothing enhanced since existing content is meaningful
 
     def test_response_examples_with_missing_status_codes(self):
         """Test response example enhancement when operation doesn't have matching status codes."""
@@ -621,6 +729,39 @@ class TestOpenAPIEnhancer:
         assert doc_stats["code_samples_added"] == 25
         assert doc_stats["descriptions_enhanced"] == 8
         assert doc_stats["examples_added"] == 8
+
+    def test_global_info_enhancement_no_stats_to_add(self):
+        """Test global info enhancement when there are no stats to add."""
+        enhancer = OpenAPIEnhancer()
+
+        schema = {"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0.0"}}
+
+        documentation = DocumentationData(endpoints=[], metadata={})
+
+        # Stats with no enhancements
+        stats = {"endpoints_enhanced": 0, "code_samples_added": 0, "descriptions_enhanced": 0, "examples_added": 0}
+
+        enhancer._enhance_global_info(schema, documentation, stats)
+
+        # Should not add documentation stats when no enhancements were made
+        assert "x-documentation-stats" not in schema["info"]
+
+    def test_global_info_enhancement_no_info_section(self):
+        """Test global info enhancement when schema has no info section."""
+        enhancer = OpenAPIEnhancer()
+
+        schema = {"openapi": "3.0.0"}  # No info section
+
+        documentation = DocumentationData(endpoints=[], metadata={})
+
+        stats = {"endpoints_enhanced": 1, "code_samples_added": 2, "descriptions_enhanced": 1, "examples_added": 1}
+
+        enhancer._enhance_global_info(schema, documentation, stats)
+
+        # Should create info section
+        assert "info" in schema
+        assert "x-documentation-stats" in schema["info"]
+        assert schema["info"]["x-documentation-stats"]["endpoints_enhanced"] == 1
 
     def test_path_matching_with_parameter_variations(self):
         """Test path matching handles parameter name variations correctly."""

@@ -303,14 +303,39 @@ class OpenAPIEnhancer:
             endpoint_doc: Endpoint documentation
             stats: Statistics tracking dictionary
         """
-        # Enhance summary and description
-        if endpoint_doc.summary and not operation.get("summary"):
-            operation["summary"] = endpoint_doc.summary
-            stats["descriptions_enhanced"] += 1
+        # Enhance summary - override auto-generated or very short summaries
+        if endpoint_doc.summary:
+            existing_summary = operation.get("summary", "")
+            # Override if:
+            # 1. No existing summary, OR
+            # 2. Very short summary (likely auto-generated), OR
+            # 3. Known auto-generated summaries from FastAPI
+            should_override_summary = (
+                not existing_summary
+                or len(existing_summary) < 10
+                or existing_summary.lower() in ["authorize", "get", "post", "put", "delete", "patch", "head", "options"]
+            )
 
-        if endpoint_doc.description and not operation.get("description"):
-            operation["description"] = endpoint_doc.description
-            stats["descriptions_enhanced"] += 1
+            if should_override_summary:
+                operation["summary"] = endpoint_doc.summary
+                stats["descriptions_enhanced"] += 1
+
+        # Enhance description - prioritize rich markdown descriptions
+        if endpoint_doc.description:
+            existing_description = operation.get("description", "")
+            # Add description if:
+            # 1. No existing description, OR
+            # 2. Existing description is very short (likely auto-generated), OR
+            # 3. The markdown description is significantly richer (much longer)
+            should_add_description = (
+                not existing_description
+                or len(existing_description) < 50  # Increased threshold for meaningful descriptions
+                or (len(endpoint_doc.description) > len(existing_description) * 2)  # Markdown is much richer
+            )
+
+            if should_add_description:
+                operation["description"] = endpoint_doc.description
+                stats["descriptions_enhanced"] += 1
 
         # Add tags
         if endpoint_doc.tags:
