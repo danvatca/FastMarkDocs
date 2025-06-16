@@ -924,3 +924,274 @@ Get specific user
             assert not loader._is_cached(str(file_path))
             # Cache entry should be removed
             assert str(file_path) not in loader._cache
+
+    def test_general_docs_loading_default_file(self, temp_docs_dir, test_utils):
+        """Test loading general documentation from default general_docs.md file."""
+        # Create general_docs.md file
+        general_content = """# General API Documentation
+
+## Overview
+
+This is the general documentation for the entire API.
+
+### Authentication
+
+All endpoints require authentication.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "general_docs.md", general_content)
+
+        # Create an endpoint file
+        endpoint_content = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint creates a test resource.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "test.md", endpoint_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Should have endpoints
+        assert len(documentation.endpoints) > 0
+
+        # Check that general docs are loaded into the loader's _general_docs_content
+        assert hasattr(loader, "_general_docs_content")
+        general_docs_content = loader._general_docs_content
+        assert general_docs_content is not None
+        assert "# General API Documentation" in general_docs_content
+        assert "This is the general documentation" in general_docs_content
+        assert "### Authentication" in general_docs_content
+        assert "All endpoints require authentication" in general_docs_content
+
+        # Check that endpoint descriptions do NOT include general docs (now handled globally)
+        endpoint = documentation.endpoints[0]
+        description = endpoint.description or ""
+        assert "Test endpoint" in description
+        assert "# General API Documentation" not in description
+
+    def test_general_docs_loading_custom_file(self, temp_docs_dir, test_utils):
+        """Test loading general documentation from custom file."""
+        # Create custom general docs file
+        general_content = """# Custom General Documentation
+
+This is custom general documentation.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "custom_general.md", general_content)
+
+        # Create an endpoint file
+        endpoint_content = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint creates a test resource.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "test.md", endpoint_content)
+
+        loader = MarkdownDocumentationLoader(
+            docs_directory=str(temp_docs_dir), general_docs_file="custom_general.md", cache_enabled=False
+        )
+        documentation = loader.load_documentation()
+
+        # Should have endpoints
+        assert len(documentation.endpoints) > 0
+
+        # Check that custom general docs are loaded into the loader's _general_docs_content
+        assert hasattr(loader, "_general_docs_content")
+        general_docs_content = loader._general_docs_content
+        assert general_docs_content is not None
+        assert "# Custom General Documentation" in general_docs_content
+        assert "This is custom general documentation" in general_docs_content
+
+        # Check that endpoint descriptions do NOT include general docs
+        endpoint = documentation.endpoints[0]
+        description = endpoint.description or ""
+        assert "Test endpoint" in description
+        assert "# Custom General Documentation" not in description
+
+    def test_general_docs_loading_absolute_path(self, temp_docs_dir, test_utils):
+        """Test loading general documentation from absolute path."""
+        # Create general docs file in a different location
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as other_dir:
+            other_path = Path(other_dir)
+            general_file = other_path / "external_general.md"
+            general_content = """# External General Documentation
+
+This is external general documentation.
+"""
+            general_file.write_text(general_content)
+
+            # Create an endpoint file
+            endpoint_content = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint creates a test resource.
+"""
+            test_utils.create_markdown_file(temp_docs_dir, "test.md", endpoint_content)
+
+            loader = MarkdownDocumentationLoader(
+                docs_directory=str(temp_docs_dir), general_docs_file=str(general_file), cache_enabled=False
+            )
+            documentation = loader.load_documentation()
+
+            # Should have endpoints
+            assert len(documentation.endpoints) > 0
+
+            # Check that external general docs are loaded into the loader's _general_docs_content
+            assert hasattr(loader, "_general_docs_content")
+            general_docs_content = loader._general_docs_content
+            assert general_docs_content is not None
+            assert "# External General Documentation" in general_docs_content
+            assert "This is external general documentation" in general_docs_content
+
+            # Check that endpoint descriptions do NOT include general docs
+            endpoint = documentation.endpoints[0]
+            description = endpoint.description or ""
+            assert "Test endpoint" in description
+            assert "# External General Documentation" not in description
+
+    def test_general_docs_loading_nonexistent_file(self, temp_docs_dir, test_utils):
+        """Test loading when general docs file doesn't exist."""
+        # Create an endpoint file without general docs
+        endpoint_content = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint creates a test resource.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "test.md", endpoint_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Should have endpoints
+        assert len(documentation.endpoints) > 0
+
+        # Check that endpoint description doesn't include general docs
+        endpoint = documentation.endpoints[0]
+        description = endpoint.description or ""
+
+        assert "Test endpoint" in description
+        assert "# General API Documentation" not in description
+
+    def test_general_docs_loading_with_frontmatter(self, temp_docs_dir, test_utils):
+        """Test loading general docs with YAML frontmatter."""
+        # Create general docs with frontmatter
+        general_content = """---
+title: General Documentation
+version: 1.0
+---
+
+# General API Documentation
+
+This is the general documentation with frontmatter.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "general_docs.md", general_content)
+
+        # Create an endpoint file
+        endpoint_content = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint creates a test resource.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "test.md", endpoint_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Should have endpoints
+        assert len(documentation.endpoints) > 0
+
+        # Check that general docs are loaded without frontmatter
+        assert hasattr(loader, "_general_docs_content")
+        general_docs_content = loader._general_docs_content
+        assert general_docs_content is not None
+        assert "# General API Documentation" in general_docs_content
+        assert "This is the general documentation with frontmatter" in general_docs_content
+        # Frontmatter should be stripped - check that the YAML frontmatter content is not present
+        assert "title: General Documentation" not in general_docs_content
+        assert "version: 1.0" not in general_docs_content
+        # The document should not start with frontmatter
+        assert not general_docs_content.startswith("---")
+
+        # Check that endpoint descriptions do NOT include general docs
+        endpoint = documentation.endpoints[0]
+        description = endpoint.description or ""
+        assert "Test endpoint" in description
+        assert "# General API Documentation" not in description
+
+    def test_general_docs_loading_error_handling(self, temp_docs_dir, test_utils):
+        """Test error handling when general docs file has issues."""
+        import warnings
+
+        # Create a general docs file
+        general_content = """# General Documentation
+
+This is general documentation.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "general_docs.md", general_content)
+
+        # Create an endpoint file
+        endpoint_content = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint creates a test resource.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "test.md", endpoint_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+
+        # Mock the _load_general_docs method to raise an exception
+        def mock_load_general_docs(docs_path):
+            raise PermissionError("Permission denied")
+
+        loader._load_general_docs = mock_load_general_docs
+
+        # Should handle the error gracefully and continue without general docs
+        # Suppress the expected warning during testing
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            documentation = loader.load_documentation()
+
+        # Should still have endpoints
+        assert len(documentation.endpoints) > 0
+
+        # Check that endpoint description doesn't include general docs due to error
+        endpoint = documentation.endpoints[0]
+        description = endpoint.description or ""
+
+        assert "Test endpoint" in description
+        assert "# General Documentation" not in description
+
+    def test_load_general_docs_method(self, temp_docs_dir, test_utils):
+        """Test the _load_general_docs method directly."""
+        # Create general docs file
+        general_content = """# General Documentation
+
+This is general documentation.
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "general_docs.md", general_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir))
+
+        # Test loading general docs
+        result = loader._load_general_docs(str(temp_docs_dir))
+
+        assert result is not None
+        assert "# General Documentation" in result
+        assert "This is general documentation" in result
+
+        # Test with nonexistent file
+        result = loader._load_general_docs("/nonexistent/path")
+        assert result is None
+
+        # Test with custom file
+        loader.general_docs_file = "general_docs.md"
+        result = loader._load_general_docs(str(temp_docs_dir))
+        assert result is not None
+        assert "# General Documentation" in result

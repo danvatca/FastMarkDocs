@@ -32,15 +32,17 @@ def _build_description_with_api_links(
     app_description: Optional[str] = None,
     api_links: Optional[list[APILink]] = None,
     original_description: Optional[str] = None,
+    general_docs_content: Optional[str] = None,
 ) -> str:
     """
-    Build a description with API links in a standardized format.
+    Build a description with API links and general docs in a standardized format.
 
     Args:
         app_title: Application title
         app_description: Application description
         api_links: List of API links to include
         original_description: Original description from the schema
+        general_docs_content: General documentation content to include
 
     Returns:
         Formatted description string
@@ -72,6 +74,13 @@ def _build_description_with_api_links(
     elif original_description:
         description_parts.append(original_description)
 
+    # Add general docs content if provided
+    if general_docs_content and general_docs_content.strip():
+        # Add separator if we already have content
+        if description_parts:
+            description_parts.extend(["", "---", ""])
+        description_parts.append(general_docs_content.strip())
+
     return "\n".join(description_parts)
 
 
@@ -86,6 +95,7 @@ def enhance_openapi_with_docs(
     app_title: Optional[str] = None,
     app_description: Optional[str] = None,
     api_links: Optional[list[APILink]] = None,
+    general_docs_file: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     Enhance an OpenAPI schema with documentation from markdown files.
@@ -101,6 +111,7 @@ def enhance_openapi_with_docs(
         app_title: Application title
         app_description: Application description
         api_links: List of API links to include
+        general_docs_file: Path to general documentation file (defaults to "general_docs.md" if found)
 
     Returns:
         Enhanced OpenAPI schema
@@ -110,7 +121,7 @@ def enhance_openapi_with_docs(
     """
     try:
         # Create documentation loader
-        docs_loader = MarkdownDocumentationLoader(docs_directory)
+        docs_loader = MarkdownDocumentationLoader(docs_directory, general_docs_file=general_docs_file)
 
         # Create enhancement config
         OpenAPIEnhancementConfig(
@@ -133,20 +144,22 @@ def enhance_openapi_with_docs(
         documentation = docs_loader.load_documentation()
         enhanced_schema = enhancer.enhance_openapi_schema(openapi_schema, documentation)
 
-        # Override title and description if provided
-        if app_title or app_description or api_links:
+        # Override title and description if provided, or if general docs exist
+        general_docs_content = getattr(docs_loader, "_general_docs_content", None)
+        if app_title or app_description or api_links or general_docs_content:
             original_description = enhanced_schema.get("info", {}).get("description", "")
 
             # Update title if provided
             if app_title:
                 enhanced_schema.setdefault("info", {})["title"] = app_title
 
-            # Build new description with API links
+            # Build new description with API links and general docs
             new_description = _build_description_with_api_links(
                 app_title=app_title,
                 app_description=app_description,
                 api_links=api_links,
                 original_description=original_description,
+                general_docs_content=general_docs_content,
             )
 
             if new_description:

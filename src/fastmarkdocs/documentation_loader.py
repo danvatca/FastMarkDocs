@@ -56,6 +56,7 @@ class MarkdownDocumentationLoader:
         recursive: bool = True,
         cache_enabled: bool = True,
         cache_ttl: int = 3600,
+        general_docs_file: Optional[str] = None,
     ):
         """
         Initialize the documentation loader.
@@ -69,6 +70,7 @@ class MarkdownDocumentationLoader:
             recursive: Whether to search recursively
             cache_enabled: Whether to enable caching
             cache_ttl: Cache time-to-live in seconds
+            general_docs_file: Path to general documentation file (defaults to "general_docs.md" if found)
         """
         self.docs_directory = Path(docs_directory)
         self.base_url_placeholder = base_url_placeholder
@@ -78,6 +80,7 @@ class MarkdownDocumentationLoader:
         self.recursive = recursive
         self.cache_enabled = cache_enabled
         self.cache_ttl = cache_ttl
+        self.general_docs_file = general_docs_file
 
         # Validate directory exists during initialization (only for absolute paths)
         if self.docs_directory.is_absolute() and not self.docs_directory.exists():
@@ -91,6 +94,7 @@ class MarkdownDocumentationLoader:
         self._loading_event = threading.Event()
         self._is_loading = False
         self._markdown_parser = mistune.create_markdown(renderer="ast")
+        self._general_docs_content: Optional[str] = None
 
     def load_documentation(self) -> DocumentationData:
         """
@@ -179,6 +183,16 @@ class MarkdownDocumentationLoader:
 
             if not os.path.exists(docs_path):
                 raise DocumentationLoadError(docs_path, "Documentation directory does not exist")
+
+            # Load general documentation content if available
+            try:
+                self._general_docs_content = self._load_general_docs(docs_path)
+            except Exception as e:
+                # Log warning but don't fail - general docs are optional
+                import warnings
+
+                warnings.warn(f"Failed to load general docs: {str(e)}", stacklevel=2)
+                self._general_docs_content = None
 
             # Find all markdown files
             markdown_files = find_markdown_files(docs_path, self.file_patterns, self.recursive)
@@ -328,7 +342,7 @@ class MarkdownDocumentationLoader:
             ast = self._markdown_parser(content_without_frontmatter)
 
             # Extract various components
-            endpoint_info = extract_endpoint_info(content_without_frontmatter)
+            endpoint_info = extract_endpoint_info(content_without_frontmatter, self._general_docs_content)
             code_samples = extract_code_samples(content_without_frontmatter, self.supported_languages)
             validation_errors = validate_markdown_structure(content_without_frontmatter, file_path)
 
@@ -361,6 +375,45 @@ class MarkdownDocumentationLoader:
         except Exception as e:
             raise DocumentationLoadError(file_path, f"Unexpected error: {str(e)}") from e
 
+    def _load_general_docs(self, docs_path: str) -> Optional[str]:
+        """
+        Load general documentation content if available.
+
+        Args:
+            docs_path: Path to the documentation directory
+
+        Returns:
+            General documentation content or None if not found
+        """
+        # Determine the general docs file path
+        if self.general_docs_file:
+            # User specified a custom general docs file
+            if os.path.isabs(self.general_docs_file):
+                general_docs_path = self.general_docs_file
+            else:
+                general_docs_path = os.path.join(docs_path, self.general_docs_file)
+        else:
+            # Default to general_docs.md
+            general_docs_path = os.path.join(docs_path, "general_docs.md")
+
+        # Try to load the general docs file
+        if os.path.exists(general_docs_path):
+            try:
+                with open(general_docs_path, encoding=self.encoding) as f:
+                    content = f.read()
+
+                # Extract content without frontmatter
+                _, content_without_frontmatter = self._extract_frontmatter(content)
+                return content_without_frontmatter
+            except Exception as e:
+                # Log warning but don't fail - general docs are optional
+                import warnings
+
+                warnings.warn(f"Failed to load general docs from {general_docs_path}: {str(e)}", stacklevel=2)
+                return None
+
+        return None
+
     def _extract_endpoints_from_content(self, content: str) -> list[EndpointDocumentation]:
         """
         Extract endpoint documentation from markdown content.
@@ -377,7 +430,7 @@ class MarkdownDocumentationLoader:
         sections = self._split_content_by_endpoints(content)
 
         for section in sections:
-            endpoint_info = extract_endpoint_info(section)
+            endpoint_info = extract_endpoint_info(section, self._general_docs_content)
 
             if endpoint_info["method"] and endpoint_info["path"]:
                 # Extract code samples from this section
@@ -419,14 +472,37 @@ class MarkdownDocumentationLoader:
         lines = content.split("\n")
         sections: list[str] = []
         current_section: list[str] = []
+        current_endpoint_level = 0
 
         for line in lines:
             # Check if this line is an endpoint header
-            if re.match(r"^#{2,3}\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line):
+            endpoint_match = re.match(r"^(#{2,3})\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line)
+            if endpoint_match:
                 # If we have a current section, save it
                 if current_section:
                     sections.append("\n".join(current_section))
                     current_section = []
+
+                # Track the level of this endpoint header
+                current_endpoint_level = len(endpoint_match.group(1))
+                current_section.append(line)
+                continue
+
+            # Check if this line is a header that would end the current endpoint section
+            if current_section and current_endpoint_level > 0:
+                header_match = re.match(r"^(#{1,})\s+", line)
+                if header_match:
+                    header_level = len(header_match.group(1))
+                    # If we encounter a header at the same level or higher (fewer #'s) than the endpoint,
+                    # and it's not another endpoint, then end the current section
+                    if header_level <= current_endpoint_level:
+                        # Check if this is another endpoint header
+                        if not re.match(r"^#{2,3}\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line):
+                            # This is a non-endpoint header at same/higher level, end current section
+                            sections.append("\n".join(current_section))
+                            current_section = [line]
+                            current_endpoint_level = 0
+                            continue
 
             current_section.append(line)
 

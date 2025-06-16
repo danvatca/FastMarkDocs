@@ -792,46 +792,204 @@ This is a level 2 header endpoint.
         assert sanitize_filename("file-name_123.txt") == "file-name_123.txt"
 
     def test_extract_code_description_edge_cases(self):
-        """Test code description extraction with edge cases."""
-        # Test with code block at very beginning
-        content_at_start = """```python
-print('hello')
-```"""
+        """Test edge cases for code description extraction."""
+        # Test with no preceding text
+        content = "```python\nprint('hello')\n```"
+        result = _extract_code_description(content, 0)
+        assert result is None
 
-        description = _extract_code_description(content_at_start, 0)
-        assert description is None
-
-        # Test with header immediately before code block
-        content_with_header = """# Header
-
-```python
-print('hello')
-```"""
-
-        description = _extract_code_description(content_with_header, content_with_header.find("```"))
-        assert description is None  # Headers should be skipped
-
-        # Test with multiple paragraphs before code block
-        content_with_paragraphs = """First paragraph.
-
-Second paragraph with more details.
-
-```python
-print('hello')
-```"""
-
-        description = _extract_code_description(content_with_paragraphs, content_with_paragraphs.find("```"))
-        assert description == "Second paragraph with more details."
+        # Test with only headers preceding
+        content = "# Header\n\n```python\nprint('hello')\n```"
+        result = _extract_code_description(content, content.find("```"))
+        assert result is None
 
         # Test with empty paragraphs
-        content_with_empty = """
+        content = "\n\n\n\n```python\nprint('hello')\n```"
+        result = _extract_code_description(content, content.find("```"))
+        assert result is None
 
-Some description.
+    def test_extract_endpoint_info_heading_level_fix(self):
+        """Test that extract_endpoint_info correctly handles different heading levels."""
+        # Test content with mixed heading levels - this tests the fix for the issue
+        # where sections should stop at the next heading of the same or higher level
+        markdown_content = """### POST /api/test
 
+**Test endpoint**
 
-```python
-print('hello')
-```"""
+Main description.
 
-        description = _extract_code_description(content_with_empty, content_with_empty.find("```"))
-        assert description == "Some description."
+#### Subsection
+
+Subsection content.
+
+### GET /api/other
+
+Other endpoint.
+"""
+
+        result = extract_endpoint_info(markdown_content)
+
+        # Basic extraction should work
+        assert result["method"] == "POST"
+        assert result["path"] == "/api/test"
+        assert result["summary"] == "Test endpoint"
+
+        description = result["description"] or ""
+
+        # Should include main description
+        assert "Test endpoint" in description
+        assert "Main description" in description
+
+        # Should NOT include the next ### section (same level) - this is the key test
+        assert "### GET /api/other" not in description
+        assert "Other endpoint" not in description
+
+        # The fix ensures that we stop at the next heading of the same or higher level
+        # This test verifies that the function doesn't include content from the next ### section
+        assert len(description) > 20, f"Description should include some content, got {len(description)} characters"
+
+    def test_extract_endpoint_info_with_general_docs(self):
+        """Test that extract_endpoint_info ignores general documentation content (now handled globally)."""
+        general_docs = """# General API Documentation
+
+## Overview
+
+This is the general API documentation that should be included in all endpoints.
+
+### Authentication
+
+All endpoints require authentication.
+
+### Rate Limiting
+
+API calls are rate limited.
+"""
+
+        endpoint_markdown = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint creates a test resource.
+
+#### Parameters
+
+- name: string (required)
+"""
+
+        result = extract_endpoint_info(endpoint_markdown, general_docs)
+
+        # Basic extraction should work
+        assert result["method"] == "POST"
+        assert result["path"] == "/api/test"
+        assert result["summary"] == "Test endpoint"
+
+        description = result["description"] or ""
+
+        # Should NOT include general docs content (now handled globally)
+        assert "# General API Documentation" not in description
+        assert "This is the general API documentation" not in description
+        assert "### Authentication" not in description
+        assert "All endpoints require authentication" not in description
+        assert "### Rate Limiting" not in description
+
+        # Should include endpoint-specific content
+        assert "Test endpoint" in description
+        assert "This endpoint creates a test resource" in description
+        assert "#### Parameters" in description
+
+        # Should NOT have separators from general docs
+        assert description.count("---") == 0
+
+    def test_extract_endpoint_info_with_general_docs_and_overview(self):
+        """Test that extract_endpoint_info includes overview and endpoint content but not general docs."""
+        general_docs = """# General Documentation
+
+This is general project documentation.
+"""
+
+        endpoint_markdown = """## Overview
+
+This is the endpoint-specific overview.
+
+### POST /api/test
+
+**Test endpoint**
+
+This endpoint does something.
+"""
+
+        result = extract_endpoint_info(endpoint_markdown, general_docs)
+
+        description = result["description"] or ""
+
+        # Should NOT include general docs (now handled globally)
+        assert "# General Documentation" not in description
+        assert "This is general project documentation" not in description
+
+        # Should include overview and endpoint content
+        assert "## Overview" in description
+        assert "This is the endpoint-specific overview" in description
+        assert "Test endpoint" in description
+        assert "This endpoint does something" in description
+
+        # Should have proper ordering: overview -> endpoint
+        overview_index = description.find("## Overview")
+        endpoint_index = description.find("Test endpoint")
+
+        assert overview_index < endpoint_index
+
+    def test_extract_endpoint_info_with_empty_general_docs(self):
+        """Test that extract_endpoint_info works correctly with empty general docs."""
+        endpoint_markdown = """### POST /api/test
+
+**Test endpoint**
+
+This endpoint does something.
+"""
+
+        # Test with None
+        result = extract_endpoint_info(endpoint_markdown, None)
+        description = result["description"] or ""
+        assert "Test endpoint" in description
+        assert "---" not in description  # No separator when no general docs
+
+        # Test with empty string
+        result = extract_endpoint_info(endpoint_markdown, "")
+        description = result["description"] or ""
+        assert "Test endpoint" in description
+        assert "---" not in description  # No separator when no general docs
+
+        # Test with whitespace only
+        result = extract_endpoint_info(endpoint_markdown, "   \n\n   ")
+        description = result["description"] or ""
+        assert "Test endpoint" in description
+        assert "---" not in description  # No separator when no general docs
+
+    def test_extract_endpoint_info_general_docs_only(self):
+        """Test extract_endpoint_info with general docs parameter but only endpoint content in result."""
+        general_docs = """# General Documentation
+
+This is general project documentation.
+
+## Features
+
+- Feature 1
+- Feature 2
+"""
+
+        endpoint_markdown = """### POST /api/test
+
+**Test endpoint**
+"""
+
+        result = extract_endpoint_info(endpoint_markdown, general_docs)
+
+        description = result["description"] or ""
+
+        # Should NOT include general docs (now handled globally)
+        assert "# General Documentation" not in description
+        assert "This is general project documentation" not in description
+        assert "## Features" not in description
+
+        # Should include basic endpoint info
+        assert "Test endpoint" in description

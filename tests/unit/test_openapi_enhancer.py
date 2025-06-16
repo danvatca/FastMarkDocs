@@ -980,3 +980,120 @@ class TestEnhanceOpenAPIWithDocs:
 
         with pytest.raises(OpenAPIEnhancementError):
             enhance_openapi_with_docs(openapi_schema=invalid_schema, docs_directory=str(temp_docs_dir))
+
+    def test_enhance_openapi_with_docs_general_docs_feature(self, sample_openapi_schema, temp_docs_dir, test_utils):
+        """Test the general docs feature through enhance_openapi_with_docs function."""
+        # Create general docs file
+        general_docs_content = """# API General Documentation
+
+This is general documentation that should appear in the global info.description.
+
+## Features
+- Authentication
+- Rate limiting
+- Error handling
+
+## Getting Started
+1. Get an API key
+2. Make requests
+3. Handle responses
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "general_docs.md", general_docs_content)
+
+        # Create endpoint documentation
+        endpoint_content = """## GET /api/users
+
+Retrieve a list of users.
+
+### Parameters
+- `limit` (integer, optional): Maximum number of results
+
+### Response Examples
+
+```json
+{
+  "users": [
+    {"id": 1, "name": "John Doe"}
+  ]
+}
+```
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "users.md", endpoint_content)
+
+        # Test 1: Default behavior (should auto-detect general_docs.md)
+        enhanced_schema = enhance_openapi_with_docs(
+            openapi_schema=sample_openapi_schema, docs_directory=str(temp_docs_dir)
+        )
+
+        assert enhanced_schema is not None
+        assert "paths" in enhanced_schema
+        assert "/api/users" in enhanced_schema["paths"]
+
+        # Check that general docs were included in the global info.description
+        info_description = enhanced_schema.get("info", {}).get("description", "")
+        assert "API General Documentation" in info_description
+        assert "This is general documentation" in info_description
+        assert "Features" in info_description
+        assert "Getting Started" in info_description
+
+        # Check that endpoint descriptions do NOT include general docs
+        get_operation = enhanced_schema["paths"]["/api/users"]["get"]
+        endpoint_description = get_operation.get("description", "")
+
+        # Should include endpoint-specific content
+        assert "Retrieve a list of users" in endpoint_description
+        assert "Parameters" in endpoint_description
+
+        # Should NOT include general docs content in endpoint descriptions
+        assert "API General Documentation" not in endpoint_description
+        assert "This is general documentation" not in endpoint_description
+
+        # Test 2: Custom general docs file
+        custom_general_content = """# Custom General Docs
+
+Custom general documentation content.
+
+## Custom Features
+- Custom feature 1
+- Custom feature 2
+"""
+        test_utils.create_markdown_file(temp_docs_dir, "custom_general.md", custom_general_content)
+
+        enhanced_schema_custom = enhance_openapi_with_docs(
+            openapi_schema=sample_openapi_schema,
+            docs_directory=str(temp_docs_dir),
+            general_docs_file="custom_general.md",
+        )
+
+        info_description_custom = enhanced_schema_custom.get("info", {}).get("description", "")
+
+        # Should include custom general docs content in global description
+        assert "Custom General Docs" in info_description_custom
+        assert "Custom general documentation content" in info_description_custom
+        assert "Custom Features" in info_description_custom
+
+        # Should NOT include default general docs content
+        assert "API General Documentation" not in info_description_custom
+        assert "This is general documentation" not in info_description_custom
+
+        # Test 3: No general docs file (remove both files)
+        (temp_docs_dir / "general_docs.md").unlink()
+        (temp_docs_dir / "custom_general.md").unlink()
+
+        enhanced_schema_no_general = enhance_openapi_with_docs(
+            openapi_schema=sample_openapi_schema, docs_directory=str(temp_docs_dir)
+        )
+
+        info_description_no_general = enhanced_schema_no_general.get("info", {}).get("description", "")
+
+        # Should NOT include any general docs content in global description
+        assert "API General Documentation" not in info_description_no_general
+        assert "Custom General Docs" not in info_description_no_general
+
+        # Endpoint descriptions should still work normally
+        get_operation_no_general = enhanced_schema_no_general["paths"]["/api/users"]["get"]
+        endpoint_description_no_general = get_operation_no_general.get("description", "")
+
+        # Should include endpoint-specific content
+        assert "Retrieve a list of users" in endpoint_description_no_general
+        assert "Parameters" in endpoint_description_no_general

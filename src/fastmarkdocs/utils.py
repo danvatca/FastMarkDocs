@@ -189,15 +189,16 @@ def validate_markdown_structure(markdown_content: str, file_path: Optional[str] 
     return errors
 
 
-def extract_endpoint_info(markdown_content: str) -> dict[str, Any]:
+def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[str] = None) -> dict[str, Any]:
     """
     Extract comprehensive endpoint information from markdown content.
 
     Args:
         markdown_content: The markdown content to parse
+        general_docs_content: Optional general documentation content (ignored - kept for compatibility)
 
     Returns:
-        Dictionary containing endpoint information including full description
+        Dictionary containing endpoint information including endpoint-specific description
     """
     endpoint_info: dict[str, Any] = {"path": None, "method": None, "summary": None, "description": None, "tags": []}
 
@@ -205,23 +206,70 @@ def extract_endpoint_info(markdown_content: str) -> dict[str, Any]:
     description_lines: list[str] = []
     in_description = False
     found_endpoint = False
+    endpoint_header_level = 0
+    overview_lines: list[str] = []
+    in_overview = False
 
     for line in lines:
+        # Check for Overview section
+        if line.strip() == "## Overview":
+            in_overview = True
+            overview_lines.append(line)
+            continue
+
+        # Collect Overview content until next h2
+        if in_overview:
+            # Check if this is an endpoint header first
+            endpoint_match = re.match(r"^(#{2,3})\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(.+)", line)
+            if endpoint_match:
+                # This is an endpoint header, stop overview collection
+                in_overview = False
+                # Don't continue, let this line be processed by the endpoint logic below
+            else:
+                header_match = re.match(r"^(#{1,})\s+", line)
+                if header_match:
+                    current_header_level = len(header_match.group(1))
+                    # Stop overview collection if we hit another h2 or h1
+                    if current_header_level <= 2:
+                        in_overview = False
+                        # Don't add this line to overview since it's the start of a new section
+                        if current_header_level < 2:  # Only stop for h1, continue for other h2s
+                            pass
+                        else:
+                            # This is another h2, stop overview collection
+                            pass
+                    else:
+                        # This is h3, h4, etc. - include in overview
+                        overview_lines.append(line)
+                        continue
+                else:
+                    # Regular content line in overview
+                    overview_lines.append(line)
+                    continue
+
         # Extract endpoint from header (only take the first one found)
-        endpoint_match = re.match(r"^#{2,3}\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(.+)", line)
+        endpoint_match = re.match(r"^(#{2,3})\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(.+)", line)
         if endpoint_match and not endpoint_info["method"]:
-            endpoint_info["method"] = endpoint_match.group(1)
-            endpoint_info["path"] = endpoint_match.group(2).strip()
+            endpoint_header_level = len(endpoint_match.group(1))  # Count the # characters
+            endpoint_info["method"] = endpoint_match.group(2)
+            endpoint_info["path"] = endpoint_match.group(3).strip()
             found_endpoint = True
             in_description = True  # Start collecting description after endpoint header
             continue
 
-        # Stop description collection at next major section header (#### or higher level)
-        if in_description and re.match(r"^#{4,}\s+", line):
-            in_description = False
-
         # Collect description content (everything between endpoint header and next section)
         if in_description and found_endpoint:
+            # Check if this line should stop description collection
+            header_match = re.match(r"^(#{1,})\s+", line)
+            if header_match:
+                current_header_level = len(header_match.group(1))
+                # Stop if we encounter a header at the same level or higher (fewer #'s)
+                # This ensures we stop at the next endpoint (same level) or section (higher level)
+                if current_header_level <= endpoint_header_level:
+                    in_description = False
+                    # Don't add this line to description since it's the start of a new section
+                    continue
+
             # Skip empty lines at the start
             if not description_lines and not line.strip():
                 continue
@@ -243,14 +291,30 @@ def extract_endpoint_info(markdown_content: str) -> dict[str, Any]:
             tags = [tag.strip() for tag in tag_match.group(1).split(",")]
             endpoint_info["tags"] = tags
 
-    # Build full description from collected lines
-    if description_lines:
-        # Remove trailing empty lines
-        while description_lines and not description_lines[-1].strip():
-            description_lines.pop()
+    # Build description from overview + endpoint content (no general docs)
+    full_description_lines = []
 
+    # Add overview content if we found any
+    if overview_lines:
+        full_description_lines.extend(overview_lines)
+        # Add separator between overview and endpoint content
         if description_lines:
-            endpoint_info["description"] = "\n".join(description_lines).strip()
+            full_description_lines.append("")
+            full_description_lines.append("---")
+            full_description_lines.append("")
+
+    # Add endpoint-specific content
+    if description_lines:
+        full_description_lines.extend(description_lines)
+
+    # Build final description
+    if full_description_lines:
+        # Remove trailing empty lines
+        while full_description_lines and not full_description_lines[-1].strip():
+            full_description_lines.pop()
+
+        if full_description_lines:
+            endpoint_info["description"] = "\n".join(full_description_lines).strip()
 
     return endpoint_info
 

@@ -349,3 +349,170 @@ class TestDoormanDocsIntegration:
         assert total_code_samples > 0, "Should have extracted code samples"
 
         print("\n   ✅ All integration tests passed! The library successfully handles real Doorman documentation.")
+
+    def test_doorman_docs_with_general_docs(self, temp_docs_dir):
+        """Test that general docs are properly loaded and available in the loader."""
+        # The temp_docs_dir should already include general_docs.md from the fixture
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
+
+        documentation = loader.load_documentation()
+
+        # Should have endpoints
+        assert len(documentation.endpoints) > 0
+
+        print("\n📄 General Docs Integration Test:")
+        print("   Testing general docs loading functionality")
+
+        # Check that general docs are loaded into the loader's _general_docs_content
+        assert hasattr(loader, "_general_docs_content"), "Loader should have _general_docs_content attribute"
+        general_docs_content = loader._general_docs_content
+        assert general_docs_content is not None, "General docs content should be loaded"
+
+        print(f"   General docs content length: {len(general_docs_content)} characters")
+
+        # Check that general docs content is loaded correctly
+        # Based on the general_docs.md fixture content
+        general_docs_indicators = [
+            "SynetoOS Authentication Service",
+            "centralized authentication and authorization",
+            "Quick Start",
+            "Supported Authentication Methods",
+            "Session Cookie Authentication",
+            "Bearer Token Authentication",
+            "API Key Authentication",
+            "Error Handling",
+        ]
+
+        found_indicators = []
+        for indicator in general_docs_indicators:
+            if indicator in general_docs_content:
+                found_indicators.append(indicator)
+
+        print(f"   Found {len(found_indicators)}/{len(general_docs_indicators)} general docs indicators")
+        for indicator in found_indicators:
+            print(f"     ✓ {indicator}")
+
+        # Should have at least some general docs content
+        assert len(found_indicators) > 0, "Should load general documentation content"
+
+        # Find a specific endpoint to test that it does NOT include general docs
+        session_post = next(
+            (ep for ep in documentation.endpoints if ep.path == "/v1/session" and ep.method == HTTPMethod.POST), None
+        )
+
+        if session_post:
+            description = session_post.description or ""
+            print(f"   Endpoint description length: {len(description)} characters")
+
+            # Should have endpoint-specific content
+            endpoint_indicators = [
+                "Login with username and password",
+                "Request Examples",
+                "POST /v1/session",
+                "Login with PIN",
+                "Verify OTP code",
+                "support access",
+            ]
+
+            found_endpoint_indicators = []
+            for indicator in endpoint_indicators:
+                if indicator in description:
+                    found_endpoint_indicators.append(indicator)
+
+            print(f"   Found {len(found_endpoint_indicators)}/{len(endpoint_indicators)} endpoint-specific indicators")
+            for indicator in found_endpoint_indicators:
+                print(f"     ✓ {indicator}")
+
+            # Should have endpoint-specific content
+            assert len(found_endpoint_indicators) > 0, "Should include endpoint-specific content"
+
+            # Should NOT include general docs content in endpoint descriptions
+            general_docs_in_endpoint = []
+            for indicator in general_docs_indicators:
+                if indicator in description:
+                    general_docs_in_endpoint.append(indicator)
+
+            print(f"   General docs indicators in endpoint: {len(general_docs_in_endpoint)} (should be 0)")
+            assert len(general_docs_in_endpoint) == 0, "Endpoint descriptions should NOT include general docs content"
+
+            print("   ✅ General docs loading working correctly!")
+
+        else:
+            print("   ⚠️  POST /v1/session endpoint not found, skipping endpoint test")
+
+    def test_doorman_docs_with_custom_general_docs(self, doorman_docs_path):
+        """Test using a custom general docs file with Doorman documentation."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Copy doorman docs
+            for md_file in doorman_docs_path.glob("*.md"):
+                if "_docs.md" in md_file.name:
+                    dest_path = temp_path / md_file.name
+                    shutil.copy2(md_file, dest_path)
+
+            # Create a custom general docs file
+            custom_general_content = """# Custom API Documentation
+
+## Project Overview
+
+This is a custom general documentation file for testing.
+
+### Custom Authentication
+
+Custom authentication information.
+
+### Custom Features
+
+- Feature A
+- Feature B
+- Feature C
+"""
+            custom_general_file = temp_path / "custom_general.md"
+            custom_general_file.write_text(custom_general_content)
+
+            # Test with custom general docs file
+            loader = MarkdownDocumentationLoader(
+                docs_directory=str(temp_path),
+                general_docs_file="custom_general.md",
+                recursive=True,
+                cache_enabled=False,
+            )
+
+            documentation = loader.load_documentation()
+
+            # Should have endpoints
+            assert len(documentation.endpoints) > 0
+
+            print("\n📄 Custom General Docs Test:")
+            print("   Testing with custom general docs file")
+
+            # Check that custom general docs are loaded into the loader's _general_docs_content
+            assert hasattr(loader, "_general_docs_content"), "Loader should have _general_docs_content attribute"
+            general_docs_content = loader._general_docs_content
+            assert general_docs_content is not None, "Custom general docs content should be loaded"
+
+            print(f"   General docs content length: {len(general_docs_content)} characters")
+
+            # Should include custom general docs content in the loader
+            assert "# Custom API Documentation" in general_docs_content
+            assert "This is a custom general documentation file" in general_docs_content
+            assert "### Custom Authentication" in general_docs_content
+            assert "### Custom Features" in general_docs_content
+            assert "Feature A" in general_docs_content
+
+            # Check that endpoint descriptions do NOT include custom general docs
+            endpoint = documentation.endpoints[0]
+            description = endpoint.description or ""
+
+            print(f"   Endpoint description length: {len(description)} characters")
+
+            # Should NOT include custom general docs content in endpoint descriptions
+            assert "# Custom API Documentation" not in description
+            assert "This is a custom general documentation file" not in description
+            assert "### Custom Authentication" not in description
+            assert "### Custom Features" not in description
+
+            print("   ✅ Custom general docs file working correctly!")
+
+        print("\n   ✅ All integration tests passed! The library successfully handles real Doorman documentation.")

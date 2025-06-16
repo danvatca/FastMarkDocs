@@ -157,6 +157,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
         # Setup mocks
         mock_loader = MagicMock()
         mock_loader.load_documentation.return_value = MagicMock()
+        mock_loader._general_docs_content = None  # Ensure this attribute exists
         mock_loader_class.return_value = mock_loader
 
         mock_enhancer = MagicMock()
@@ -187,6 +188,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
         # Setup mocks
         mock_loader = MagicMock()
         mock_loader.load_documentation.return_value = MagicMock()
+        mock_loader._general_docs_content = None  # Ensure this attribute exists
         mock_loader_class.return_value = mock_loader
 
         mock_enhancer = MagicMock()
@@ -224,6 +226,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
         # Setup mocks
         mock_loader = MagicMock()
         mock_loader.load_documentation.return_value = MagicMock()
+        mock_loader._general_docs_content = None  # Ensure this attribute exists
         mock_loader_class.return_value = mock_loader
 
         mock_enhancer = MagicMock()
@@ -265,6 +268,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
         # Setup mocks
         mock_loader = MagicMock()
         mock_loader.load_documentation.return_value = MagicMock()
+        mock_loader._general_docs_content = None  # Ensure this attribute exists
         mock_loader_class.return_value = mock_loader
 
         mock_enhancer = MagicMock()
@@ -296,6 +300,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
         # Setup mocks
         mock_loader = MagicMock()
         mock_loader.load_documentation.return_value = MagicMock()
+        mock_loader._general_docs_content = None  # Ensure this attribute exists
         mock_loader_class.return_value = mock_loader
 
         mock_enhancer = MagicMock()
@@ -325,6 +330,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
         # Setup mocks
         mock_loader = MagicMock()
         mock_loader.load_documentation.return_value = MagicMock()
+        mock_loader._general_docs_content = None  # Ensure this attribute exists
         mock_loader_class.return_value = mock_loader
 
         mock_enhancer = MagicMock()
