@@ -15,7 +15,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
-from fastmarkdocs import CodeLanguage, enhance_openapi_with_docs
+from fastmarkdocs import (
+    CodeLanguage,
+    enhance_openapi_with_docs,
+)
 
 # Add the src directory to the path so we can import the library
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -121,33 +124,20 @@ def create_enhanced_openapi():
     )
 
     try:
-        # Configure documentation loader
-        docs_config = {
-            "docs_directory": os.path.join(os.path.dirname(__file__), "docs"),
-            "recursive": True,
-            "cache_enabled": True,
-            "supported_languages": [CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
-        }
+        # Enhanced configuration using modern API
+        docs_directory = os.path.join(os.path.dirname(__file__), "docs")
 
-        # Configure enhancement
-        enhancement_config = {
-            "include_code_samples": True,
-            "include_response_examples": True,
-            "include_parameter_examples": True,
-            "base_url": "http://localhost:8000",
-            "code_sample_languages": [CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
-            "custom_headers": {"User-Agent": "ExampleApp/1.0"},
-        }
-
-        # Load documentation and enhance schema
+        # Load documentation and enhance schema with modern API
         enhanced_schema = enhance_openapi_with_docs(
             openapi_schema=openapi_schema,
-            docs_directory=docs_config["docs_directory"],
-            base_url=enhancement_config["base_url"],
-            include_code_samples=enhancement_config["include_code_samples"],
-            include_response_examples=enhancement_config["include_response_examples"],
-            code_sample_languages=enhancement_config["code_sample_languages"],
-            custom_headers=enhancement_config["custom_headers"],
+            docs_directory=docs_directory,
+            base_url="http://localhost:8000",
+            include_code_samples=True,
+            include_response_examples=True,
+            include_parameter_examples=True,
+            code_sample_languages=[CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
+            custom_headers={"User-Agent": "ExampleApp/1.0"},
+            general_docs_file="general_docs.md",  # Optional: specify general documentation file
         )
 
         app.openapi_schema = enhanced_schema

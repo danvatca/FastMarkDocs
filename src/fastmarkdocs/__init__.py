@@ -44,10 +44,8 @@ Example:
     ```
 """
 
-__version__ = "0.1.0"
-__author__ = "Dan Vatca"
-__email__ = "dan.vatca@gmail.com"
-__license__ = "MIT"
+import os
+import re
 
 # Core components
 from .code_samples import CodeSampleGenerator
@@ -78,6 +76,60 @@ from .utils import (
     normalize_path,
     validate_markdown_structure,
 )
+
+
+def _get_version_from_pyproject() -> str:
+    """Get version from pyproject.toml during development."""
+    root = os.path.dirname(__file__)
+    # Look for pyproject.toml in the package root
+    for _ in range(5):  # Search up to 5 levels up
+        pyproject = os.path.join(root, "..", "..", "pyproject.toml")
+        if os.path.exists(pyproject):
+            break
+        pyproject = os.path.join(root, "..", pyproject)
+        if os.path.exists(pyproject):
+            break
+        root = os.path.dirname(root)
+    else:
+        # Final attempt at common locations
+        pyproject = os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")
+
+    try:
+        with open(pyproject, encoding="utf-8") as f:
+            for line in f:
+                if line.strip().startswith("version"):
+                    match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', line)
+                    if match:
+                        return match.group(1)
+    except Exception:
+        pass
+    return "unknown"
+
+
+# Try to get version from package metadata (production)
+try:
+    from importlib.metadata import PackageNotFoundError, version
+except ImportError:
+    # Python < 3.8 fallback
+    try:
+        from importlib_metadata import PackageNotFoundError, version
+    except ImportError:
+        # If importlib_metadata is not available, use development fallback
+        __version__ = _get_version_from_pyproject()
+    else:
+        try:
+            __version__ = version("fastmarkdocs")
+        except PackageNotFoundError:
+            __version__ = _get_version_from_pyproject()
+else:
+    try:
+        __version__ = version("fastmarkdocs")
+    except PackageNotFoundError:
+        __version__ = _get_version_from_pyproject()
+
+__author__ = "Dan Vatca"
+__email__ = "dan.vatca@gmail.com"
+__license__ = "MIT"
 
 __all__ = [
     # Version info
