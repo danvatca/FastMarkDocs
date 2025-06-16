@@ -4,6 +4,8 @@ Integration tests for the complete FastMarkDocs workflow.
 Tests the end-to-end functionality from markdown files to enhanced OpenAPI schemas.
 """
 
+from typing import Any
+
 from fastapi import FastAPI
 
 from fastmarkdocs import CodeSampleGenerator, MarkdownDocumentationLoader, OpenAPIEnhancer, enhance_openapi_with_docs
@@ -13,7 +15,7 @@ from fastmarkdocs.types import CodeLanguage, HTTPMethod
 class TestFullWorkflow:
     """Test the complete workflow from markdown to enhanced OpenAPI."""
 
-    def test_complete_workflow_basic(self, temp_docs_dir, test_utils):
+    def test_complete_workflow_basic(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test the complete workflow with basic documentation."""
         # Create comprehensive markdown documentation
         comprehensive_docs = """
@@ -83,7 +85,7 @@ Tags: users, create
         post_users = enhanced_schema["paths"]["/api/users"]["post"]
         assert "x-codeSamples" in post_users
 
-    def test_workflow_with_multiple_files(self, temp_docs_dir, test_utils):
+    def test_workflow_with_multiple_files(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test workflow with multiple documentation files."""
         # Create multiple documentation files
         users_docs = """
@@ -136,7 +138,7 @@ Tags: auth
         assert "x-codeSamples" in enhanced_schema["paths"]["/api/users"]["get"]
         assert "x-codeSamples" in enhanced_schema["paths"]["/api/auth/login"]["post"]
 
-    def test_workflow_with_custom_configuration(self, temp_docs_dir, test_utils):
+    def test_workflow_with_custom_configuration(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test workflow with custom configuration options."""
         docs_content = """
 # API Documentation
@@ -200,7 +202,7 @@ resp, err := http.Get("/api/test")
         # Check custom headers (look for the header value in language-appropriate format)
         assert "Bearer token123" in python_sample["source"]
 
-    def test_workflow_error_handling(self, temp_docs_dir):
+    def test_workflow_error_handling(self, temp_docs_dir: Any) -> None:
         """Test workflow error handling and fallback behavior."""
         # Test with empty directory
         openapi_schema = {
@@ -215,7 +217,7 @@ resp, err := http.Get("/api/test")
         # Should return original schema unchanged
         assert enhanced_schema == openapi_schema
 
-    def test_workflow_with_fastapi_app(self, temp_docs_dir, test_utils):
+    def test_workflow_with_fastapi_app(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test workflow integration with a real FastAPI application."""
         # Create documentation
         docs_content = """
@@ -267,7 +269,7 @@ response = requests.post("/items", json={"name": "test"})
         assert enhanced_schema["info"]["title"] == "Test API"
         assert enhanced_schema["info"]["version"] == "1.0.0"
 
-    def test_workflow_performance_large_scale(self, temp_docs_dir, test_utils):
+    def test_workflow_performance_large_scale(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test workflow performance with large-scale documentation."""
         # Create documentation for many endpoints
         large_docs = "# Large API Documentation\n\n"
@@ -320,7 +322,7 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
 
         assert enhanced_count == 50
 
-    def test_workflow_component_integration(self, temp_docs_dir, test_utils):
+    def test_workflow_component_integration(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test integration between individual components."""
         docs_content = """
 # Component Integration Test

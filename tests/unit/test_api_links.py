@@ -2,6 +2,7 @@
 Tests for the new API links functionality.
 """
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,37 +15,37 @@ from fastmarkdocs.openapi_enhancer import _build_description_with_api_links
 class TestAPILinkDataClass:
     """Test the APILink dataclass validation and creation."""
 
-    def test_creates_api_link_with_valid_data(self):
+    def test_creates_api_link_with_valid_data(self) -> None:
         """Test creating an APILink with valid URL and description."""
         link = APILink(url="/docs", description="Main API")
         assert link.url == "/docs"
         assert link.description == "Main API"
 
-    def test_rejects_empty_url(self):
+    def test_rejects_empty_url(self) -> None:
         """Test that APILink raises ValueError for empty URL."""
         with pytest.raises(ValueError, match="URL cannot be empty"):
             APILink(url="", description="Main API")
 
-    def test_rejects_empty_description(self):
+    def test_rejects_empty_description(self) -> None:
         """Test that APILink raises ValueError for empty description."""
         with pytest.raises(ValueError, match="Description cannot be empty"):
             APILink(url="/docs", description="")
 
-    def test_rejects_none_url(self):
+    def test_rejects_none_url(self) -> None:
         """Test that APILink raises ValueError for None URL."""
         with pytest.raises(ValueError, match="URL cannot be empty"):
-            APILink(url=None, description="Main API")
+            APILink(url="", description="Main API")
 
-    def test_rejects_none_description(self):
+    def test_rejects_none_description(self) -> None:
         """Test that APILink raises ValueError for None description."""
         with pytest.raises(ValueError, match="Description cannot be empty"):
-            APILink(url="/docs", description=None)
+            APILink(url="/docs", description="")
 
 
 class TestDescriptionBuilder:
     """Test the _build_description_with_api_links helper function."""
 
-    def test_builds_complete_description_with_all_components(self):
+    def test_builds_complete_description_with_all_components(self) -> None:
         """Test building description with API links, title, and description."""
         api_links = [
             APILink(url="/docs", description="Main API"),
@@ -61,7 +62,7 @@ class TestDescriptionBuilder:
         expected = "APIs: [Main API](/docs) | [Admin API](/admin/docs)\n\n" "* * *\n\n" "Test API - A test API service"
         assert result == expected
 
-    def test_builds_description_with_api_links_and_original_description(self):
+    def test_builds_description_with_api_links_and_original_description(self) -> None:
         """Test building description with only API links, preserving original description."""
         api_links = [
             APILink(url="/docs", description="Main API"),
@@ -76,7 +77,7 @@ class TestDescriptionBuilder:
         expected = "APIs: [Main API](/docs) | [V2 API](/v2/docs)\n\n" "* * *\n\n" "Original description"
         assert result == expected
 
-    def test_builds_description_with_title_and_description_only(self):
+    def test_builds_description_with_title_and_description_only(self) -> None:
         """Test building description with only custom title and description."""
         result = _build_description_with_api_links(
             app_title="Custom API",
@@ -85,7 +86,7 @@ class TestDescriptionBuilder:
 
         assert result == "Custom API - Custom service"
 
-    def test_builds_description_with_title_only(self):
+    def test_builds_description_with_title_only(self) -> None:
         """Test building description with only custom title."""
         result = _build_description_with_api_links(
             app_title="Custom API",
@@ -93,7 +94,7 @@ class TestDescriptionBuilder:
 
         assert result == "Custom API"
 
-    def test_builds_description_with_description_only(self):
+    def test_builds_description_with_description_only(self) -> None:
         """Test building description with only custom description."""
         result = _build_description_with_api_links(
             app_description="Custom service",
@@ -101,7 +102,7 @@ class TestDescriptionBuilder:
 
         assert result == "Custom service"
 
-    def test_preserves_original_description_when_no_custom_content(self):
+    def test_preserves_original_description_when_no_custom_content(self) -> None:
         """Test that original description is preserved when no custom content provided."""
         result = _build_description_with_api_links(
             original_description="Original description",
@@ -109,12 +110,12 @@ class TestDescriptionBuilder:
 
         assert result == "Original description"
 
-    def test_returns_empty_string_when_no_content_provided(self):
+    def test_returns_empty_string_when_no_content_provided(self) -> None:
         """Test that empty string is returned when no content is provided."""
         result = _build_description_with_api_links()
         assert result == ""
 
-    def test_formats_single_api_link_correctly(self):
+    def test_formats_single_api_link_correctly(self) -> None:
         """Test that single API link is formatted correctly without trailing content."""
         api_links = [APILink(url="/docs", description="Main API")]
 
@@ -123,7 +124,7 @@ class TestDescriptionBuilder:
         expected = "APIs: [Main API](/docs)\n\n* * *\n"
         assert result == expected
 
-    def test_handles_empty_api_links_list(self):
+    def test_handles_empty_api_links_list(self) -> None:
         """Test that empty API links list doesn't add API section."""
         result = _build_description_with_api_links(
             api_links=[],
@@ -132,7 +133,7 @@ class TestDescriptionBuilder:
 
         assert result == "Original description"
 
-    def test_handles_complex_urls_in_api_links(self):
+    def test_handles_complex_urls_in_api_links(self) -> None:
         """Test that complex URLs with query parameters are handled correctly."""
         api_links = [
             APILink(url="https://api.example.com/v1/docs", description="V1 API"),
@@ -152,7 +153,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_overrides_application_title_when_provided(self, mock_enhancer_class, mock_loader_class):
+    def test_overrides_application_title_when_provided(self, mock_enhancer_class: Any, mock_loader_class: Any) -> None:
         """Test that app_title parameter overrides the OpenAPI schema title."""
         # Setup mocks
         mock_loader = MagicMock()
@@ -183,7 +184,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_adds_api_links_to_description(self, mock_enhancer_class, mock_loader_class):
+    def test_adds_api_links_to_description(self, mock_enhancer_class: Any, mock_loader_class: Any) -> None:
         """Test that api_links parameter adds formatted links to the description."""
         # Setup mocks
         mock_loader = MagicMock()
@@ -221,7 +222,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_applies_all_new_parameters_together(self, mock_enhancer_class, mock_loader_class):
+    def test_applies_all_new_parameters_together(self, mock_enhancer_class: Any, mock_loader_class: Any) -> None:
         """Test that all new parameters work together correctly."""
         # Setup mocks
         mock_loader = MagicMock()
@@ -263,7 +264,9 @@ class TestEnhanceOpenAPIWithDocsFunction:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_maintains_backward_compatibility_without_new_parameters(self, mock_enhancer_class, mock_loader_class):
+    def test_maintains_backward_compatibility_without_new_parameters(
+        self, mock_enhancer_class: Any, mock_loader_class: Any
+    ) -> None:
         """Test that function works normally when new parameters are not provided."""
         # Setup mocks
         mock_loader = MagicMock()
@@ -295,7 +298,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_creates_info_section_when_missing(self, mock_enhancer_class, mock_loader_class):
+    def test_creates_info_section_when_missing(self, mock_enhancer_class: Any, mock_loader_class: Any) -> None:
         """Test that info section is created when missing from schema."""
         # Setup mocks
         mock_loader = MagicMock()
@@ -325,7 +328,9 @@ class TestEnhanceOpenAPIWithDocsFunction:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_handles_missing_description_in_info_section(self, mock_enhancer_class, mock_loader_class):
+    def test_handles_missing_description_in_info_section(
+        self, mock_enhancer_class: Any, mock_loader_class: Any
+    ) -> None:
         """Test that API links are added even when original description is missing."""
         # Setup mocks
         mock_loader = MagicMock()
@@ -361,7 +366,7 @@ class TestEnhanceOpenAPIWithDocsFunction:
         description = result["info"]["description"]
         assert "APIs: [Main API](/docs)" in description
 
-    def test_handles_empty_api_links_list_gracefully(self):
+    def test_handles_empty_api_links_list_gracefully(self) -> None:
         """Test that empty API links list doesn't break the enhancement."""
         # Create a temporary docs directory
         import tempfile
@@ -391,7 +396,7 @@ class TestEnhanceOpenAPIWithDocsErrorHandling:
     """Test error handling scenarios in the enhance_openapi_with_docs function."""
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
-    def test_raises_enhancement_error_on_documentation_load_failure(self, mock_loader_class):
+    def test_raises_enhancement_error_on_documentation_load_failure(self, mock_loader_class: Any) -> None:
         """Test that DocumentationLoadError is wrapped in OpenAPIEnhancementError."""
         # Setup mock to raise DocumentationLoadError
         mock_loader = MagicMock()
@@ -410,7 +415,7 @@ class TestEnhanceOpenAPIWithDocsErrorHandling:
             )
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
-    def test_raises_enhancement_error_on_file_not_found(self, mock_loader_class):
+    def test_raises_enhancement_error_on_file_not_found(self, mock_loader_class: Any) -> None:
         """Test that FileNotFoundError is wrapped in OpenAPIEnhancementError."""
         # Setup mock to raise FileNotFoundError
         mock_loader = MagicMock()
@@ -430,7 +435,9 @@ class TestEnhanceOpenAPIWithDocsErrorHandling:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_raises_enhancement_error_on_openapi_enhancement_failure(self, mock_enhancer_class, mock_loader_class):
+    def test_raises_enhancement_error_on_openapi_enhancement_failure(
+        self, mock_enhancer_class: Any, mock_loader_class: Any
+    ) -> None:
         """Test that OpenAPIEnhancementError is re-raised properly."""
         # Setup mocks
         mock_loader = MagicMock()
@@ -455,7 +462,9 @@ class TestEnhanceOpenAPIWithDocsErrorHandling:
 
     @patch("fastmarkdocs.openapi_enhancer.MarkdownDocumentationLoader")
     @patch("fastmarkdocs.openapi_enhancer.OpenAPIEnhancer")
-    def test_returns_original_schema_on_generic_exception(self, mock_enhancer_class, mock_loader_class):
+    def test_returns_original_schema_on_generic_exception(
+        self, mock_enhancer_class: Any, mock_loader_class: Any
+    ) -> None:
         """Test that generic exceptions cause fallback to original schema."""
         # Setup mocks
         mock_loader = MagicMock()

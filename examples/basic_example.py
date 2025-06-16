@@ -9,7 +9,7 @@ loaded from markdown files.
 
 import os
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.openapi.utils import get_openapi
@@ -56,13 +56,13 @@ users_db = [
 
 # API Routes
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint returning API information."""
     return {"message": "Welcome to the Example API", "docs": "/docs", "redoc": "/redoc"}
 
 
 @app.get("/users", response_model=list[User])
-async def list_users(active_only: bool = True):
+async def list_users(active_only: bool = True) -> list[User]:
     """List all users, optionally filtering by active status."""
     if active_only:
         return [user for user in users_db if user.active]
@@ -70,7 +70,7 @@ async def list_users(active_only: bool = True):
 
 
 @app.get("/users/{user_id}", response_model=User)
-async def get_user(user_id: int):
+async def get_user(user_id: int) -> User:
     """Get a specific user by ID."""
     for user in users_db:
         if user.id == user_id:
@@ -79,7 +79,7 @@ async def get_user(user_id: int):
 
 
 @app.post("/users", response_model=User)
-async def create_user(user: UserCreate):
+async def create_user(user: UserCreate) -> User:
     """Create a new user."""
     new_id = max(u.id for u in users_db) + 1 if users_db else 1
     new_user = User(id=new_id, **user.dict())
@@ -88,7 +88,7 @@ async def create_user(user: UserCreate):
 
 
 @app.put("/users/{user_id}", response_model=User)
-async def update_user(user_id: int, user_update: UserUpdate):
+async def update_user(user_id: int, user_update: UserUpdate) -> User:
     """Update an existing user."""
     for i, user in enumerate(users_db):
         if user.id == user_id:
@@ -100,7 +100,7 @@ async def update_user(user_id: int, user_update: UserUpdate):
 
 
 @app.delete("/users/{user_id}")
-async def delete_user(user_id: int):
+async def delete_user(user_id: int) -> dict[str, str]:
     """Delete a user."""
     for i, user in enumerate(users_db):
         if user.id == user_id:
@@ -110,7 +110,7 @@ async def delete_user(user_id: int):
 
 
 # Documentation enhancement
-def create_enhanced_openapi():
+def create_enhanced_openapi() -> dict[str, Any]:
     """Create enhanced OpenAPI schema with markdown documentation."""
     if app.openapi_schema:
         return app.openapi_schema
@@ -134,14 +134,19 @@ def create_enhanced_openapi():
             base_url="http://localhost:8000",
             include_code_samples=True,
             include_response_examples=True,
-            include_parameter_examples=True,
             code_sample_languages=[CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
             custom_headers={"User-Agent": "ExampleApp/1.0"},
             general_docs_file="general_docs.md",  # Optional: specify general documentation file
         )
 
-        app.openapi_schema = enhanced_schema
-        return enhanced_schema
+        # Ensure we return a dict[str, Any]
+        if isinstance(enhanced_schema, dict):
+            app.openapi_schema = enhanced_schema
+            return enhanced_schema
+        else:
+            # Fallback if enhancement returns unexpected type
+            app.openapi_schema = openapi_schema
+            return openapi_schema
 
     except Exception as e:
         # Fallback to original schema if enhancement fails
@@ -151,7 +156,12 @@ def create_enhanced_openapi():
 
 
 # Set the custom OpenAPI function
-app.openapi = create_enhanced_openapi
+def set_custom_openapi() -> None:
+    """Set the custom OpenAPI function on the app."""
+    app.openapi = create_enhanced_openapi  # type: ignore[method-assign]
+
+
+set_custom_openapi()
 
 if __name__ == "__main__":
     import uvicorn

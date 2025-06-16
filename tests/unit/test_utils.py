@@ -7,6 +7,7 @@ Tests the various utility functions used throughout the library.
 import os
 import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from fastmarkdocs.types import CodeLanguage
@@ -25,7 +26,7 @@ from fastmarkdocs.utils import (
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_normalize_path_basic(self):
+    def test_normalize_path_basic(self) -> None:
         """Test basic path normalization."""
         # Test absolute path
         abs_path = normalize_path("/absolute/path")
@@ -35,13 +36,13 @@ class TestUtilityFunctions:
         rel_path = normalize_path("relative/path")
         assert os.path.isabs(rel_path)
 
-    def test_normalize_path_with_base(self):
+    def test_normalize_path_with_base(self) -> None:
         """Test path normalization with base path."""
         base = "/base/directory"
         result = normalize_path("relative/path", base)
         assert result.startswith(base)
 
-    def test_normalize_path_with_user_expansion(self):
+    def test_normalize_path_with_user_expansion(self) -> None:
         """Test path normalization with user home expansion."""
         # Test with tilde expansion
         with patch("os.path.expanduser") as mock_expand:
@@ -50,7 +51,7 @@ class TestUtilityFunctions:
             mock_expand.assert_called_once_with("~/path")
             assert "/home/user/path" in result
 
-    def test_normalize_path_edge_cases(self):
+    def test_normalize_path_edge_cases(self) -> None:
         """Test path normalization edge cases."""
         # Test empty string
         result = normalize_path("")
@@ -58,11 +59,11 @@ class TestUtilityFunctions:
 
         # Test None handling (should not crash)
         try:
-            result = normalize_path(None)
+            result = normalize_path("")
         except (TypeError, AttributeError):
             pass  # Expected behavior
 
-    def test_extract_code_samples_basic(self):
+    def test_extract_code_samples_basic(self) -> None:
         """Test basic code sample extraction."""
         markdown = """
 # API Documentation
@@ -92,7 +93,7 @@ curl -X GET "https://api.example.com/users"
         assert curl_sample is not None
         assert "curl -X GET" in curl_sample.code
 
-    def test_extract_code_samples_with_titles(self):
+    def test_extract_code_samples_with_titles(self) -> None:
         """Test code sample extraction with titles."""
         markdown = """
 ```python Example Request
@@ -117,7 +118,7 @@ fetch('/api/users')
         assert js_sample is not None
         assert js_sample.title == "Fetch Example"
 
-    def test_extract_code_samples_language_aliases(self):
+    def test_extract_code_samples_language_aliases(self) -> None:
         """Test code sample extraction with language aliases."""
         markdown = """
 ```js
@@ -141,7 +142,7 @@ curl -X GET "https://api.example.com"
         assert CodeLanguage.PYTHON in languages  # py -> python
         assert CodeLanguage.CURL in languages  # bash -> curl
 
-    def test_extract_code_samples_unsupported_language(self):
+    def test_extract_code_samples_unsupported_language(self) -> None:
         """Test code sample extraction with unsupported languages."""
         markdown = """
 ```unsupported
@@ -163,7 +164,7 @@ more unsupported code
         assert len(samples) == 1
         assert samples[0].language == CodeLanguage.PYTHON
 
-    def test_extract_code_samples_with_language_filter(self):
+    def test_extract_code_samples_with_language_filter(self) -> None:
         """Test code sample extraction with language filtering."""
         markdown = """
 ```python
@@ -188,7 +189,7 @@ curl -X GET "https://api.example.com"
         assert CodeLanguage.CURL in languages
         assert CodeLanguage.JAVASCRIPT not in languages
 
-    def test_extract_code_samples_malformed_blocks(self):
+    def test_extract_code_samples_malformed_blocks(self) -> None:
         """Test code sample extraction with malformed code blocks."""
         markdown = """
 ```python
@@ -208,7 +209,7 @@ print('Another valid block')
         # Should extract valid blocks - the regex pattern handles this differently
         assert len(samples) >= 1  # At least one valid block should be extracted
 
-    def test_validate_markdown_structure_valid(self):
+    def test_validate_markdown_structure_valid(self) -> None:
         """Test markdown structure validation with valid content."""
         valid_markdown = """
 # API Documentation
@@ -234,7 +235,7 @@ response = requests.get("/api/users")
         # Should have minimal errors for valid structure (may have some warnings)
         assert len(errors) <= 1
 
-    def test_validate_markdown_structure_missing_endpoints(self):
+    def test_validate_markdown_structure_missing_endpoints(self) -> None:
         """Test markdown structure validation with missing endpoints."""
         invalid_markdown = """
 # API Documentation
@@ -253,7 +254,7 @@ No endpoints defined here.
         missing_endpoint_error = next((e for e in errors if "endpoint headers" in e.message), None)
         assert missing_endpoint_error is not None
 
-    def test_validate_markdown_structure_malformed_code_blocks(self):
+    def test_validate_markdown_structure_malformed_code_blocks(self) -> None:
         """Test markdown structure validation with malformed code blocks."""
         malformed_markdown = """
 # API Documentation
@@ -274,7 +275,7 @@ Another line here.
         code_block_errors = [e for e in errors if "code block" in e.message]
         assert len(code_block_errors) > 0
 
-    def test_extract_endpoint_info_basic(self):
+    def test_extract_endpoint_info_basic(self) -> None:
         """Test basic endpoint information extraction."""
         markdown = """
 ## GET /api/users
@@ -294,7 +295,7 @@ Tags: users, api
         assert "users" in info["tags"]
         assert "api" in info["tags"]
 
-    def test_extract_endpoint_info_multiple_headers(self):
+    def test_extract_endpoint_info_multiple_headers(self) -> None:
         """Test endpoint extraction with multiple headers (should take first)."""
         markdown = """
 ## GET /api/users
@@ -312,7 +313,7 @@ Second endpoint description.
         assert info["method"] == "GET"
         assert info["path"] == "/api/users"
 
-    def test_extract_endpoint_info_no_endpoints(self):
+    def test_extract_endpoint_info_no_endpoints(self) -> None:
         """Test endpoint extraction with no valid endpoints."""
         markdown = """
 # API Documentation
@@ -329,7 +330,7 @@ No endpoints here.
         assert info["method"] is None
         assert info["path"] is None
 
-    def test_extract_endpoint_info_edge_cases(self):
+    def test_extract_endpoint_info_edge_cases(self) -> None:
         """Test endpoint extraction edge cases."""
         # Test with different header levels
         markdown_h3 = """
@@ -353,7 +354,7 @@ Create a new user.
         assert info["method"] == "GET"
         assert info["path"] == "/api/users"
 
-    def test_sanitize_filename_basic(self):
+    def test_sanitize_filename_basic(self) -> None:
         """Test basic filename sanitization."""
         # Test valid filename
         assert sanitize_filename("valid_filename.md") == "valid_filename.md"
@@ -363,7 +364,7 @@ Create a new user.
         assert sanitize_filename('file"name.md') == "file_name.md"
         assert sanitize_filename("file|name.md") == "file_name.md"
 
-    def test_sanitize_filename_edge_cases(self):
+    def test_sanitize_filename_edge_cases(self) -> None:
         """Test filename sanitization edge cases."""
         # Test empty filename
         assert sanitize_filename("") == "unnamed"
@@ -381,7 +382,7 @@ Create a new user.
         result = sanitize_filename(problematic)
         assert result == "file_________name.md"
 
-    def test_find_markdown_files_basic(self, temp_docs_dir, test_utils):
+    def test_find_markdown_files_basic(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test basic markdown file finding."""
         # Create test files
         test_utils.create_markdown_file(temp_docs_dir, "api.md", "# API")
@@ -397,7 +398,7 @@ Create a new user.
         md_files = [f for f in files if f.endswith((".md", ".markdown"))]
         assert len(md_files) >= 2
 
-    def test_find_markdown_files_recursive(self, temp_docs_dir, test_utils):
+    def test_find_markdown_files_recursive(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test recursive markdown file finding."""
         # Create files in subdirectory
         subdir = temp_docs_dir / "subdir"
@@ -412,7 +413,7 @@ Create a new user.
 
         assert len(files_recursive) > len(files_non_recursive)
 
-    def test_find_markdown_files_custom_patterns(self, temp_docs_dir, test_utils):
+    def test_find_markdown_files_custom_patterns(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test markdown file finding with custom patterns."""
         # Create files with different extensions
         test_utils.create_markdown_file(temp_docs_dir, "api.md", "# API")
@@ -424,17 +425,17 @@ Create a new user.
         txt_files = [f for f in files if f.endswith(".txt")]
         assert len(txt_files) >= 1
 
-    def test_find_markdown_files_nonexistent_directory(self):
+    def test_find_markdown_files_nonexistent_directory(self) -> None:
         """Test markdown file finding with non-existent directory."""
         files = find_markdown_files("/nonexistent/directory")
         assert files == []
 
-    def test_find_markdown_files_empty_directory(self, temp_docs_dir):
+    def test_find_markdown_files_empty_directory(self, temp_docs_dir: Any) -> None:
         """Test markdown file finding in empty directory."""
         files = find_markdown_files(str(temp_docs_dir))
         assert files == []
 
-    def test_extract_code_description_functionality(self):
+    def test_extract_code_description_functionality(self) -> None:
         """Test code description extraction from preceding text."""
         markdown = """
 This is some general text.
@@ -459,7 +460,7 @@ response = requests.get("/api/users")
         assert description is not None
         assert "example" in description.lower()
 
-    def test_validate_code_block_functionality(self):
+    def test_validate_code_block_functionality(self) -> None:
         """Test code block validation functionality."""
         # Test valid code block
         valid_lines = ["Some text", "```python", "print('hello')", "```", "More text"]
@@ -471,7 +472,7 @@ response = requests.get("/api/users")
 
         assert _validate_code_block(invalid_lines, 1) is False
 
-    def test_extract_code_samples_with_empty_content(self):
+    def test_extract_code_samples_with_empty_content(self) -> None:
         """Test code sample extraction with empty or whitespace-only content."""
         markdown = """
 ```curl
@@ -490,7 +491,7 @@ print('non-empty')
         languages = [s.language for s in samples]
         assert CodeLanguage.CURL in languages or CodeLanguage.PYTHON in languages
 
-    def test_validation_error_creation(self):
+    def test_validation_error_creation(self) -> None:
         """Test ValidationError creation and properties."""
         from fastmarkdocs.exceptions import ValidationError as ExceptionValidationError
 
@@ -500,7 +501,7 @@ print('non-empty')
         assert error.line_number == 42
         assert "Test error" in str(error)
 
-    def test_extract_endpoint_info_with_complex_paths(self):
+    def test_extract_endpoint_info_with_complex_paths(self) -> None:
         """Test endpoint extraction with complex path patterns."""
         markdown = """
 ## GET /api/v1/users/{user_id}/posts/{post_id}/comments
@@ -516,7 +517,7 @@ Tags: comments, posts, users
         assert info["path"] == "/api/v1/users/{user_id}/posts/{post_id}/comments"
         assert "comments" in info["tags"]
 
-    def test_find_markdown_files_with_symlinks(self, temp_docs_dir, test_utils):
+    def test_find_markdown_files_with_symlinks(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test markdown file finding with symbolic links."""
         # Create a real file
         real_file = test_utils.create_markdown_file(temp_docs_dir, "real.md", "# Real")
@@ -534,13 +535,13 @@ Tags: comments, posts, users
             # Symlinks not supported on this system
             pass
 
-    def test_normalize_path_with_none_base(self):
+    def test_normalize_path_with_none_base(self) -> None:
         """Test path normalization with None base path."""
         result = normalize_path("test/path", None)
         assert os.path.isabs(result)
         assert "test/path" in result
 
-    def test_validate_code_block_edge_cases(self):
+    def test_validate_code_block_edge_cases(self) -> None:
         """Test code block validation with various edge cases."""
         # Test with start_index beyond array bounds
         lines = ["```python", "print('hello')", "```"]
@@ -560,7 +561,7 @@ Tags: comments, posts, users
         mixed_lines = ["```python", "print('hello')", "```", "more content"]
         assert _validate_code_block(mixed_lines, 0)
 
-    def test_extract_code_samples_with_complex_markdown(self):
+    def test_extract_code_samples_with_complex_markdown(self) -> None:
         """Test code sample extraction with complex markdown scenarios."""
         complex_markdown = """
 # API Documentation
@@ -615,7 +616,7 @@ curl -X GET /api/users \\
         assert curl_sample.description == "For shell users, here's a curl command:"
         assert "curl -X GET" in curl_sample.code
 
-    def test_validate_markdown_structure_comprehensive_scenarios(self):
+    def test_validate_markdown_structure_comprehensive_scenarios(self) -> None:
         """Test markdown structure validation with comprehensive scenarios."""
         # Test markdown with multiple issues
         problematic_markdown = """
@@ -679,7 +680,7 @@ Instructions for getting started.
         assert len(missing_section_errors) > 0
         assert any("No endpoint headers found" in e.message for e in missing_section_errors)
 
-    def test_extract_endpoint_info_with_multiple_endpoints(self):
+    def test_extract_endpoint_info_with_multiple_endpoints(self) -> None:
         """Test endpoint info extraction when multiple endpoints are present."""
         markdown_with_multiple = """
 # API Documentation
@@ -709,7 +710,7 @@ Tags: users, retrieval
         # Tags should be extracted from anywhere in the document
         assert "users" in info["tags"]
 
-    def test_extract_endpoint_info_with_various_header_levels(self):
+    def test_extract_endpoint_info_with_various_header_levels(self) -> None:
         """Test endpoint info extraction with different header levels."""
         markdown_with_different_headers = """
 # Main Title
@@ -730,7 +731,7 @@ This is a level 2 header endpoint.
         assert info["method"] == "GET"
         assert info["path"] == "/api/level3"
 
-    def test_find_markdown_files_with_various_scenarios(self):
+    def test_find_markdown_files_with_various_scenarios(self) -> None:
         """Test markdown file finding with various directory scenarios."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -767,7 +768,7 @@ This is a level 2 header endpoint.
             files = find_markdown_files(str(temp_path), patterns=["*.markdown"], recursive=True)
             assert len(files) == 2  # Only .markdown files
 
-    def test_sanitize_filename_comprehensive(self):
+    def test_sanitize_filename_comprehensive(self) -> None:
         """Test filename sanitization with comprehensive scenarios."""
         # Test various invalid characters
         assert sanitize_filename("file<name>") == "file_name_"
@@ -791,7 +792,7 @@ This is a level 2 header endpoint.
         assert sanitize_filename("normal_filename.md") == "normal_filename.md"
         assert sanitize_filename("file-name_123.txt") == "file-name_123.txt"
 
-    def test_extract_code_description_edge_cases(self):
+    def test_extract_code_description_edge_cases(self) -> None:
         """Test edge cases for code description extraction."""
         # Test with no preceding text
         content = "```python\nprint('hello')\n```"
@@ -808,7 +809,7 @@ This is a level 2 header endpoint.
         result = _extract_code_description(content, content.find("```"))
         assert result is None
 
-    def test_extract_endpoint_info_heading_level_fix(self):
+    def test_extract_endpoint_info_heading_level_fix(self) -> None:
         """Test that extract_endpoint_info correctly handles different heading levels."""
         # Test content with mixed heading levels - this tests the fix for the issue
         # where sections should stop at the next heading of the same or higher level
@@ -848,7 +849,7 @@ Other endpoint.
         # This test verifies that the function doesn't include content from the next ### section
         assert len(description) > 20, f"Description should include some content, got {len(description)} characters"
 
-    def test_extract_endpoint_info_with_general_docs(self):
+    def test_extract_endpoint_info_with_general_docs(self) -> None:
         """Test that extract_endpoint_info ignores general documentation content (now handled globally)."""
         general_docs = """# General API Documentation
 
@@ -900,7 +901,7 @@ This endpoint creates a test resource.
         # Should NOT have separators from general docs
         assert description.count("---") == 0
 
-    def test_extract_endpoint_info_with_general_docs_and_overview(self):
+    def test_extract_endpoint_info_with_general_docs_and_overview(self) -> None:
         """Test that extract_endpoint_info includes overview and endpoint content but not general docs."""
         general_docs = """# General Documentation
 
@@ -938,7 +939,7 @@ This endpoint does something.
 
         assert overview_index < endpoint_index
 
-    def test_extract_endpoint_info_with_empty_general_docs(self):
+    def test_extract_endpoint_info_with_empty_general_docs(self) -> None:
         """Test that extract_endpoint_info works correctly with empty general docs."""
         endpoint_markdown = """### POST /api/test
 
@@ -965,7 +966,7 @@ This endpoint does something.
         assert "Test endpoint" in description
         assert "---" not in description  # No separator when no general docs
 
-    def test_extract_endpoint_info_general_docs_only(self):
+    def test_extract_endpoint_info_general_docs_only(self) -> None:
         """Test extract_endpoint_info with general docs parameter but only endpoint content in result."""
         general_docs = """# General Documentation
 

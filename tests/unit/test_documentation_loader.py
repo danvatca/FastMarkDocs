@@ -7,6 +7,7 @@ Tests the markdown parsing, documentation extraction, and caching functionality.
 import threading
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -19,7 +20,7 @@ from fastmarkdocs.types import CodeLanguage, HTTPMethod
 class TestMarkdownDocumentationLoader:
     """Test the MarkdownDocumentationLoader class."""
 
-    def test_initialization_default_config(self):
+    def test_initialization_default_config(self) -> None:
         """Test loader initialization with default configuration."""
         loader = MarkdownDocumentationLoader()
 
@@ -29,7 +30,7 @@ class TestMarkdownDocumentationLoader:
         assert CodeLanguage.CURL in loader.supported_languages
         assert CodeLanguage.PYTHON in loader.supported_languages
 
-    def test_initialization_custom_config(self, documentation_loader_config):
+    def test_initialization_custom_config(self, documentation_loader_config: Any) -> None:
         """Test loader initialization with custom configuration."""
         loader = MarkdownDocumentationLoader(**documentation_loader_config)
 
@@ -38,12 +39,14 @@ class TestMarkdownDocumentationLoader:
         assert loader.cache_enabled is False
         assert len(loader.supported_languages) == 3
 
-    def test_initialization_invalid_directory(self):
+    def test_initialization_invalid_directory(self) -> None:
         """Test loader initialization with invalid directory."""
         with pytest.raises(DocumentationLoadError):
             MarkdownDocumentationLoader(docs_directory="/nonexistent/directory")
 
-    def test_load_documentation_success(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_load_documentation_success(
+        self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
+    ) -> None:
         """Test successful documentation loading."""
         # Create test markdown file
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
@@ -63,7 +66,7 @@ class TestMarkdownDocumentationLoader:
         assert get_users_endpoint is not None
         assert "users" in get_users_endpoint.summary.lower()
 
-    def test_load_documentation_empty_directory(self, temp_docs_dir):
+    def test_load_documentation_empty_directory(self, temp_docs_dir: Any) -> None:
         """Test loading documentation from empty directory."""
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
 
@@ -72,7 +75,9 @@ class TestMarkdownDocumentationLoader:
         assert documentation is not None
         assert len(documentation.endpoints) == 0
 
-    def test_load_documentation_with_caching(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_load_documentation_with_caching(
+        self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
+    ) -> None:
         """Test documentation loading with caching enabled."""
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
 
@@ -87,7 +92,7 @@ class TestMarkdownDocumentationLoader:
         # Should be the same object reference due to caching
         assert documentation1 is documentation2
 
-    def test_clear_cache(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_clear_cache(self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any) -> None:
         """Test cache clearing functionality."""
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
 
@@ -104,7 +109,9 @@ class TestMarkdownDocumentationLoader:
 
         assert documentation1 is not documentation2
 
-    def test_parse_markdown_file_success(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_parse_markdown_file_success(
+        self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
+    ) -> None:
         """Test parsing a single markdown file."""
         file_path = test_utils.create_markdown_file(temp_docs_dir, "test.md", sample_markdown_content)
 
@@ -119,7 +126,7 @@ class TestMarkdownDocumentationLoader:
         assert get_users is not None
         assert "users" in get_users.summary.lower()
 
-    def test_parse_markdown_file_malformed(self, temp_docs_dir, test_utils):
+    def test_parse_markdown_file_malformed(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test parsing malformed markdown file."""
         malformed_content = """
 # Malformed Documentation
@@ -150,14 +157,14 @@ Another endpoint without proper structure.
         # Should still extract some endpoints despite malformed content
         assert isinstance(endpoints, list)
 
-    def test_parse_markdown_file_nonexistent(self, temp_docs_dir):
+    def test_parse_markdown_file_nonexistent(self, temp_docs_dir: Any) -> None:
         """Test parsing non-existent markdown file."""
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir))
 
         with pytest.raises(DocumentationLoadError):
             loader._parse_markdown_file(Path(temp_docs_dir) / "nonexistent.md")
 
-    def test_extract_endpoints_from_content(self, sample_markdown_content):
+    def test_extract_endpoints_from_content(self, sample_markdown_content: Any) -> None:
         """Test endpoint extraction from markdown content."""
         loader = MarkdownDocumentationLoader()
         endpoints = loader._extract_endpoints_from_content(sample_markdown_content)
@@ -171,7 +178,7 @@ Another endpoint without proper structure.
         assert ("/api/users", HTTPMethod.POST) in paths_and_methods
         assert ("/api/users/{user_id}", HTTPMethod.GET) in paths_and_methods
 
-    def test_extract_code_samples(self, sample_markdown_content):
+    def test_extract_code_samples(self, sample_markdown_content: Any) -> None:
         """Test code sample extraction from markdown."""
         loader = MarkdownDocumentationLoader()
         endpoints = loader._extract_endpoints_from_content(sample_markdown_content)
@@ -187,7 +194,7 @@ Another endpoint without proper structure.
         assert CodeLanguage.PYTHON in languages
         assert CodeLanguage.CURL in languages
 
-    def test_extract_response_examples(self, sample_markdown_content):
+    def test_extract_response_examples(self, sample_markdown_content: Any) -> None:
         """Test response example extraction from markdown."""
         loader = MarkdownDocumentationLoader()
         endpoints = loader._extract_endpoints_from_content(sample_markdown_content)
@@ -203,7 +210,7 @@ Another endpoint without proper structure.
         assert response_example.status_code == 200
         assert response_example.content is not None
 
-    def test_extract_parameters(self, sample_markdown_content):
+    def test_extract_parameters(self, sample_markdown_content: Any) -> None:
         """Test parameter extraction from markdown."""
         loader = MarkdownDocumentationLoader()
         endpoints = loader._extract_endpoints_from_content(sample_markdown_content)
@@ -221,7 +228,7 @@ Another endpoint without proper structure.
         assert limit_param.type == "integer"
         assert limit_param.required is False
 
-    def test_extract_tags(self, sample_markdown_content):
+    def test_extract_tags(self, sample_markdown_content: Any) -> None:
         """Test tag extraction from markdown."""
         loader = MarkdownDocumentationLoader()
         endpoints = loader._extract_endpoints_from_content(sample_markdown_content)
@@ -236,7 +243,9 @@ Another endpoint without proper structure.
         assert "users" in get_users.tags
         assert "list" in get_users.tags
 
-    def test_recursive_directory_loading(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_recursive_directory_loading(
+        self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
+    ) -> None:
         """Test recursive loading of markdown files from subdirectories."""
         # Create nested directory structure
         subdir = temp_docs_dir / "api" / "v1"
@@ -253,7 +262,9 @@ Another endpoint without proper structure.
         # Should find endpoints from both files
         assert len(documentation.endpoints) > 3  # More than one file's worth
 
-    def test_non_recursive_directory_loading(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_non_recursive_directory_loading(
+        self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
+    ) -> None:
         """Test non-recursive loading (only root directory)."""
         # Create nested directory structure
         subdir = temp_docs_dir / "api"
@@ -270,7 +281,7 @@ Another endpoint without proper structure.
         # Should only find endpoints from root file
         assert len(documentation.endpoints) == 3  # Only from root.md
 
-    def test_file_pattern_filtering(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_file_pattern_filtering(self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any) -> None:
         """Test filtering files by pattern."""
         # Create files with different extensions
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
@@ -286,7 +297,7 @@ Another endpoint without proper structure.
         # Should only process .md files, not .txt or .markdown
         assert len(documentation.endpoints) == 3  # Only from api.md
 
-    def test_supported_languages_filtering(self, temp_docs_dir, test_utils):
+    def test_supported_languages_filtering(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test filtering code samples by supported languages."""
         content_with_multiple_languages = """
 # API Documentation
@@ -334,7 +345,7 @@ HttpResponse response = client.get("/api/test");
         assert CodeLanguage.GO not in languages
         assert CodeLanguage.JAVA not in languages
 
-    def test_encoding_handling(self, temp_docs_dir, test_utils):
+    def test_encoding_handling(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test handling of different file encodings."""
         # Create file with UTF-8 content including special characters
         content_with_unicode = """
@@ -364,7 +375,7 @@ response = requests.get("/api/users")
         endpoint = documentation.endpoints[0]
         assert "café" in endpoint.summary
 
-    def test_error_handling_invalid_yaml_frontmatter(self, temp_docs_dir, test_utils):
+    def test_error_handling_invalid_yaml_frontmatter(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test handling of invalid YAML frontmatter."""
         content_with_invalid_yaml = """---
 title: API Documentation
@@ -387,7 +398,7 @@ Test endpoint.
 
         assert len(documentation.endpoints) == 1
 
-    def test_metadata_extraction(self, temp_docs_dir, test_utils):
+    def test_metadata_extraction(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test extraction of metadata from markdown files."""
         content_with_metadata = """---
 title: User Management API
@@ -413,7 +424,7 @@ List all users.
         assert documentation.metadata["version"] == "1.0.0"
         assert documentation.metadata["author"] == "Test Author"
 
-    def test_validation_error_handling(self, temp_docs_dir, test_utils):
+    def test_validation_error_handling(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test handling of validation errors during parsing."""
         # Create content that might cause validation issues
         invalid_content = """
@@ -443,7 +454,7 @@ This is valid.
         valid_endpoints = [ep for ep in documentation.endpoints if ep.path == "/api/valid"]
         assert len(valid_endpoints) == 1
 
-    def test_performance_with_large_files(self, temp_docs_dir, test_utils):
+    def test_performance_with_large_files(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test performance with large markdown files."""
         # Generate large content
         large_content = "# Large API Documentation\n\n"
@@ -475,7 +486,7 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
 
         assert len(documentation.endpoints) == 100
 
-    def test_concurrent_loading(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_concurrent_loading(self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any) -> None:
         """Test concurrent loading of documentation."""
         import threading
 
@@ -508,13 +519,15 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
         assert len(results) == 3
         assert all(result is results[0] for result in results)
 
-    def test_cache_ttl_expiration(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_cache_ttl_expiration(self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any) -> None:
         """Test cache TTL expiration functionality."""
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
 
         # Use very short TTL for testing
         loader = MarkdownDocumentationLoader(
-            docs_directory=str(temp_docs_dir), cache_enabled=True, cache_ttl=0.1  # 100ms
+            docs_directory=str(temp_docs_dir),
+            cache_enabled=True,
+            cache_ttl=0.1,  # 100ms
         )
 
         # First load
@@ -529,7 +542,7 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
         # Should be different objects due to cache expiration
         assert documentation1 is not documentation2
 
-    def test_concurrent_cache_loading(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_concurrent_cache_loading(self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any) -> None:
         """Test thread-safe cache loading with multiple threads."""
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
 
@@ -565,7 +578,7 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
         for result in results[1:]:
             assert result is first_result
 
-    def test_concurrent_loading_with_error(self, temp_docs_dir, test_utils):
+    def test_concurrent_loading_with_error(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test concurrent loading when one thread encounters an error."""
         # Create a file that will cause an error during processing
         test_utils.create_markdown_file(temp_docs_dir, "api.md", "# Valid content")
@@ -606,7 +619,7 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
         assert len(errors) == 1
         assert len(results) == 1
 
-    def test_load_documentation_nonexistent_directory(self):
+    def test_load_documentation_nonexistent_directory(self) -> None:
         """Test loading documentation from non-existent directory."""
         # This should fail at initialization, not at load time
         with pytest.raises(DocumentationLoadError) as exc_info:
@@ -614,7 +627,7 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
 
         assert "does not exist" in str(exc_info.value)
 
-    def test_file_processing_error_handling(self, temp_docs_dir, test_utils):
+    def test_file_processing_error_handling(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test error handling when file processing fails."""
         # Create a valid file
         test_utils.create_markdown_file(temp_docs_dir, "api.md", "# Valid content")
@@ -628,7 +641,7 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
 
             assert "Failed to process file" in str(exc_info.value)
 
-    def test_yaml_frontmatter_parsing(self, temp_docs_dir, test_utils):
+    def test_yaml_frontmatter_parsing(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test YAML frontmatter parsing with PyYAML."""
         content_with_yaml = """---
 title: Test API Documentation
@@ -655,9 +668,9 @@ Test endpoint with frontmatter
         assert metadata["published"] is True
         assert metadata["priority"] == 10
         assert metadata["rate"] == 99.5
-        assert metadata["description"] == "API for testing purposes"
+        assert metadata is not None and metadata["description"] == "API for testing purposes"
 
-    def test_response_examples_parsing_realistic(self):
+    def test_response_examples_parsing_realistic(self) -> None:
         """Test response example parsing with realistic content."""
         loader = MarkdownDocumentationLoader()
 
@@ -684,7 +697,7 @@ Test endpoint with frontmatter
         assert example.content["name"] == "Test User"
         assert example.content["active"] is True
 
-    def test_response_examples_with_status_codes_realistic(self):
+    def test_response_examples_with_status_codes_realistic(self) -> None:
         """Test response example parsing with status codes in headers."""
         loader = MarkdownDocumentationLoader()
 
@@ -720,7 +733,7 @@ Test endpoint with frontmatter
         assert created_example.content["id"] == 123
         assert created_example.content["created"] is True
 
-    def test_is_cached_functionality(self, temp_docs_dir, test_utils):
+    def test_is_cached_functionality(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test file caching detection functionality."""
         test_file = test_utils.create_markdown_file(temp_docs_dir, "test.md", "# Test")
 
@@ -742,7 +755,7 @@ Test endpoint with frontmatter
         # Should no longer be cached due to modified time
         assert not loader._is_cached(str(test_file))
 
-    def test_get_stats_functionality(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_get_stats_functionality(self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any) -> None:
         """Test statistics gathering functionality."""
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
 
@@ -759,7 +772,7 @@ Test endpoint with frontmatter
         assert stats["cache_enabled"] is True
         # Note: total_files_cached may not be in the actual implementation
 
-    def test_load_file_with_encoding_issues(self, temp_docs_dir, test_utils):
+    def test_load_file_with_encoding_issues(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test file loading with encoding issues."""
         # Create file with special characters
         content_with_special_chars = """
@@ -785,7 +798,7 @@ response = requests.get('/api/café')
         assert "café" in file_data["content"]
         assert "🚀" in file_data["content"]
 
-    def test_split_content_by_endpoints_edge_cases(self):
+    def test_split_content_by_endpoints_edge_cases(self) -> None:
         """Test edge cases in content splitting by endpoints."""
         loader = MarkdownDocumentationLoader()
 
@@ -818,7 +831,9 @@ Get specific user
         assert "POST /api/users" in sections[1]
         assert "GET /api/users/{id}" in sections[2]
 
-    def test_concurrent_loading_with_cache_failure_recovery(self, temp_docs_dir, sample_markdown_content, test_utils):
+    def test_concurrent_loading_with_cache_failure_recovery(
+        self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
+    ) -> None:
         """Test recovery when concurrent loading fails and waiting threads need to retry."""
         test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
 
@@ -860,7 +875,7 @@ Get specific user
         # The first attempt should fail, but subsequent ones should succeed
         assert call_count >= 2
 
-    def test_file_modification_detection_in_cache(self, temp_docs_dir, test_utils):
+    def test_file_modification_detection_in_cache(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test that cache properly detects file modifications."""
         # Create initial file
         file_path = test_utils.create_markdown_file(temp_docs_dir, "test.md", "## GET /api/v1\nOriginal content")
@@ -882,7 +897,7 @@ Get specific user
         second_result = loader._load_file(str(file_path))
         assert "Modified content" in second_result["content"]
 
-    def test_response_examples_with_invalid_json_recovery(self):
+    def test_response_examples_with_invalid_json_recovery(self) -> None:
         """Test response example parsing gracefully handles invalid JSON."""
         loader = MarkdownDocumentationLoader()
 
@@ -908,7 +923,7 @@ Get specific user
         assert "raw_content" in example.content
         assert "invalid" in example.content["raw_content"]
 
-    def test_cache_invalidation_on_file_access_errors(self, temp_docs_dir, test_utils):
+    def test_cache_invalidation_on_file_access_errors(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test cache invalidation when file access fails."""
         file_path = test_utils.create_markdown_file(temp_docs_dir, "test.md", "## GET /test\nContent")
 
@@ -925,7 +940,7 @@ Get specific user
             # Cache entry should be removed
             assert str(file_path) not in loader._cache
 
-    def test_general_docs_loading_default_file(self, temp_docs_dir, test_utils):
+    def test_general_docs_loading_default_file(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test loading general documentation from default general_docs.md file."""
         # Create general_docs.md file
         general_content = """# General API Documentation
@@ -970,7 +985,7 @@ This endpoint creates a test resource.
         assert "Test endpoint" in description
         assert "# General API Documentation" not in description
 
-    def test_general_docs_loading_custom_file(self, temp_docs_dir, test_utils):
+    def test_general_docs_loading_custom_file(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test loading general documentation from custom file."""
         # Create custom general docs file
         general_content = """# Custom General Documentation
@@ -1009,7 +1024,7 @@ This endpoint creates a test resource.
         assert "Test endpoint" in description
         assert "# Custom General Documentation" not in description
 
-    def test_general_docs_loading_absolute_path(self, temp_docs_dir, test_utils):
+    def test_general_docs_loading_absolute_path(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test loading general documentation from absolute path."""
         # Create general docs file in a different location
         import tempfile
@@ -1053,7 +1068,7 @@ This endpoint creates a test resource.
             assert "Test endpoint" in description
             assert "# External General Documentation" not in description
 
-    def test_general_docs_loading_nonexistent_file(self, temp_docs_dir, test_utils):
+    def test_general_docs_loading_nonexistent_file(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test loading when general docs file doesn't exist."""
         # Create an endpoint file without general docs
         endpoint_content = """### POST /api/test
@@ -1077,7 +1092,7 @@ This endpoint creates a test resource.
         assert "Test endpoint" in description
         assert "# General API Documentation" not in description
 
-    def test_general_docs_loading_with_frontmatter(self, temp_docs_dir, test_utils):
+    def test_general_docs_loading_with_frontmatter(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test loading general docs with YAML frontmatter."""
         # Create general docs with frontmatter
         general_content = """---
@@ -1124,7 +1139,7 @@ This endpoint creates a test resource.
         assert "Test endpoint" in description
         assert "# General API Documentation" not in description
 
-    def test_general_docs_loading_error_handling(self, temp_docs_dir, test_utils):
+    def test_general_docs_loading_error_handling(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test error handling when general docs file has issues."""
         import warnings
 
@@ -1168,7 +1183,7 @@ This endpoint creates a test resource.
         assert "Test endpoint" in description
         assert "# General Documentation" not in description
 
-    def test_load_general_docs_method(self, temp_docs_dir, test_utils):
+    def test_load_general_docs_method(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test the _load_general_docs method directly."""
         # Create general docs file
         general_content = """# General Documentation

@@ -10,13 +10,15 @@ This example demonstrates how to:
 4. Create a unified documentation experience across multiple services
 """
 
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
-from fastmarkdocs import APILink, enhance_openapi_with_docs
+from fastmarkdocs import APILink, CodeLanguage, enhance_openapi_with_docs
 
 
-def create_enhanced_api_app():
+def create_enhanced_api_app() -> FastAPI:
     """Create a FastAPI app with enhanced documentation."""
 
     app = FastAPI(
@@ -26,21 +28,21 @@ def create_enhanced_api_app():
     )
 
     @app.get("/health")
-    async def health_check():
+    async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "healthy"}
 
     @app.get("/auth/login")
-    async def login():
+    async def login() -> dict[str, str]:
         """Login endpoint."""
         return {"message": "Login endpoint"}
 
     @app.get("/users")
-    async def get_users():
+    async def get_users() -> dict[str, list[Any]]:
         """Get all users."""
         return {"users": []}
 
-    def custom_openapi():
+    def custom_openapi() -> dict[str, Any]:
         """Generate custom OpenAPI schema with enhanced documentation."""
         if app.openapi_schema:
             return app.openapi_schema
@@ -74,7 +76,7 @@ def create_enhanced_api_app():
             base_url="https://api.example.com",
             include_code_samples=True,
             include_response_examples=True,
-            code_sample_languages=["curl", "python", "javascript"],
+            code_sample_languages=[CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT],
             custom_headers={"Content-Type": "application/json", "Authorization": "Bearer YOUR_TOKEN"},
             # Enhanced documentation parameters
             app_title="My API Gateway",
@@ -85,11 +87,15 @@ def create_enhanced_api_app():
         app.openapi_schema = enhanced_schema
         return app.openapi_schema
 
-    app.openapi = custom_openapi
+    def set_custom_openapi() -> None:
+        """Set the custom OpenAPI function on the app."""
+        app.openapi = custom_openapi  # type: ignore[method-assign]
+
+    set_custom_openapi()
     return app
 
 
-def demonstrate_different_configurations():
+def demonstrate_different_configurations() -> None:
     """Show different ways to use the new parameters."""
 
     base_schema = {

@@ -18,6 +18,7 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 🎨 **Customizable Templates**: Use custom templates for code generation  
 ⚡ **High Performance**: Built-in caching and optimized processing  
 🧪 **Well Tested**: Comprehensive test suite with 100+ tests  
+🔍 **Documentation Linting**: Built-in `fmd-lint` tool to analyze and improve documentation quality  
 
 ## Quick Start
 
@@ -178,6 +179,59 @@ const users = await response.json();
 ```
 
 ```
+
+## Documentation Linting with fmd-lint
+
+FastMarkDocs includes a powerful documentation linter that helps you maintain high-quality API documentation:
+
+```bash
+# Install FastMarkDocs (includes fmd-lint)
+pip install fastmarkdocs
+
+# Lint your documentation
+fmd-lint --openapi openapi.json --docs docs/api
+```
+
+### What fmd-lint Analyzes
+
+- **Missing Documentation**: Finds API endpoints without documentation
+- **Incomplete Documentation**: Identifies missing descriptions, examples, or code samples
+- **Common Mistakes**: Detects path parameter mismatches and other errors
+- **Orphaned Documentation**: Finds docs for non-existent endpoints
+- **Enhancement Failures**: Tests that documentation properly enhances OpenAPI
+
+### Example Output
+
+```
+============================================================
+🔍 FastMarkDocs Documentation Linter Results
+============================================================
+
+📊 ✅ Good documentation with 3 minor issues to address.
+📈 Coverage: 85.7% | Completeness: 72.3% | Issues: 3
+
+❌ Missing Documentation:
+   • GET /users/{id}
+   • POST /orders
+
+⚠️ Common Mistakes:
+   • path_parameter_mismatch: GET /users/{id} should be /users/{user_id}
+     💡 Check if path parameters match your FastAPI routes
+
+💡 Recommendations:
+   ⚠️ Fix Documentation Mistakes
+     Action: Review and fix path parameter mismatches
+```
+
+### CI/CD Integration
+
+```yaml
+# GitHub Actions example
+- name: Lint documentation
+  run: fmd-lint --openapi openapi.json --docs docs/api
+```
+
+For complete documentation, see [docs/fmd-lint.md](docs/fmd-lint.md).
 
 ## Advanced Features
 

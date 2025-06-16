@@ -11,6 +11,7 @@ independent and portable.
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -46,7 +47,7 @@ class TestDoormanDocsIntegration:
 
             yield temp_path
 
-    def test_load_all_doorman_docs(self, temp_docs_dir):
+    def test_load_all_doorman_docs(self, temp_docs_dir: Any) -> None:
         """Test loading all Doorman documentation files."""
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
 
@@ -77,7 +78,7 @@ class TestDoormanDocsIntegration:
         assert HTTPMethod.POST in methods, "Should have POST endpoints"
         assert HTTPMethod.DELETE in methods, "Should have DELETE endpoints"
 
-    def test_doorman_endpoint_parsing_quality(self, temp_docs_dir):
+    def test_doorman_endpoint_parsing_quality(self, temp_docs_dir: Any) -> None:
         """Test the quality of endpoint parsing from real-world documentation."""
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
 
@@ -112,7 +113,7 @@ class TestDoormanDocsIntegration:
             assert session_post.summary, "Session POST should have a summary"
             print(f"   ✓ Session POST endpoint: '{session_post.summary}'")
 
-    def test_doorman_code_samples_extraction(self, temp_docs_dir):
+    def test_doorman_code_samples_extraction(self, temp_docs_dir: Any) -> None:
         """Test extraction of code samples from Doorman docs."""
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
 
@@ -124,7 +125,7 @@ class TestDoormanDocsIntegration:
             all_code_samples.extend(endpoint.code_samples)
 
         # Group by language
-        samples_by_language = {}
+        samples_by_language: dict[str, int] = {}
         for sample in all_code_samples:
             lang = sample.language
             if lang not in samples_by_language:
@@ -147,7 +148,7 @@ class TestDoormanDocsIntegration:
         assert CodeLanguage.CURL in languages, "Should have cURL samples"
         assert CodeLanguage.PYTHON in languages, "Should have Python samples"
 
-    def test_doorman_docs_with_code_generator(self, temp_docs_dir):
+    def test_doorman_docs_with_code_generator(self, temp_docs_dir: Any) -> None:
         """Test generating additional code samples for Doorman endpoints."""
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
 
@@ -182,7 +183,7 @@ class TestDoormanDocsIntegration:
         generated_languages = {sample.language for sample in generated_samples}
         assert len(generated_languages) > 1, "Should generate samples in multiple languages"
 
-    def test_doorman_docs_openapi_enhancement(self, temp_docs_dir):
+    def test_doorman_docs_openapi_enhancement(self, temp_docs_dir: Any) -> None:
         """Test enhancing OpenAPI schema with Doorman documentation."""
         # Create a sample OpenAPI schema that matches some Doorman endpoints
         openapi_schema = {
@@ -242,12 +243,14 @@ class TestDoormanDocsIntegration:
         except Exception as e:
             pytest.fail(f"OpenAPI enhancement failed: {e}")
 
-    def test_doorman_docs_performance(self, temp_docs_dir):
+    def test_doorman_docs_performance(self, temp_docs_dir: Any) -> None:
         """Test performance of loading Doorman documentation."""
         import time
 
         loader = MarkdownDocumentationLoader(
-            docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=True  # Test with caching
+            docs_directory=str(temp_docs_dir),
+            recursive=True,
+            cache_enabled=True,  # Test with caching
         )
 
         # First load (cold)
@@ -273,7 +276,7 @@ class TestDoormanDocsIntegration:
         assert cold_load_time < 5.0, "Cold load should complete within 5 seconds"
         assert cached_load_time < 0.1, "Cached load should complete within 0.1 seconds"
 
-    def test_doorman_docs_error_handling(self, temp_docs_dir):
+    def test_doorman_docs_error_handling(self, temp_docs_dir: Any) -> None:
         """Test error handling with Doorman documentation."""
         # Test with non-existent directory
         with pytest.raises(DocumentationLoadError):
@@ -293,15 +296,15 @@ class TestDoormanDocsIntegration:
         print("   ✓ Properly handles non-existent directories")
         print("   ✓ Gracefully handles empty directories")
 
-    def test_doorman_docs_comprehensive_summary(self, temp_docs_dir):
+    def test_doorman_docs_comprehensive_summary(self, temp_docs_dir: Any) -> None:
         """Generate a comprehensive summary of Doorman documentation parsing."""
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
 
         documentation = loader.load_documentation()
 
         # Comprehensive analysis
-        endpoints_by_method = {}
-        endpoints_by_path_prefix = {}
+        endpoints_by_method: dict[str, int] = {}
+        endpoints_by_path_prefix: dict[str, int] = {}
         total_code_samples = 0
         total_response_examples = 0
         total_parameters = 0
@@ -350,7 +353,7 @@ class TestDoormanDocsIntegration:
 
         print("\n   ✅ All integration tests passed! The library successfully handles real Doorman documentation.")
 
-    def test_doorman_docs_with_general_docs(self, temp_docs_dir):
+    def test_doorman_docs_with_general_docs(self, temp_docs_dir: Any) -> None:
         """Test that general docs are properly loaded and available in the loader."""
         # The temp_docs_dir should already include general_docs.md from the fixture
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
@@ -440,7 +443,7 @@ class TestDoormanDocsIntegration:
         else:
             print("   ⚠️  POST /v1/session endpoint not found, skipping endpoint test")
 
-    def test_doorman_docs_with_custom_general_docs(self, doorman_docs_path):
+    def test_doorman_docs_with_custom_general_docs(self, doorman_docs_path: Any) -> None:
         """Test using a custom general docs file with Doorman documentation."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

@@ -4,6 +4,7 @@ Unit tests for the CodeSampleGenerator class.
 Tests the code sample generation for different programming languages and HTTP methods.
 """
 
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -16,7 +17,7 @@ from fastmarkdocs.types import CodeLanguage, EndpointDocumentation, HTTPMethod
 class TestCodeSampleGenerator:
     """Test the CodeSampleGenerator class."""
 
-    def test_initialization_default_config(self):
+    def test_initialization_default_config(self) -> None:
         """Test generator initialization with default configuration."""
         generator = CodeSampleGenerator()
 
@@ -25,7 +26,7 @@ class TestCodeSampleGenerator:
         assert CodeLanguage.CURL in generator.code_sample_languages
         assert CodeLanguage.PYTHON in generator.code_sample_languages
 
-    def test_initialization_custom_config(self, code_generator_config):
+    def test_initialization_custom_config(self, code_generator_config: Any) -> None:
         """Test generator initialization with custom configuration."""
         generator = CodeSampleGenerator(**code_generator_config)
 
@@ -33,7 +34,7 @@ class TestCodeSampleGenerator:
         assert "https://staging.example.com" in generator.server_urls
         assert "TestApp/1.0" in generator.custom_headers["User-Agent"]
 
-    def test_generate_curl_sample_get(self):
+    def test_generate_curl_sample_get(self) -> None:
         """Test generating cURL sample for GET request."""
         generator = CodeSampleGenerator()
 
@@ -46,7 +47,7 @@ class TestCodeSampleGenerator:
         assert "/api/users" in sample.code
         assert sample.title == "cURL Request"
 
-    def test_generate_curl_sample_post_with_body(self):
+    def test_generate_curl_sample_post_with_body(self) -> None:
         """Test generating cURL sample for POST request with request body."""
         generator = CodeSampleGenerator()
 
@@ -59,7 +60,7 @@ class TestCodeSampleGenerator:
         assert "Content-Type: application/json" in sample.code
         assert '"name": "John"' in sample.code
 
-    def test_generate_python_sample_get(self):
+    def test_generate_python_sample_get(self) -> None:
         """Test generating Python sample for GET request."""
         generator = CodeSampleGenerator()
 
@@ -72,7 +73,7 @@ class TestCodeSampleGenerator:
         assert "requests.get" in sample.code
         assert "/api/users" in sample.code
 
-    def test_generate_python_sample_post_with_body(self):
+    def test_generate_python_sample_post_with_body(self) -> None:
         """Test generating Python sample for POST request with request body."""
         generator = CodeSampleGenerator()
 
@@ -86,7 +87,7 @@ class TestCodeSampleGenerator:
         assert "json=" in sample.code
         assert "john@example.com" in sample.code
 
-    def test_generate_javascript_sample_get(self):
+    def test_generate_javascript_sample_get(self) -> None:
         """Test generating JavaScript sample for GET request."""
         generator = CodeSampleGenerator()
 
@@ -99,7 +100,7 @@ class TestCodeSampleGenerator:
         assert "/api/users" in sample.code
         assert "method: 'GET'" in sample.code
 
-    def test_generate_javascript_sample_post_with_body(self):
+    def test_generate_javascript_sample_post_with_body(self) -> None:
         """Test generating JavaScript sample for POST request with request body."""
         generator = CodeSampleGenerator()
 
@@ -113,7 +114,7 @@ class TestCodeSampleGenerator:
         assert "JSON.stringify(" in sample.code
         assert "john@example.com" in sample.code
 
-    def test_generate_samples_for_endpoint(self):
+    def test_generate_samples_for_endpoint(self) -> None:
         """Test generating all configured samples for an endpoint."""
         generator = CodeSampleGenerator(
             code_sample_languages=[CodeLanguage.CURL, CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT]
@@ -129,7 +130,7 @@ class TestCodeSampleGenerator:
         assert CodeLanguage.PYTHON in languages
         assert CodeLanguage.JAVASCRIPT in languages
 
-    def test_generate_samples_with_path_parameters(self):
+    def test_generate_samples_with_path_parameters(self) -> None:
         """Test generating samples with path parameters."""
         generator = CodeSampleGenerator()
 
@@ -140,7 +141,7 @@ class TestCodeSampleGenerator:
 
         assert "/api/users/123" in sample.code
 
-    def test_generate_samples_with_query_parameters(self):
+    def test_generate_samples_with_query_parameters(self) -> None:
         """Test generating samples with query parameters."""
         generator = CodeSampleGenerator()
 
@@ -152,7 +153,7 @@ class TestCodeSampleGenerator:
         assert "limit=50" in sample.code
         assert "offset=0" in sample.code
 
-    def test_generate_samples_with_custom_headers(self):
+    def test_generate_samples_with_custom_headers(self) -> None:
         """Test generating samples with custom headers."""
         generator = CodeSampleGenerator(custom_headers={"Authorization": "Bearer token123", "X-API-Key": "key456"})
 
@@ -163,7 +164,7 @@ class TestCodeSampleGenerator:
         assert "Authorization: Bearer token123" in sample.code
         assert "X-API-Key: key456" in sample.code
 
-    def test_generate_samples_with_authentication(self):
+    def test_generate_samples_with_authentication(self) -> None:
         """Test generating samples with authentication schemes."""
         generator = CodeSampleGenerator(authentication_schemes=["bearer"])
 
@@ -173,7 +174,7 @@ class TestCodeSampleGenerator:
 
         assert "Authorization" in sample.code or "Bearer" in sample.code
 
-    def test_generate_typescript_sample(self):
+    def test_generate_typescript_sample(self) -> None:
         """Test generating TypeScript sample."""
         generator = CodeSampleGenerator(code_sample_languages=[CodeLanguage.TYPESCRIPT])
 
@@ -185,7 +186,7 @@ class TestCodeSampleGenerator:
         assert "fetch(" in sample.code
         assert "Promise<" in sample.code or "async" in sample.code
 
-    def test_generate_go_sample(self):
+    def test_generate_go_sample(self) -> None:
         """Test generating Go sample."""
         generator = CodeSampleGenerator(code_sample_languages=[CodeLanguage.GO])
 
@@ -197,7 +198,7 @@ class TestCodeSampleGenerator:
         assert "http.Get(" in sample.code or "http.NewRequest(" in sample.code
         assert "package main" in sample.code
 
-    def test_generate_java_sample(self):
+    def test_generate_java_sample(self) -> None:
         """Test generating Java sample."""
         generator = CodeSampleGenerator(code_sample_languages=[CodeLanguage.JAVA])
 
@@ -208,7 +209,7 @@ class TestCodeSampleGenerator:
         assert sample.language == CodeLanguage.JAVA
         assert "HttpClient" in sample.code or "HttpURLConnection" in sample.code
 
-    def test_generate_php_sample(self):
+    def test_generate_php_sample(self) -> None:
         """Test generating PHP sample."""
         generator = CodeSampleGenerator(code_sample_languages=[CodeLanguage.PHP])
 
@@ -220,7 +221,7 @@ class TestCodeSampleGenerator:
         assert "<?php" in sample.code
         assert "curl_init(" in sample.code or "file_get_contents(" in sample.code
 
-    def test_generate_ruby_sample(self):
+    def test_generate_ruby_sample(self) -> None:
         """Test generating Ruby sample."""
         generator = CodeSampleGenerator(code_sample_languages=[CodeLanguage.RUBY])
 
@@ -232,7 +233,7 @@ class TestCodeSampleGenerator:
         assert "require" in sample.code
         assert "Net::HTTP" in sample.code or "HTTParty" in sample.code
 
-    def test_generate_csharp_sample(self):
+    def test_generate_csharp_sample(self) -> None:
         """Test generating C# sample."""
         generator = CodeSampleGenerator(code_sample_languages=[CodeLanguage.CSHARP])
 
@@ -244,7 +245,7 @@ class TestCodeSampleGenerator:
         assert "HttpClient" in sample.code
         assert "using" in sample.code
 
-    def test_url_building_with_base_url(self):
+    def test_url_building_with_base_url(self) -> None:
         """Test URL building with different base URLs."""
         generator = CodeSampleGenerator(base_url="https://custom.api.com")
 
@@ -254,7 +255,7 @@ class TestCodeSampleGenerator:
 
         assert "https://custom.api.com/api/users" in sample.code
 
-    def test_url_building_with_path_parameters(self):
+    def test_url_building_with_path_parameters(self) -> None:
         """Test URL building with path parameters."""
         generator = CodeSampleGenerator()
 
@@ -267,7 +268,7 @@ class TestCodeSampleGenerator:
 
         assert "/api/users/123/posts/456" in url
 
-    def test_url_building_with_query_parameters(self):
+    def test_url_building_with_query_parameters(self) -> None:
         """Test URL building with query parameters."""
         generator = CodeSampleGenerator()
 
@@ -280,7 +281,7 @@ class TestCodeSampleGenerator:
         assert "sort=name" in url
         assert "active=true" in url.lower()
 
-    def test_error_handling_unsupported_language(self):
+    def test_error_handling_unsupported_language(self) -> None:
         """Test error handling for unsupported languages."""
         generator = CodeSampleGenerator()
 
@@ -289,27 +290,31 @@ class TestCodeSampleGenerator:
         with pytest.raises(CodeSampleGenerationError):
             generator._generate_sample_for_language(endpoint, "unsupported_language")
 
-    def test_error_handling_invalid_endpoint(self):
+    def test_error_handling_invalid_endpoint(self) -> None:
         """Test error handling for invalid endpoint data."""
         generator = CodeSampleGenerator()
 
         # Test with None endpoint
         with pytest.raises((CodeSampleGenerationError, AttributeError)):
-            generator.generate_curl_sample(None)
+            generator.generate_curl_sample(None)  # type: ignore
 
         # Test that EndpointDocumentation validation works
         with pytest.raises(ValueError):
             EndpointDocumentation(
-                path="", method=HTTPMethod.GET, summary="Invalid"  # Empty path should raise ValueError
+                path="",
+                method=HTTPMethod.GET,
+                summary="Invalid",  # Empty path should raise ValueError
             )
 
         # Test with valid endpoint but invalid method string (should be caught by type validation)
         with pytest.raises(TypeError):
             EndpointDocumentation(
-                path="/api/test", method="INVALID", summary="Test"  # Invalid method should raise TypeError
+                path="/api/test",
+                method="INVALID",  # type: ignore
+                summary="Test",  # Invalid method should raise TypeError
             )
 
-    def test_template_customization(self):
+    def test_template_customization(self) -> None:
         """Test customization of code generation templates."""
         custom_templates = {
             CodeLanguage.PYTHON: """
@@ -330,7 +335,7 @@ print(f'Status: {{response.status_code}}')
         assert "Custom template for GET /api/users" in sample.code
         assert "Status: {response.status_code}" in sample.code
 
-    def test_multiple_server_urls(self):
+    def test_multiple_server_urls(self) -> None:
         """Test handling multiple server URLs."""
         generator = CodeSampleGenerator(server_urls=["https://api.example.com", "https://staging.example.com"])
 
@@ -342,7 +347,7 @@ print(f'Status: {{response.status_code}}')
         curl_sample = next(s for s in samples if s.language == CodeLanguage.CURL)
         assert "https://api.example.com" in curl_sample.code
 
-    def test_request_body_serialization(self):
+    def test_request_body_serialization(self) -> None:
         """Test proper serialization of different request body types."""
         generator = CodeSampleGenerator()
 
@@ -363,7 +368,7 @@ print(f'Status: {{response.status_code}}')
         sample = generator.generate_python_sample(endpoint, request_body=string_body)
         assert "data=" in sample.code
 
-    def test_header_handling(self):
+    def test_header_handling(self) -> None:
         """Test proper handling of various header types."""
         generator = CodeSampleGenerator(
             custom_headers={
@@ -381,7 +386,7 @@ print(f'Status: {{response.status_code}}')
         assert "Content-Type: application/json" in sample.code
         assert "X-Custom-Header: custom-value" in sample.code
 
-    def test_performance_with_large_endpoints(self):
+    def test_performance_with_large_endpoints(self) -> None:
         """Test performance with large number of endpoints."""
         generator = CodeSampleGenerator()
 
@@ -398,7 +403,7 @@ print(f'Status: {{response.status_code}}')
 
         assert len(all_samples) == len(endpoints) * len(generator.code_sample_languages)
 
-    def test_caching_behavior(self):
+    def test_caching_behavior(self) -> None:
         """Test caching behavior for generated samples."""
         generator = CodeSampleGenerator(cache_enabled=True)
 
@@ -414,7 +419,7 @@ print(f'Status: {{response.status_code}}')
             assert s1.code == s2.code
             assert s1.language == s2.language
 
-    def test_curl_with_api_key_authentication(self):
+    def test_curl_with_api_key_authentication(self) -> None:
         """Test cURL generation with API key authentication scheme."""
         generator = CodeSampleGenerator(authentication_schemes=["api_key"])
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
@@ -423,7 +428,7 @@ print(f'Status: {{response.status_code}}')
 
         assert "X-API-Key: YOUR_API_KEY_HERE" in sample.code
 
-    def test_curl_with_basic_authentication(self):
+    def test_curl_with_basic_authentication(self) -> None:
         """Test cURL generation with basic authentication scheme."""
         generator = CodeSampleGenerator(authentication_schemes=["basic"])
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
@@ -432,7 +437,7 @@ print(f'Status: {{response.status_code}}')
 
         assert "Basic YOUR_CREDENTIALS_HERE" in sample.code
 
-    def test_curl_with_string_request_body(self):
+    def test_curl_with_string_request_body(self) -> None:
         """Test cURL generation with string request body."""
         generator = CodeSampleGenerator()
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.POST, summary="Create user")
@@ -441,7 +446,7 @@ print(f'Status: {{response.status_code}}')
 
         assert "-d 'plain text body'" in sample.code
 
-    def test_python_with_custom_template(self):
+    def test_python_with_custom_template(self) -> None:
         """Test Python generation with custom template."""
         custom_template = "# Custom Python template\nprint('Hello {method} {url}')"
         generator = CodeSampleGenerator(custom_templates={CodeLanguage.PYTHON: custom_template})
@@ -452,7 +457,7 @@ print(f'Status: {{response.status_code}}')
         assert "Custom Python template" in sample.code
         assert "Hello GET" in sample.code
 
-    def test_python_with_string_request_body(self):
+    def test_python_with_string_request_body(self) -> None:
         """Test Python generation with string request body."""
         generator = CodeSampleGenerator()
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.POST, summary="Create user")
@@ -461,7 +466,7 @@ print(f'Status: {{response.status_code}}')
 
         assert 'data="plain text"' in sample.code
 
-    def test_python_with_api_key_authentication(self):
+    def test_python_with_api_key_authentication(self) -> None:
         """Test Python generation with API key authentication."""
         generator = CodeSampleGenerator(authentication_schemes=["api_key"])
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
@@ -470,7 +475,7 @@ print(f'Status: {{response.status_code}}')
 
         assert "X-API-Key" in sample.code and "YOUR_API_KEY_HERE" in sample.code
 
-    def test_python_with_basic_authentication(self):
+    def test_python_with_basic_authentication(self) -> None:
         """Test Python generation with basic authentication."""
         generator = CodeSampleGenerator(authentication_schemes=["basic"])
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
@@ -479,7 +484,7 @@ print(f'Status: {{response.status_code}}')
 
         assert "Basic YOUR_CREDENTIALS_HERE" in sample.code
 
-    def test_javascript_with_string_request_body(self):
+    def test_javascript_with_string_request_body(self) -> None:
         """Test JavaScript generation with string request body."""
         generator = CodeSampleGenerator()
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.POST, summary="Create user")
@@ -488,7 +493,7 @@ print(f'Status: {{response.status_code}}')
 
         assert 'body: "plain text"' in sample.code
 
-    def test_build_url_with_server_urls(self):
+    def test_build_url_with_server_urls(self) -> None:
         """Test URL building with server URLs."""
         generator = CodeSampleGenerator(
             base_url="https://api.example.com",
@@ -499,7 +504,7 @@ print(f'Status: {{response.status_code}}')
 
         assert url == "https://server1.example.com/test/path"
 
-    def test_build_url_with_boolean_query_params(self):
+    def test_build_url_with_boolean_query_params(self) -> None:
         """Test URL building with boolean query parameters."""
         generator = CodeSampleGenerator()
 
@@ -508,7 +513,7 @@ print(f'Status: {{response.status_code}}')
         assert "active=true" in url
         assert "deleted=false" in url
 
-    def test_custom_template_usage(self):
+    def test_custom_template_usage(self) -> None:
         """Test code sample generation using custom templates."""
         custom_template = """
 # Custom template for {method} {path}
@@ -539,7 +544,7 @@ Custom code here for {method_lower} request
         assert "Test endpoint for custom template" in sample.code
         assert "get request" in sample.code
 
-    def test_custom_template_with_missing_variables(self):
+    def test_custom_template_with_missing_variables(self) -> None:
         """Test custom template error handling when template variables are missing."""
         # Template with undefined variable
         bad_template = "Code for {undefined_variable}"
@@ -554,7 +559,7 @@ Custom code here for {method_lower} request
         assert "Template variable not found" in str(exc_info.value)
         assert "undefined_variable" in str(exc_info.value)
 
-    def test_unsupported_language_error_handling(self):
+    def test_unsupported_language_error_handling(self) -> None:
         """Test error handling for unsupported languages."""
         generator = CodeSampleGenerator()
         endpoint = EndpointDocumentation(path="/api/users", method=HTTPMethod.GET, summary="List users")
@@ -564,7 +569,7 @@ Custom code here for {method_lower} request
 
         assert "Unsupported language: unsupported_language" in str(exc_info.value)
 
-    def test_generate_samples_with_complex_error_scenarios(self):
+    def test_generate_samples_with_complex_error_scenarios(self) -> None:
         """Test error handling in generate_samples_for_endpoint with complex scenarios."""
         generator = CodeSampleGenerator()
 
@@ -585,13 +590,13 @@ Custom code here for {method_lower} request
         assert "Failed to generate sample" in str(exc_info.value)
         assert "GET:/test" in str(exc_info.value)
 
-    def test_endpoint_info_extraction_for_error_messages(self):
+    def test_endpoint_info_extraction_for_error_messages(self) -> None:
         """Test that endpoint info is properly extracted for error messages."""
         generator = CodeSampleGenerator()
 
         # Test with None endpoint
         with pytest.raises(CodeSampleGenerationError) as exc_info:
-            generator.generate_samples_for_endpoint(None)
+            generator.generate_samples_for_endpoint(None)  # type: ignore
 
         # Should handle None endpoint gracefully
         assert "unknown" in str(exc_info.value)

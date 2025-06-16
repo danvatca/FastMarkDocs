@@ -11,6 +11,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -23,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 @pytest.fixture
-def temp_docs_dir():
+def temp_docs_dir() -> Any:
     """Create a temporary directory for test documentation files."""
     temp_dir = tempfile.mkdtemp()
     yield Path(temp_dir)
@@ -31,7 +32,7 @@ def temp_docs_dir():
 
 
 @pytest.fixture
-def sample_markdown_content():
+def sample_markdown_content() -> str:
     """Sample markdown content for testing."""
     return """
 # API Documentation
@@ -186,7 +187,7 @@ Tags: users, details
 
 
 @pytest.fixture
-def complex_markdown_content():
+def complex_markdown_content() -> str:
     """Complex markdown content with edge cases for testing."""
     return """
 # Complex API Documentation
@@ -654,6 +655,6 @@ class TestUtils:
 
 
 @pytest.fixture
-def test_utils():
+def test_utils() -> None:
     """Provide test utilities."""
     return TestUtils
