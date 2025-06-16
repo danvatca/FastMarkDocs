@@ -107,24 +107,21 @@ def _get_version_from_pyproject() -> str:
 
 
 # Try to get version from package metadata (production)
+__version__ = "unknown"
+
+# First try the standard library (Python 3.8+)
 try:
-    from importlib.metadata import PackageNotFoundError, version
-except ImportError:
+    import importlib.metadata
+
+    __version__ = importlib.metadata.version("fastmarkdocs")
+except (ImportError, Exception):
     # Python < 3.8 fallback
     try:
-        from importlib_metadata import PackageNotFoundError, version
-    except ImportError:
-        # If importlib_metadata is not available, use development fallback
-        __version__ = _get_version_from_pyproject()
-    else:
-        try:
-            __version__ = version("fastmarkdocs")
-        except PackageNotFoundError:
-            __version__ = _get_version_from_pyproject()
-else:
-    try:
-        __version__ = version("fastmarkdocs")
-    except PackageNotFoundError:
+        import importlib_metadata  # type: ignore[import-not-found]
+
+        __version__ = importlib_metadata.version("fastmarkdocs")
+    except (ImportError, Exception):
+        # Development fallback - read from pyproject.toml
         __version__ = _get_version_from_pyproject()
 
 __author__ = "Dan Vatca"
