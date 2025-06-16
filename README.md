@@ -272,49 +272,141 @@ if hasattr(loader, '_general_docs_content'):
     print("General docs loaded:", loader._general_docs_content is not None)
 ```
 
+### Authentication Schemes
+
+FastMarkDocs can automatically add authentication headers to generated code samples based on your API's authentication requirements:
+
+```python
+from fastmarkdocs import enhance_openapi_with_docs, CodeSampleGenerator
+
+# Configure automatic authentication headers
+enhanced_schema = enhance_openapi_with_docs(
+    openapi_schema=app.openapi(),
+    docs_directory="docs/api",
+    base_url="https://api.example.com",
+    # Automatically adds appropriate auth headers to all code samples
+    authentication_schemes=["bearer"]  # Options: "bearer", "api_key", "basic"
+)
+
+# For more control, use CodeSampleGenerator directly
+generator = CodeSampleGenerator(
+    base_url="https://api.example.com",
+    authentication_schemes=["bearer", "api_key"],  # Supports multiple schemes
+    custom_headers={"User-Agent": "MyApp/1.0"}
+)
+```
+
+**Supported Authentication Schemes:**
+- `"bearer"` - Adds `Authorization: Bearer YOUR_TOKEN_HERE` header
+- `"api_key"` - Adds `X-API-Key: YOUR_API_KEY_HERE` header  
+- `"basic"` - Adds `Authorization: Basic YOUR_CREDENTIALS_HERE` header
+
+### Server URLs and Multi-Environment Support
+
+Configure multiple server URLs for different environments:
+
+```python
+from fastmarkdocs import enhance_openapi_with_docs
+
+enhanced_schema = enhance_openapi_with_docs(
+    openapi_schema=app.openapi(),
+    docs_directory="docs/api",
+    base_url="https://api.example.com",  # Primary server
+    server_urls=[  # Additional servers for code samples
+        "https://api.example.com",
+        "https://staging-api.example.com", 
+        "https://dev-api.example.com"
+    ]
+)
+```
+
 ### Custom Code Generation
 
 ```python
 from fastmarkdocs import CodeSampleGenerator
+from fastmarkdocs.types import CodeLanguage
 
 generator = CodeSampleGenerator(
     base_url="https://api.example.com",
-    custom_headers={"X-API-Key": "your-key"},
-    code_sample_languages=["python", "javascript", "go"]
+    code_sample_languages=[CodeLanguage.PYTHON, CodeLanguage.JAVASCRIPT, CodeLanguage.CURL],
+    custom_headers={"Authorization": "Bearer token"},
+    authentication_schemes=["bearer"],  # Automatic auth headers
+    server_urls=["https://api.example.com", "https://staging-api.example.com"],
+    cache_enabled=True  # Enable caching for better performance
 )
 
 # Generate samples for a specific endpoint
 samples = generator.generate_samples_for_endpoint(endpoint_data)
 ```
 
-### Template Customization
+### Custom Code Templates
+
+Create custom templates for specific languages with dynamic variables:
 
 ```python
-from fastmarkdocs import DocumentationLoader
+from fastmarkdocs import CodeSampleGenerator
+from fastmarkdocs.types import CodeLanguage
 
-loader = DocumentationLoader(
-    docs_directory="docs/api",
-    custom_templates={
-        "python": """
+# Define custom templates with variables
+custom_templates = {
+    CodeLanguage.PYTHON: """
+# {summary}
+# {description}
+
 import requests
 
-def {method_lower}_{path_safe}():
-    response = requests.{method_lower}("{url}")
+def call_{method_lower}_api():
+    response = requests.{method_lower}(
+        '{url}',
+        headers={{'Authorization': 'Bearer YOUR_TOKEN'}}
+    )
     return response.json()
+
+# Usage
+result = call_{method_lower}_api()
+print(result)
+""",
+    CodeLanguage.BASH: """
+#!/bin/bash
+# {summary}
+
+curl -X {method} \\
+  '{url}' \\
+  -H 'Authorization: Bearer YOUR_TOKEN' \\
+  -H 'Content-Type: application/json'
 """
-    }
+}
+
+generator = CodeSampleGenerator(
+    base_url="https://api.example.com",
+    custom_templates=custom_templates
 )
 ```
 
-### Caching Configuration
+**Available Template Variables:**
+- `{method}` - HTTP method (GET, POST, etc.)
+- `{method_lower}` - HTTP method in lowercase
+- `{path}` - API endpoint path
+- `{url}` - Complete URL
+- `{base_url}` - Base URL
+- `{summary}` - Endpoint summary
+- `{description}` - Endpoint description
+
+### Advanced Loader Configuration
 
 ```python
-from fastmarkdocs import DocumentationLoader
+from fastmarkdocs import MarkdownDocumentationLoader
+from fastmarkdocs.types import CodeLanguage
 
-loader = DocumentationLoader(
+loader = MarkdownDocumentationLoader(
     docs_directory="docs/api",
-    enable_caching=True,
-    cache_ttl=3600  # 1 hour
+    supported_languages=[CodeLanguage.PYTHON, CodeLanguage.CURL],  # Filter code samples
+    file_patterns=["*.md", "*.markdown"],  # File types to process
+    encoding="utf-8",
+    recursive=True,  # Search subdirectories
+    cache_enabled=True,  # Enable caching for performance
+    cache_ttl=3600,  # Cache for 1 hour
+    general_docs_file="api_overview.md"  # Custom general docs file
 )
 ```
 
@@ -330,15 +422,14 @@ Enhance an OpenAPI schema with markdown documentation.
 - `openapi_schema` (dict): The original OpenAPI schema
 - `docs_directory` (str): Path to markdown documentation directory
 - `base_url` (str, optional): Base URL for code samples (default: "https://api.example.com")
-- `custom_headers` (dict, optional): Custom headers for code samples
-- `code_sample_languages` (list[CodeLanguage], optional): Languages for code generation
 - `include_code_samples` (bool, optional): Whether to include code samples (default: True)
 - `include_response_examples` (bool, optional): Whether to include response examples (default: True)
-- `include_parameter_examples` (bool, optional): Whether to include parameter examples (default: True)
+- `code_sample_languages` (list[CodeLanguage], optional): Languages for code generation
+- `custom_headers` (dict, optional): Custom headers for code samples
 - `app_title` (str, optional): Override the application title
 - `app_description` (str, optional): Application description to include
 - `api_links` (list[APILink], optional): List of links to other APIs
-- `general_docs_file` (str, optional): Path to general documentation file (default: "general_docs.md")
+- `general_docs_file` (str, optional): Path to general documentation file (default: "general_docs.md" if found)
 
 **Returns:** Enhanced OpenAPI schema (dict)
 

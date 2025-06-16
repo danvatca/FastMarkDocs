@@ -19,26 +19,30 @@ The main function for enhancing OpenAPI schemas with markdown documentation.
 def enhance_openapi_with_docs(
     openapi_schema: Dict[str, Any],
     docs_directory: str,
-    base_url: Optional[str] = None,
-    code_sample_languages: Optional[List[str]] = None,
-    custom_headers: Optional[Dict[str, str]] = None,
+    base_url: str = "https://api.example.com",
     include_code_samples: bool = True,
     include_response_examples: bool = True,
-    include_parameter_examples: bool = True,
-    server_urls: Optional[List[str]] = None
+    code_sample_languages: Optional[List[CodeLanguage]] = None,
+    custom_headers: Optional[Dict[str, str]] = None,
+    app_title: Optional[str] = None,
+    app_description: Optional[str] = None,
+    api_links: Optional[List[APILink]] = None,
+    general_docs_file: Optional[str] = None
 ) -> Dict[str, Any]
 ```
 
 **Parameters:**
 - `openapi_schema` (Dict[str, Any]): The original OpenAPI schema to enhance
 - `docs_directory` (str): Path to the directory containing markdown documentation
-- `base_url` (Optional[str]): Base URL for generated code samples
-- `code_sample_languages` (Optional[List[str]]): List of languages for code sample generation
-- `custom_headers` (Optional[Dict[str, str]]): Custom headers to include in code samples
+- `base_url` (str): Base URL for generated code samples (default: "https://api.example.com")
 - `include_code_samples` (bool): Whether to include code samples in the enhanced schema
 - `include_response_examples` (bool): Whether to include response examples
-- `include_parameter_examples` (bool): Whether to include parameter examples
-- `server_urls` (Optional[List[str]]): List of server URLs for the API
+- `code_sample_languages` (Optional[List[CodeLanguage]]): List of languages for code sample generation
+- `custom_headers` (Optional[Dict[str, str]]): Custom headers to include in code samples
+- `app_title` (Optional[str]): Override the application title in the OpenAPI schema
+- `app_description` (Optional[str]): Application description to include in the schema
+- `api_links` (Optional[List[APILink]]): List of links to other APIs in your system
+- `general_docs_file` (Optional[str]): Path to general documentation file (default: "general_docs.md" if found)
 
 **Returns:** Enhanced OpenAPI schema (Dict[str, Any])
 
@@ -66,23 +70,27 @@ class MarkdownDocumentationLoader:
     def __init__(
         self,
         docs_directory: str = "docs",
+        base_url_placeholder: str = "https://api.example.com",
+        supported_languages: Optional[List[CodeLanguage]] = None,
+        file_patterns: Optional[List[str]] = None,
+        encoding: str = "utf-8",
         recursive: bool = True,
         cache_enabled: bool = True,
         cache_ttl: int = 3600,
-        file_patterns: List[str] = None,
-        encoding: str = "utf-8",
-        base_url_placeholder: str = "https://api.example.com"
+        general_docs_file: Optional[str] = None
     )
 ```
 
 **Parameters:**
 - `docs_directory` (str): Directory containing markdown files
+- `base_url_placeholder` (str): Placeholder for base URL in documentation
+- `supported_languages` (Optional[List[CodeLanguage]]): List of supported code sample languages for filtering
+- `file_patterns` (Optional[List[str]]): File patterns to match (default: ["*.md", "*.markdown"])
+- `encoding` (str): File encoding to use when reading files
 - `recursive` (bool): Whether to search subdirectories recursively
 - `cache_enabled` (bool): Whether to enable caching for performance
 - `cache_ttl` (int): Cache time-to-live in seconds
-- `file_patterns` (List[str]): File patterns to match (default: ["*.md", "*.markdown"])
-- `encoding` (str): File encoding to use when reading files
-- `base_url_placeholder` (str): Default base URL for code samples
+- `general_docs_file` (Optional[str]): Path to general documentation file (default: "general_docs.md" if found)
 
 #### Methods
 
@@ -141,19 +149,23 @@ class CodeSampleGenerator:
     def __init__(
         self,
         base_url: str = "https://api.example.com",
-        code_sample_languages: List[CodeLanguage] = None,
-        custom_headers: Dict[str, str] = None,
-        custom_templates: Dict[str, str] = None,
-        authentication_schemes: List[str] = None
+        custom_headers: Optional[Dict[str, str]] = None,
+        code_sample_languages: Optional[List[CodeLanguage]] = None,
+        server_urls: Optional[List[str]] = None,
+        authentication_schemes: Optional[List[str]] = None,
+        custom_templates: Optional[Dict[CodeLanguage, str]] = None,
+        cache_enabled: bool = False
     )
 ```
 
 **Parameters:**
 - `base_url` (str): Base URL for generated code samples
-- `code_sample_languages` (List[CodeLanguage]): Languages to generate samples for
-- `custom_headers` (Dict[str, str]): Headers to include in generated samples
-- `custom_templates` (Dict[str, str]): Custom templates for code generation
-- `authentication_schemes` (List[str]): Authentication schemes to support
+- `custom_headers` (Optional[Dict[str, str]]): Headers to include in generated samples
+- `code_sample_languages` (Optional[List[CodeLanguage]]): Languages to generate samples for
+- `server_urls` (Optional[List[str]]): List of server URLs for multi-environment support
+- `authentication_schemes` (Optional[List[str]]): Authentication schemes to support (e.g., "bearer", "api_key", "basic")
+- `custom_templates` (Optional[Dict[CodeLanguage, str]]): Custom templates for code generation with variables
+- `cache_enabled` (bool): Whether to enable caching for improved performance
 
 #### Methods
 
@@ -215,14 +227,26 @@ Enhances OpenAPI schemas with documentation data.
 class OpenAPIEnhancer:
     def __init__(
         self,
-        base_url: str = "https://api.example.com",
-        code_sample_languages: List[CodeLanguage] = None,
-        custom_headers: Dict[str, str] = None,
         include_code_samples: bool = True,
         include_response_examples: bool = True,
-        include_parameter_examples: bool = True
+        include_parameter_examples: bool = True,
+        code_sample_languages: Optional[List[CodeLanguage]] = None,
+        base_url: str = "https://api.example.com",
+        server_urls: Optional[List[str]] = None,
+        custom_headers: Optional[Dict[str, str]] = None,
+        authentication_schemes: Optional[List[str]] = None
     )
 ```
+
+**Parameters:**
+- `include_code_samples` (bool): Whether to include code samples in the enhanced schema
+- `include_response_examples` (bool): Whether to include response examples
+- `include_parameter_examples` (bool): Whether to include parameter examples
+- `code_sample_languages` (Optional[List[CodeLanguage]]): Languages to generate samples for
+- `base_url` (str): Base URL for generated code samples
+- `server_urls` (Optional[List[str]]): List of server URLs for multi-environment support
+- `custom_headers` (Optional[Dict[str, str]]): Headers to include in generated samples
+- `authentication_schemes` (Optional[List[str]]): Authentication schemes to support
 
 #### Methods
 
