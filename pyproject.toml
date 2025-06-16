@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastmarkdocs"
-version = "0.1.7"
+version = "0.1.8"
 description = "A powerful library for enhancing FastAPI applications with rich markdown-based API documentation"
 authors = ["Dan Vatca <dan.vatca@gmail.com>"]
 license = "MIT"
