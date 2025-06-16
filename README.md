@@ -18,7 +18,8 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 🎨 **Customizable Templates**: Use custom templates for code generation  
 ⚡ **High Performance**: Built-in caching and optimized processing  
 🧪 **Well Tested**: Comprehensive test suite with 100+ tests  
-🔍 **Documentation Linting**: Built-in `fmd-lint` tool to analyze and improve documentation quality  
+🔍 **Documentation Linting**: Built-in `fmd-lint` tool to analyze and improve documentation quality
+🏗️ **Documentation Scaffolding**: `fmd-init` tool to bootstrap documentation for existing projects  
 
 ## Quick Start
 
@@ -180,7 +181,68 @@ const users = await response.json();
 
 ```
 
-## Documentation Linting with fmd-lint
+## CLI Tools
+
+FastMarkDocs includes powerful CLI tools for creating and analyzing your API documentation.
+
+### Documentation Initialization with fmd-init
+
+The `fmd-init` tool helps you bootstrap documentation for existing FastAPI projects by scanning your code and generating markdown scaffolding:
+
+```bash
+# Basic usage - scan src/ directory
+fmd-init src/
+
+# Custom output directory
+fmd-init src/ --output-dir api-docs/
+
+# Preview what would be generated (dry run)
+fmd-init src/ --dry-run --verbose
+
+# JSON output format
+fmd-init src/ --format json
+
+# Overwrite existing files
+fmd-init src/ --overwrite
+```
+
+**Features:**
+- 🔍 **Automatic Discovery**: Scans Python files for FastAPI decorators (`@app.get`, `@router.post`, etc.)
+- 📝 **Markdown Generation**: Creates structured documentation files grouped by tags
+- 🏗️ **Scaffolding**: Generates TODO sections for parameters, responses, and examples
+- 🔧 **Flexible Output**: Supports text and JSON formats, dry-run mode, custom directories
+- 📊 **Detailed Reporting**: Shows endpoint breakdown by HTTP method and file locations
+
+**Example Output:**
+```
+✅ Documentation scaffolding generated successfully!
+
+📊 **Documentation Initialization Complete**
+- **Endpoints discovered:** 15
+- **Files generated:** 4
+
+**Endpoints by method:**
+- DELETE: 2
+- GET: 8
+- POST: 3
+- PUT: 2
+
+**Generated files:**
+- docs/users.md
+- docs/orders.md
+- docs/admin.md
+- docs/root.md
+```
+
+**Workflow Integration:**
+1. 🏗️ Develop FastAPI endpoints in your project
+2. 🔍 Run `fmd-init src/` to generate documentation scaffolding
+3. ✏️ Review and enhance the generated documentation
+4. 🔧 Use fastmarkdocs to enhance your OpenAPI schema
+5. 🧪 Run `fmd-lint` to check documentation quality
+6. 🚀 Deploy with enhanced documentation!
+
+### Documentation Linting with fmd-lint
 
 FastMarkDocs includes a powerful documentation linter that helps you maintain high-quality API documentation:
 

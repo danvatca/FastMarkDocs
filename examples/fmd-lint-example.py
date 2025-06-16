@@ -12,7 +12,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from fastmarkdocs.cli import DocumentationLinter, format_results
+from fastmarkdocs.linter import DocumentationLinter
+from fastmarkdocs.linter_cli import format_results
 
 # Create a simple FastAPI app
 app = FastAPI(title="Example API", version="1.0.0")

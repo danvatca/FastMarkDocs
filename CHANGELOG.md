@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **fmd-init**: Documentation scaffolding tool for existing FastAPI projects
+  - Automatically scans Python files for FastAPI endpoints (`@app.get`, `@router.post`, etc.)
+  - Extracts endpoint information including paths, methods, docstrings, and tags
+  - Generates structured markdown documentation with TODO sections
+  - Groups endpoints by tags or creates general API documentation
+  - Supports dry-run mode, custom output directories, and JSON output
+  - Includes comprehensive CLI with verbose mode and file exclusion patterns
+  - Provides detailed reporting on discovered endpoints and generated files
+  - Full programmatic API for integration with other tools
+  - Comprehensive test suite with 48 test cases covering all functionality
+  - Complete documentation with examples and best practices
 - **fmd-lint**: Comprehensive documentation linter CLI tool
   - Analyzes API documentation completeness and accuracy
   - Identifies missing documentation for API endpoints

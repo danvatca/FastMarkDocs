@@ -10,7 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from fastmarkdocs.cli import DocumentationLinter, format_results, main
+from fastmarkdocs.linter import DocumentationLinter
+from fastmarkdocs.linter_cli import format_results, main
 
 
 class TestDocumentationLinter:

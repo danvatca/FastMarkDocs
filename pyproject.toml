@@ -27,7 +27,8 @@ classifiers = [
 packages = [{include = "fastmarkdocs", from = "src"}]
 
 [tool.poetry.scripts]
-fmd-lint = "fastmarkdocs.cli:main"
+fmd-lint = "fastmarkdocs.linter_cli:main"
+fmd-init = "fastmarkdocs.scaffolder_cli:main"
 
 [tool.poetry.dependencies]
 python = ">=3.9.2,<4.0"
