@@ -101,8 +101,11 @@ def _get_version_from_pyproject() -> str:
                     match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', line)
                     if match:
                         return match.group(1)
-    except Exception:
-        pass
+    except (OSError, UnicodeDecodeError):
+        # File reading errors are expected during version detection fallback
+        # OSError covers FileNotFoundError, PermissionError, etc.
+        # UnicodeDecodeError covers encoding issues
+        return "unknown"
     return "unknown"
 
 
