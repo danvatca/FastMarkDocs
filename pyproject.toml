@@ -52,6 +52,7 @@ safety = "^3.5.2"
 cryptography = "^44.0.1"
 setuptools = "^78.1.1"
 types-pyyaml = "^6.0.12.20250516"
+bandit = "^1.8.5"
 
 
 

@@ -252,6 +252,30 @@ pip install fastmarkdocs
 
 # Lint your documentation
 fmd-lint --openapi openapi.json --docs docs/api
+
+# Use configuration file for advanced settings
+fmd-lint --config .fmd-lint.yaml
+```
+
+**Configuration File Support:**
+Create a `.fmd-lint.yaml` file to streamline your workflow:
+
+```yaml
+exclude:
+  endpoints:
+    - path: "^/static/.*"
+      methods: ["GET"]
+    - path: "^/health"
+      methods: [".*"]
+
+spec_generator:
+  - "poetry run python ./generate_openapi.py"
+
+docs:
+  - "./docs/api"
+
+recursive: true
+base_url: "https://api.example.com"
 ```
 
 ### What fmd-lint Analyzes
@@ -293,7 +317,7 @@ fmd-lint --openapi openapi.json --docs docs/api
   run: fmd-lint --openapi openapi.json --docs docs/api
 ```
 
-For complete documentation, see [docs/fmd-lint.md](docs/fmd-lint.md).
+For complete documentation, see [docs/fmd-lint.md](docs/fmd-lint.md). For configuration file details, see [docs/configuration.md](docs/configuration.md).
 
 ## Advanced Features
 

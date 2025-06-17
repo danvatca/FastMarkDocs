@@ -352,7 +352,7 @@ def demonstrate_programmatic_usage() -> None:
 
         print("\n📈 Endpoint breakdown:")
         endpoints = result.get("endpoints", [])
-        method_counts = {}
+        method_counts: dict[str, int] = {}
         for endpoint in endpoints:
             method_counts[endpoint.method] = method_counts.get(endpoint.method, 0) + 1
 

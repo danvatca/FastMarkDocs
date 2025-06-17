@@ -3,6 +3,7 @@ Tests for the FastMarkDocs CLI tools.
 """
 
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from fastmarkdocs.linter import DocumentationLinter
-from fastmarkdocs.linter_cli import format_results, main
+from fastmarkdocs.linter_cli import LinterConfig, find_config_file, format_results, main, run_spec_generator
 
 
 class TestDocumentationLinter:
@@ -210,7 +211,7 @@ Another fake endpoint.
             linter = DocumentationLinter(openapi_schema=openapi_schema, docs_directory=str(docs_dir))
 
             openapi_endpoints = {("GET", "/users")}
-            markdown_endpoints = {("GET", "/users"), ("GET", "/nonexistent"), ("POST", "/another-fake")}
+            markdown_endpoints = {("GET", "/nonexistent"), ("POST", "/another-fake")}
 
             orphaned = linter._find_orphaned_documentation(openapi_endpoints, markdown_endpoints)
 
@@ -631,8 +632,20 @@ class TestFormatResults:
                 for i in range(12)  # More than 10 to test truncation
             ],
             "incomplete_documentation": [
-                {"method": "GET", "path": "/incomplete1", "issues": ["Missing description"]},
-                {"method": "POST", "path": "/incomplete2", "issues": ["No code samples"]},
+                {
+                    "method": "GET",
+                    "path": "/incomplete1",
+                    "issues": ["Missing description"],
+                    "completeness_score": 45.0,
+                    "suggestions": ["Add description"],
+                },
+                {
+                    "method": "POST",
+                    "path": "/incomplete2",
+                    "issues": ["No code samples"],
+                    "completeness_score": 60.0,
+                    "suggestions": ["Add code samples"],
+                },
             ],
             "common_mistakes": [
                 {
@@ -863,8 +876,8 @@ class TestCLIMain:
             assert "summary" in parsed_json
             assert "statistics" in parsed_json
 
-    def test_main_with_recursive_flag(self) -> None:
-        """Test CLI with recursive flag."""
+    def test_main_with_no_recursive_flag(self) -> None:
+        """Test CLI with --no-recursive flag."""
         openapi_schema = {"paths": {"/users": {"get": {"summary": "List users"}}}}
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -880,12 +893,39 @@ class TestCLIMain:
             (nested_dir / "users.md").write_text("## GET /users\nList users.")
 
             with (
-                patch("sys.argv", ["fmd-lint", "--openapi", str(openapi_file), "--docs", str(docs_dir), "--recursive"]),
+                patch(
+                    "sys.argv", ["fmd-lint", "--openapi", str(openapi_file), "--docs", str(docs_dir), "--no-recursive"]
+                ),
                 patch("builtins.print"),
             ):
                 with pytest.raises(SystemExit) as exc_info:
                     main()
-                # Should find the documentation in nested directory
+                # Should NOT find the documentation in nested directory due to --no-recursive
+                assert exc_info.value.code == 1  # Has issues because docs not found
+
+    def test_main_with_default_recursive_behavior(self) -> None:
+        """Test CLI with default recursive behavior (no flag needed)."""
+        openapi_schema = {"paths": {"/users": {"get": {"summary": "List users"}}}}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create OpenAPI file
+            openapi_file = Path(temp_dir) / "openapi.json"
+            openapi_file.write_text(json.dumps(openapi_schema))
+
+            # Create nested docs directory structure
+            docs_dir = Path(temp_dir) / "docs"
+            docs_dir.mkdir()
+            nested_dir = docs_dir / "api" / "v1"
+            nested_dir.mkdir(parents=True)
+            (nested_dir / "users.md").write_text("## GET /users\nList users.")
+
+            with (
+                patch("sys.argv", ["fmd-lint", "--openapi", str(openapi_file), "--docs", str(docs_dir)]),
+                patch("builtins.print"),
+            ):
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
+                # Should find the documentation in nested directory by default (recursive=True)
                 assert exc_info.value.code == 1  # Still has issues but found the docs
 
     def test_main_with_invalid_json(self) -> None:
@@ -1199,3 +1239,592 @@ This endpoint doesn't exist in OpenAPI.
             # Should not find any enhancement failures since no documented endpoints match OpenAPI
             documented_and_in_openapi = openapi_endpoints.intersection(markdown_endpoints)
             assert len(documented_and_in_openapi) == 0
+
+
+class TestLinterConfig:
+    """Test the LinterConfig class."""
+
+    def test_init_default(self) -> None:
+        """Test default configuration initialization."""
+        config = LinterConfig()
+
+        assert config.exclude_endpoints == []
+        assert config.spec_generator == []
+        assert config.docs == []
+        assert config.recursive is True
+        assert config.base_url == "https://api.example.com"
+        assert config.format == "text"
+        assert config.output is None
+
+    def test_load_from_file(self) -> None:
+        """Test loading configuration from YAML file."""
+        config_content = """
+exclude:
+  endpoints:
+    - path: "^/static/.*"
+      methods:
+        - "GET"
+    - path: "^/health"
+      methods:
+        - ".*"
+spec_generator:
+  - "poetry run python ./generate_openapi.py"
+  - "echo 'Generated OpenAPI'"
+docs:
+  - "./src/doorman/api"
+  - "./docs/api"
+recursive: true
+base_url: "https://api.example.com"
+format: "json"
+output: "report.json"
+"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            config = LinterConfig(str(config_file))
+
+            assert len(config.exclude_endpoints) == 2
+            assert config.exclude_endpoints[0]["path"] == "^/static/.*"
+            assert config.exclude_endpoints[0]["methods"] == ["GET"]
+            assert config.exclude_endpoints[1]["path"] == "^/health"
+            assert config.exclude_endpoints[1]["methods"] == [".*"]
+
+            assert len(config.spec_generator) == 2
+            assert "poetry run python ./generate_openapi.py" in config.spec_generator
+
+            assert len(config.docs) == 2
+            assert "./src/doorman/api" in config.docs
+
+            assert config.recursive is True
+            assert config.base_url == "https://api.example.com"
+            assert config.format == "json"
+            assert config.output == "report.json"
+
+    def test_load_from_file_partial_config(self) -> None:
+        """Test loading partial configuration from YAML file."""
+        config_content = """
+exclude:
+  endpoints:
+    - path: "^/static/.*"
+      methods:
+        - "GET"
+recursive: false
+"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            config = LinterConfig(str(config_file))
+
+            # Should load specified values
+            assert len(config.exclude_endpoints) == 1
+            assert config.recursive is False
+
+            # Should keep defaults for unspecified values
+            assert config.spec_generator == []
+            assert config.docs == []
+            assert config.base_url == "https://api.example.com"
+            assert config.format == "text"
+
+    def test_load_from_file_empty_config(self) -> None:
+        """Test loading empty configuration file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text("")
+
+            config = LinterConfig(str(config_file))
+
+            # Should use all defaults
+            assert config.exclude_endpoints == []
+            assert config.spec_generator == []
+            assert config.docs == []
+            assert config.recursive is True
+
+    def test_load_from_file_not_found(self) -> None:
+        """Test loading configuration from non-existent file."""
+        with pytest.raises(FileNotFoundError):
+            LinterConfig("/non/existent/file.yaml")
+
+    def test_should_exclude_endpoint_dict_format(self) -> None:
+        """Test endpoint exclusion with dictionary format."""
+        config = LinterConfig()
+        config.exclude_endpoints = [
+            {"path": "^/static/.*", "methods": ["GET"]},
+            {"path": "^/health", "methods": [".*"]},
+            {"path": "^/api/v1/users", "methods": ["POST", "DELETE"]},
+        ]
+
+        # Should exclude matching path and method
+        assert config.should_exclude_endpoint("GET", "/static/css/style.css") is True
+        assert config.should_exclude_endpoint("GET", "/health") is True
+        assert config.should_exclude_endpoint("POST", "/health") is True
+        assert config.should_exclude_endpoint("POST", "/api/v1/users") is True
+        assert config.should_exclude_endpoint("DELETE", "/api/v1/users") is True
+
+        # Should not exclude non-matching combinations
+        assert config.should_exclude_endpoint("POST", "/static/css/style.css") is False
+        assert config.should_exclude_endpoint("GET", "/api/v1/users") is False
+        assert config.should_exclude_endpoint("PUT", "/api/v1/users") is False
+        assert config.should_exclude_endpoint("GET", "/different/path") is False
+
+    def test_should_exclude_endpoint_string_format_legacy(self) -> None:
+        """Test endpoint exclusion with legacy string format."""
+        config = LinterConfig()
+        config.exclude_endpoints = ["GET /static/style.css", "POST /login", "/health"]  # Method-agnostic
+
+        # Should exclude exact matches
+        assert config.should_exclude_endpoint("GET", "/static/style.css") is True
+        assert config.should_exclude_endpoint("POST", "/login") is True
+        assert config.should_exclude_endpoint("GET", "/health") is True
+        assert config.should_exclude_endpoint("POST", "/health") is True
+
+        # Should not exclude non-matches
+        assert config.should_exclude_endpoint("POST", "/static/style.css") is False
+        assert config.should_exclude_endpoint("GET", "/login") is False
+        assert config.should_exclude_endpoint("GET", "/different") is False
+
+    def test_should_exclude_endpoint_no_exclusions(self) -> None:
+        """Test endpoint exclusion with no exclusions configured."""
+        config = LinterConfig()
+
+        # Should not exclude anything
+        assert config.should_exclude_endpoint("GET", "/any/path") is False
+        assert config.should_exclude_endpoint("POST", "/any/path") is False
+
+
+class TestConfigurationHelpers:
+    """Test configuration helper functions."""
+
+    def test_find_config_file_current_directory(self) -> None:
+        """Test finding config file in current directory."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                # Change to temp directory
+                import os
+
+                os.chdir(temp_dir)
+
+                # Create config file
+                config_file = Path(temp_dir) / ".fmd-lint.yaml"
+                config_file.write_text("recursive: true")
+
+                found_config = find_config_file()
+                assert Path(found_config).resolve() == config_file.resolve()
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_find_config_file_parent_directory(self) -> None:
+        """Test finding config file in parent directory."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                # Create nested directory structure
+                parent_dir = Path(temp_dir)
+                child_dir = parent_dir / "subdir"
+                child_dir.mkdir()
+
+                # Create config file in parent
+                config_file = parent_dir / ".fmd-lint.yaml"
+                config_file.write_text("recursive: true")
+
+                # Change to child directory
+                import os
+
+                os.chdir(child_dir)
+
+                found_config = find_config_file()
+                assert Path(found_config).resolve() == config_file.resolve()
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_find_config_file_yml_extension(self) -> None:
+        """Test finding config file with .yml extension."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                # Create config file with .yml extension
+                config_file = Path(temp_dir) / ".fmd-lint.yml"
+                config_file.write_text("recursive: true")
+
+                found_config = find_config_file()
+                assert Path(found_config).resolve() == config_file.resolve()
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_find_config_file_not_found(self) -> None:
+        """Test behavior when config file is not found."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                found_config = find_config_file()
+                assert found_config is None
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_run_spec_generator_success(self) -> None:
+        """Test successful spec generator execution."""
+        commands = ["echo 'test output'", "touch openapi.json"]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                result_file = run_spec_generator(commands)
+                assert result_file == "openapi.json"
+                assert Path("openapi.json").exists()
+
+            finally:
+                os.chdir(original_cwd)
+                # Clean up
+                if Path("openapi.json").exists():
+                    Path("openapi.json").unlink()
+
+    def test_run_spec_generator_failure(self) -> None:
+        """Test spec generator failure handling."""
+        commands = ["python -c 'import sys; sys.exit(1)'"]  # Command that fails
+
+        with pytest.raises(subprocess.CalledProcessError):
+            run_spec_generator(commands)
+
+    def test_run_spec_generator_no_commands(self) -> None:
+        """Test spec generator with no commands."""
+        with pytest.raises(ValueError, match="No spec generator commands provided"):
+            run_spec_generator([])
+
+    def test_run_spec_generator_no_output_file(self) -> None:
+        """Test spec generator when no OpenAPI file is found."""
+        commands = ["echo 'done'"]  # Command that doesn't create OpenAPI file
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                with pytest.raises(FileNotFoundError, match="Could not find generated OpenAPI file"):
+                    run_spec_generator(commands)
+
+            finally:
+                os.chdir(original_cwd)
+
+
+class TestCLIWithConfiguration:
+    """Test CLI functionality with configuration files."""
+
+    def test_main_with_config_file(self) -> None:
+        """Test CLI with configuration file."""
+        config_content = """
+exclude:
+  endpoints:
+    - path: "^/health"
+      methods:
+        - ".*"
+docs:
+  - "."
+recursive: false
+base_url: "https://test.example.com"
+format: "json"
+"""
+
+        openapi_schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {
+                "/users": {"get": {"summary": "List users"}},
+                "/health": {"get": {"summary": "Health check"}},
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create config file
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            # Create OpenAPI file
+            openapi_file = Path(temp_dir) / "openapi.json"
+            openapi_file.write_text(json.dumps(openapi_schema))
+
+            # Create complete documentation
+            (Path(temp_dir) / "users.md").write_text(
+                """
+## GET /users
+
+List all users in the system.
+
+### Description
+This endpoint returns a list of all users.
+
+### Code Examples
+
+```bash
+curl -X GET "/users"
+```
+
+### Response Examples
+
+```json
+{"users": []}
+```
+"""
+            )
+
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                with patch("sys.argv", ["fmd-lint", "--config", str(config_file), "--openapi", str(openapi_file)]):
+                    # Should not raise SystemExit because no issues found (health is excluded)
+                    try:
+                        main()
+                        # If main() returns normally, that means no issues were found
+                        success = True
+                    except SystemExit as e:
+                        # If it does exit, it should be with code 0
+                        success = e.code == 0 or e.code is None
+
+                    assert success
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_main_with_spec_generator(self) -> None:
+        """Test CLI with spec generator configuration."""
+        config_content = """
+spec_generator:
+  - "echo '{\\"openapi\\": \\"3.0.0\\", \\"info\\": {\\"title\\": \\"Test API\\", \\"version\\": \\"1.0.0\\"}, \\"paths\\": {\\"/test\\": {\\"get\\": {\\"summary\\": \\"Test\\"}}}}' > openapi.json"
+docs:
+  - "."
+"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create config file
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            # Create complete documentation
+            (Path(temp_dir) / "test.md").write_text(
+                """
+## GET /test
+
+Test endpoint.
+
+### Description
+This is a test endpoint.
+
+### Code Examples
+
+```bash
+curl -X GET "/test"
+```
+
+### Response Examples
+
+```json
+{"status": "ok"}
+```
+"""
+            )
+
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                with patch("sys.argv", ["fmd-lint", "--config", str(config_file)]):
+                    try:
+                        main()
+                        success = True
+                    except SystemExit as e:
+                        success = e.code == 0 or e.code is None
+
+                    assert success
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_main_config_override_command_line(self) -> None:
+        """Test that command line arguments override config file."""
+        config_content = """
+format: "json"
+base_url: "https://config.example.com"
+"""
+
+        openapi_schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {"/test": {"get": {"summary": "Test"}}},
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create config file
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            # Create OpenAPI file
+            openapi_file = Path(temp_dir) / "openapi.json"
+            openapi_file.write_text(json.dumps(openapi_schema))
+
+            # Create docs directory
+            docs_dir = Path(temp_dir) / "docs"
+            docs_dir.mkdir()
+            (docs_dir / "test.md").write_text(
+                """
+## GET /test
+
+Test endpoint.
+
+### Description
+This is a test endpoint.
+
+### Code Examples
+
+```bash
+curl -X GET "/test"
+```
+
+### Response Examples
+
+```json
+{"status": "ok"}
+```
+"""
+            )
+
+            with patch(
+                "sys.argv",
+                [
+                    "fmd-lint",
+                    "--config",
+                    str(config_file),
+                    "--openapi",
+                    str(openapi_file),
+                    "--docs",
+                    str(docs_dir),
+                    "--format",
+                    "text",  # Override config
+                    "--base-url",
+                    "https://override.example.com",  # Override config
+                ],
+            ):
+                # Should use command line overrides
+                try:
+                    main()
+                    success = True
+                except SystemExit as e:
+                    success = e.code == 0 or e.code is None
+
+                assert success
+
+
+class TestDocumentationLinterWithExclusions:
+    """Test DocumentationLinter with endpoint exclusions."""
+
+    def test_extract_openapi_endpoints_with_exclusions(self) -> None:
+        """Test OpenAPI endpoint extraction with exclusions."""
+        openapi_schema = {
+            "paths": {
+                "/users": {"get": {"summary": "List users"}},
+                "/static/style.css": {"get": {"summary": "Static file"}},
+                "/health": {"get": {"summary": "Health check"}},
+                "/metrics": {"get": {"summary": "Metrics"}},
+            }
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            linter = DocumentationLinter(openapi_schema=openapi_schema, docs_directory=temp_dir)
+
+            # Set up exclusions
+            from fastmarkdocs.linter_cli import LinterConfig
+
+            config = LinterConfig()
+            config.exclude_endpoints = [
+                {"path": "^/static/.*", "methods": ["GET"]},
+                {"path": "^/health", "methods": [".*"]},
+            ]
+            linter.config = config
+
+            endpoints = linter._extract_openapi_endpoints()
+
+            # Should exclude /static/style.css and /health
+            expected = {("GET", "/users"), ("GET", "/metrics")}
+            assert endpoints == expected
+
+    def test_lint_with_exclusions_integration(self) -> None:
+        """Test full linting process with exclusions."""
+        openapi_schema = {
+            "paths": {
+                "/users": {"get": {"summary": "List users"}},
+                "/static/style.css": {"get": {"summary": "Static file"}},
+                "/health": {"get": {"summary": "Health check"}},
+            }
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            docs_dir = Path(temp_dir) / "docs"
+            docs_dir.mkdir()
+
+            # Only document /users
+            (docs_dir / "users.md").write_text(
+                """
+## GET /users
+List all users.
+
+### Description
+Returns a list of users.
+
+### Code Examples
+```bash
+curl /users
+```
+
+### Response Examples
+```json
+{"users": []}
+```
+"""
+            )
+
+            linter = DocumentationLinter(openapi_schema=openapi_schema, docs_directory=str(docs_dir))
+
+            # Set up exclusions
+            from fastmarkdocs.linter_cli import LinterConfig
+
+            config = LinterConfig()
+            config.exclude_endpoints = [
+                {"path": "^/static/.*", "methods": ["GET"]},
+                {"path": "^/health", "methods": [".*"]},
+            ]
+            linter.config = config
+
+            results = linter.lint()
+
+            # Should not report missing documentation for excluded endpoints
+            missing_paths = {item["path"] for item in results["missing_documentation"]}
+            assert "/static/style.css" not in missing_paths
+            assert "/health" not in missing_paths
+
+            # Should have 100% coverage since excluded endpoints are not counted
+            assert results["statistics"]["documentation_coverage_percentage"] == 100

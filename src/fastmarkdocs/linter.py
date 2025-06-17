@@ -5,11 +5,14 @@ Core linting functionality for analyzing FastAPI documentation completeness and 
 """
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from .documentation_loader import MarkdownDocumentationLoader
 from .openapi_enhancer import OpenAPIEnhancer
 from .types import EndpointDocumentation
+
+if TYPE_CHECKING:
+    from .linter_cli import LinterConfig
 
 
 class DocumentationLinter:
@@ -43,6 +46,7 @@ class DocumentationLinter:
         self.docs_directory = Path(docs_directory)
         self.base_url = base_url
         self.recursive = recursive
+        self.config: Optional[LinterConfig] = None  # Will be set by CLI if configuration is provided
 
         # Load documentation
         self.loader = MarkdownDocumentationLoader(docs_directory=str(docs_directory), recursive=recursive)
@@ -97,16 +101,53 @@ class DocumentationLinter:
         # Create summary
         results["summary"] = self._create_summary(results)
 
+        # Add metadata (convert non-serializable objects to dicts)
+        metadata = {
+            "docs_directory": self.docs_directory,
+            "base_url": self.base_url,
+            "recursive": self.recursive,
+        }
+
+        # Add documentation metadata, converting non-serializable objects
+        for key, value in self.documentation.metadata.items():
+            metadata[key] = self._make_json_serializable(value)
+
+        results["metadata"] = metadata
+
         return results
 
+    def _make_json_serializable(self, obj: Any) -> Any:
+        """Convert objects to JSON-serializable format."""
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_json_serializable(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+        elif hasattr(obj, "__dict__"):
+            # Convert dataclass or object to dict
+            return {key: self._make_json_serializable(value) for key, value in obj.__dict__.items()}
+        elif hasattr(obj, "_asdict"):
+            # Handle namedtuples
+            return self._make_json_serializable(obj._asdict())
+        else:
+            # For other objects, convert to string representation
+            return str(obj)
+
     def _extract_openapi_endpoints(self) -> set[tuple[str, str]]:
-        """Extract all endpoints from OpenAPI schema."""
+        """Extract all endpoints from OpenAPI schema, excluding configured exclusions."""
         endpoints = set()
 
         for path, methods in self.openapi_schema.get("paths", {}).items():
             for method in methods.keys():
                 if method.upper() in ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]:
-                    endpoints.add((method.upper(), path))
+                    method_upper = method.upper()
+
+                    # Check if this endpoint should be excluded
+                    if self.config and self.config.should_exclude_endpoint(method_upper, path):
+                        continue
+
+                    endpoints.add((method_upper, path))
 
         return endpoints
 

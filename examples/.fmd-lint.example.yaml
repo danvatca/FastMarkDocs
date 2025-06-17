@@ -1,0 +1,74 @@
+# FastMarkDocs Linter Configuration Example
+# Copy this file to .fmd-lint.yaml in your project root and customize as needed
+
+# Exclude specific endpoints from documentation linting
+exclude:
+  endpoints:
+    # Exclude all static file endpoints
+    - path: "^/static/.*"
+      methods:
+        - "GET"
+    
+    # Exclude health check endpoints (all methods)
+    - path: "^/health"
+      methods:
+        - ".*"
+    
+    # Exclude specific monitoring endpoints
+    - path: "^/(metrics|debug|status)"
+      methods:
+        - "GET"
+    
+    # Exclude administrative endpoints
+    - path: "^/admin/.*"
+      methods:
+        - "GET"
+        - "POST"
+        - "DELETE"
+
+# Commands to generate OpenAPI schema (optional)
+# Uncomment and customize based on your project setup
+# spec_generator:
+#   - "poetry run python -c \"from myapp import app; import json; json.dump(app.openapi(), open('openapi.json', 'w'))\""
+#   - "echo 'OpenAPI schema generated successfully'"
+
+# Documentation directories to scan
+docs:
+  - "./docs/api"
+  # - "./src/myapp/docs"  # Additional docs directories
+
+# Linter settings
+recursive: true                           # Scan directories recursively
+base_url: "https://api.example.com"      # Base URL for API examples
+format: "text"                           # Output format: "text" or "json"
+# output: "documentation-report.txt"     # Optional: save output to file
+
+# Common exclusion patterns for different project types:
+
+# Django REST Framework
+# exclude:
+#   endpoints:
+#     - path: "^/admin/.*"
+#       methods: [".*"]
+#     - path: "^/static/.*"
+#       methods: ["GET"]
+#     - path: "^/media/.*"
+#       methods: ["GET"]
+
+# Flask
+# exclude:
+#   endpoints:
+#     - path: "^/static/.*"
+#       methods: ["GET"]
+#     - path: "^/_.*"
+#       methods: [".*"]
+
+# Microservice with health checks
+# exclude:
+#   endpoints:
+#     - path: "^/(health|ready|live)"
+#       methods: ["GET"]
+#     - path: "^/metrics"
+#       methods: ["GET"]
+#     - path: "^/debug/.*"
+#       methods: [".*"] 
