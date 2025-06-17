@@ -12,7 +12,7 @@ from typing import Any, Optional
 from urllib.parse import urlencode, urljoin
 
 from .exceptions import CodeSampleGenerationError
-from .types import CodeLanguage, CodeSample, CodeSampleTemplate, EndpointDocumentation
+from .types import CodeLanguage, CodeSample, CodeSampleTemplate, EndpointDocumentation, HTTPMethod
 
 
 class CodeSampleGenerator:
@@ -540,3 +540,55 @@ class Program
             templates[language] = CodeSampleTemplate(language=language, template=template_str)
 
         return templates
+
+
+def generate_code_samples_for_endpoint(
+    method: str,
+    path: str,
+    operation: dict[str, Any],
+    base_url: str = "https://api.example.com",
+    languages: Optional[list[CodeLanguage]] = None,
+) -> list[CodeSample]:
+    """
+    Standalone function to generate code samples for an endpoint.
+
+    This function is used by the linter for auto-generating missing code samples.
+
+    Args:
+        method: HTTP method (GET, POST, etc.)
+        path: API path
+        operation: OpenAPI operation definition
+        base_url: Base URL for the API
+        languages: Languages to generate samples for
+
+    Returns:
+        List of generated code samples
+    """
+    if languages is None:
+        languages = [CodeLanguage.CURL, CodeLanguage.PYTHON]
+
+    # Create a minimal endpoint object for generation
+    try:
+        http_method = HTTPMethod(method.upper())
+    except ValueError:
+        # If method is not valid, return empty list
+        return []
+
+    endpoint = EndpointDocumentation(
+        path=path,
+        method=http_method,
+        summary=operation.get("summary", ""),
+        description=operation.get("description", ""),
+    )
+
+    # Create generator and generate samples
+    generator = CodeSampleGenerator(
+        base_url=base_url,
+        code_sample_languages=languages,
+    )
+
+    try:
+        return generator.generate_samples_for_endpoint(endpoint)
+    except Exception:
+        # If generation fails, return empty list
+        return []

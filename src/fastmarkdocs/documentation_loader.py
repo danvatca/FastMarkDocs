@@ -429,15 +429,35 @@ class MarkdownDocumentationLoader:
         # Split content by endpoint headers to handle multiple endpoints
         sections = self._split_content_by_endpoints(content)
 
-        for section in sections:
+        for i, section in enumerate(sections):
             endpoint_info = extract_endpoint_info(section, self._general_docs_content)
 
             if endpoint_info["method"] and endpoint_info["path"]:
                 # Extract code samples from this section
                 code_samples = extract_code_samples(section, self.supported_languages)
 
+                # If no code samples found in this section, check subsequent sections
+                # that don't have their own endpoint (to handle split code examples)
+                if not code_samples and i + 1 < len(sections):
+                    next_section = sections[i + 1]
+                    next_endpoint_info = extract_endpoint_info(next_section, self._general_docs_content)
+
+                    # If the next section doesn't have an endpoint, it might contain our code examples
+                    if not (next_endpoint_info["method"] and next_endpoint_info["path"]):
+                        additional_samples = extract_code_samples(next_section, self.supported_languages)
+                        code_samples.extend(additional_samples)
+
                 # Extract response examples from this section
                 response_examples = self._extract_response_examples(section)
+
+                # If no response examples in this section, check subsequent section too
+                if not response_examples and i + 1 < len(sections):
+                    next_section = sections[i + 1]
+                    next_endpoint_info = extract_endpoint_info(next_section, self._general_docs_content)
+
+                    if not (next_endpoint_info["method"] and next_endpoint_info["path"]):
+                        additional_examples = self._extract_response_examples(next_section)
+                        response_examples.extend(additional_examples)
 
                 # Extract parameters from this section
                 parameters = self._extract_parameters(section)
@@ -476,7 +496,7 @@ class MarkdownDocumentationLoader:
 
         for line in lines:
             # Check if this line is an endpoint header
-            endpoint_match = re.match(r"^(#{2,3})\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line)
+            endpoint_match = re.match(r"^(#{2,4})\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line)
             if endpoint_match:
                 # If we have a current section, save it
                 if current_section:
@@ -493,16 +513,19 @@ class MarkdownDocumentationLoader:
                 header_match = re.match(r"^(#{1,})\s+", line)
                 if header_match:
                     header_level = len(header_match.group(1))
-                    # If we encounter a header at the same level or higher (fewer #'s) than the endpoint,
-                    # and it's not another endpoint, then end the current section
+                    # Only end the section if we encounter a header at the same level or higher (fewer #'s)
+                    # that is NOT a sub-section of the current endpoint (like #### Code Examples)
                     if header_level <= current_endpoint_level:
                         # Check if this is another endpoint header
-                        if not re.match(r"^#{2,3}\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line):
-                            # This is a non-endpoint header at same/higher level, end current section
-                            sections.append("\n".join(current_section))
-                            current_section = [line]
-                            current_endpoint_level = 0
-                            continue
+                        if not re.match(r"^#{2,4}\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line):
+                            # This is a non-endpoint header at same/higher level
+                            # But we should NOT split on sub-headers like "#### Code Examples"
+                            # Only split on major section headers (# or ## level)
+                            if header_level <= 2:
+                                sections.append("\n".join(current_section))
+                                current_section = [line]
+                                current_endpoint_level = 0
+                                continue
 
             current_section.append(line)
 

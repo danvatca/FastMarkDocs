@@ -26,11 +26,21 @@ exclude:
         - "POST"
         - "DELETE"
 
-# Commands to generate OpenAPI schema (optional)
-# Uncomment and customize based on your project setup
+# OpenAPI schema file path (choose one approach)
+# Option 1: Direct path to existing OpenAPI file
+openapi: "./openapi.json"
+
+# Option 2: Commands to generate OpenAPI schema (alternative to openapi)
+# Uncomment and remove 'openapi' above if you want to generate the schema
 # spec_generator:
-#   - "poetry run python -c \"from myapp import app; import json; json.dump(app.openapi(), open('openapi.json', 'w'))\""
-#   - "echo 'OpenAPI schema generated successfully'"
+#   commands:
+#     - "poetry run python -c \"from myapp import app; import json; json.dump(app.openapi(), open('my-schema.json', 'w'))\""
+#     - "echo 'OpenAPI schema generated successfully'"
+#   output_file: "./my-schema.json"
+#
+# Legacy format (still supported):
+# spec_generator:
+#   - "poetry run python ./generate_openapi.py"  # Must create openapi.json
 
 # Documentation directories to scan
 docs:

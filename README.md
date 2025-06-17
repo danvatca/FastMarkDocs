@@ -10,16 +10,16 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 
 ## Features
 
-✨ **Rich Documentation**: Transform markdown files into comprehensive API documentation  
-🔧 **OpenAPI Enhancement**: Automatically enhance your OpenAPI/Swagger schemas  
-🌍 **Multi-language Code Samples**: Generate code examples in Python, JavaScript, TypeScript, Go, Java, PHP, Ruby, C#, and cURL  
-📝 **Markdown-First**: Write documentation in familiar markdown format  
-🔗 **API Cross-References**: Include links to other APIs in your system with automatic formatting  
-🎨 **Customizable Templates**: Use custom templates for code generation  
-⚡ **High Performance**: Built-in caching and optimized processing  
-🧪 **Well Tested**: Comprehensive test suite with 100+ tests  
-🔍 **Documentation Linting**: Built-in `fmd-lint` tool to analyze and improve documentation quality
-🏗️ **Documentation Scaffolding**: `fmd-init` tool to bootstrap documentation for existing projects  
+✨ **Rich Documentation**: Transform markdown files into comprehensive API documentation<br/>
+🔧 **OpenAPI Enhancement**: Automatically enhance your OpenAPI/Swagger schemas<br/>
+🌍 **Multi-language Code Samples**: Generate code examples in Python, JavaScript, TypeScript, Go, Java, PHP, Ruby, C#, and cURL<br/>
+📝 **Markdown-First**: Write documentation in familiar markdown format<br/>
+🔗 **API Cross-References**: Include links to other APIs in your system with automatic formatting<br/>
+🎨 **Customizable Templates**: Use custom templates for code generation<br/>
+⚡ **High Performance**: Built-in caching and optimized processing<br/>
+🧪 **Well Tested**: Comprehensive test suite with 100+ tests<br/>
+🔍 **Documentation Linting**: Built-in `fmd-lint` tool to analyze and improve documentation quality<br/>
+🏗️ **Documentation Scaffolding**: `fmd-init` tool to bootstrap documentation for existing projects<br/>
 
 ## Quick Start
 

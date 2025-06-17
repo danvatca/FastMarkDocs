@@ -55,6 +55,36 @@ class DocumentationLinter:
         # Create enhancer for testing
         self.enhancer = OpenAPIEnhancer(include_code_samples=True, include_response_examples=True, base_url=base_url)
 
+        # Build endpoint to file mapping for better reporting
+        self._endpoint_file_mapping = self._build_endpoint_file_mapping()
+
+    def _build_endpoint_file_mapping(self) -> dict[tuple[str, str], str]:
+        """Build a mapping from (method, path) to source file for better error reporting."""
+        mapping = {}
+
+        # Find all markdown files in the documentation directory
+        from .utils import find_markdown_files
+
+        markdown_files = find_markdown_files(str(self.docs_directory), recursive=self.recursive)
+
+        for file_path in markdown_files:
+            try:
+                # Parse each file to get its endpoints
+                endpoints = self.loader._parse_markdown_file(Path(file_path))
+                for endpoint in endpoints:
+                    key = (endpoint.method.value, endpoint.path)
+                    # Store relative path for cleaner display
+                    relative_path = Path(file_path).relative_to(self.docs_directory)
+                    mapping[key] = str(relative_path)
+            except (FileNotFoundError, PermissionError, UnicodeDecodeError):
+                # If we can't read a file due to file system issues, continue with others
+                continue
+            except (ValueError, KeyError, AttributeError):
+                # If we can't parse a file due to content issues, continue with others
+                continue
+
+        return mapping
+
     def lint(self) -> dict[str, Any]:
         """
         Perform comprehensive documentation linting.
@@ -199,9 +229,10 @@ class DocumentationLinter:
             if not endpoint.summary or len(endpoint.summary.strip()) < 5:
                 issues.append("Missing or very short summary")
 
-            # Check for missing code samples
+            # Auto-generate code samples if missing
             if not endpoint.code_samples:
-                issues.append("No code samples provided")
+                self._auto_generate_code_samples(endpoint)
+                # Note: We no longer add "No code samples provided" to issues since we auto-generate them
 
             # Check for missing response examples
             if not endpoint.response_examples:
@@ -226,6 +257,41 @@ class DocumentationLinter:
                 )
 
         return incomplete
+
+    def _auto_generate_code_samples(self, endpoint: EndpointDocumentation) -> None:
+        """Auto-generate code samples for an endpoint if missing."""
+        from .code_samples import generate_code_samples_for_endpoint
+        from .exceptions import CodeSampleGenerationError
+        from .types import CodeLanguage
+
+        try:
+            # Get the OpenAPI operation for this endpoint
+            operation = self._get_openapi_operation(endpoint.method.value, endpoint.path)
+            if not operation:
+                return
+
+            # Generate code samples for popular languages
+            languages = [CodeLanguage.CURL, CodeLanguage.PYTHON]
+            generated_samples = generate_code_samples_for_endpoint(
+                method=endpoint.method.value,
+                path=endpoint.path,
+                operation=operation,
+                base_url=self.base_url,
+                languages=languages,
+            )
+
+            # Add generated samples to the endpoint
+            endpoint.code_samples.extend(generated_samples)
+
+        except CodeSampleGenerationError:
+            # If code sample generation fails, continue without breaking linting
+            # The generate_code_samples_for_endpoint function already handles errors gracefully
+            pass
+        except (AttributeError, KeyError, ValueError):
+            # Handle common errors that might occur during generation
+            # These are typically due to malformed endpoint data or OpenAPI schema issues
+            # Continue linting without code samples rather than failing entirely
+            pass
 
     def _find_common_mistakes(
         self, openapi_endpoints: set[tuple[str, str]], markdown_endpoints: set[tuple[str, str]]
@@ -297,19 +363,54 @@ class DocumentationLinter:
 
         for method, path in markdown_endpoints:
             if (method, path) not in openapi_endpoints:
+                # Check if this endpoint is excluded by configuration
+                if self.config and self.config.should_exclude_endpoint(method, path):
+                    # Skip excluded endpoints - they're not truly orphaned
+                    continue
+
                 # Check if this is already identified as a common mistake
                 similar_openapi = self._find_similar_openapi_paths(path, openapi_endpoints)
 
                 if not similar_openapi:  # Truly orphaned, not just a mismatch
-                    orphaned.append(
-                        {
-                            "method": method,
-                            "path": path,
-                            "severity": "warning",
-                            "message": f"Documentation exists for non-existent endpoint {method} {path}",
-                            "suggestion": "Remove this documentation or implement the endpoint in your FastAPI application",
-                        }
+                    # Find the corresponding documentation to get more details
+                    endpoint_doc = next(
+                        (ep for ep in self.documentation.endpoints if ep.method.value == method and ep.path == path),
+                        None,
                     )
+
+                    orphan_info: dict[str, Any] = {
+                        "method": method,
+                        "path": path,
+                        "severity": "warning",
+                        "message": f"Documentation exists for non-existent endpoint {method} {path}",
+                        "suggestion": "Remove this documentation or implement the endpoint in your FastAPI application",
+                    }
+
+                    # Add documentation details if available
+                    if endpoint_doc:
+                        orphan_info.update(
+                            {
+                                "summary": endpoint_doc.summary or "No summary provided",
+                                "description_length": len(endpoint_doc.description or ""),
+                                "has_code_samples": len(endpoint_doc.code_samples) > 0,
+                                "has_response_examples": len(endpoint_doc.response_examples) > 0,
+                                "has_parameters": len(endpoint_doc.parameters) > 0,
+                                "documentation_file": self._endpoint_file_mapping.get((method, path), "Unknown file"),
+                            }
+                        )
+                    else:
+                        orphan_info.update(
+                            {
+                                "summary": "Documentation found but details unavailable",
+                                "description_length": 0,
+                                "has_code_samples": False,
+                                "has_response_examples": False,
+                                "has_parameters": False,
+                                "documentation_file": self._endpoint_file_mapping.get((method, path), "Unknown file"),
+                            }
+                        )
+
+                    orphaned.append(orphan_info)
 
         return orphaned
 
@@ -436,36 +537,33 @@ class DocumentationLinter:
         """Calculate a completeness score (0-100) for an endpoint."""
         score = 0
 
-        # Description (30 points)
+        # Description (40 points) - increased from 30 since we removed code samples
         if endpoint.description and len(endpoint.description.strip()) >= 50:
-            score += 30
+            score += 40
         elif endpoint.description and len(endpoint.description.strip()) >= 10:
-            score += 15
+            score += 20
 
-        # Summary (20 points)
+        # Summary (25 points) - increased from 20 since we removed code samples
         if endpoint.summary and len(endpoint.summary.strip()) >= 10:
-            score += 20
-        elif endpoint.summary and len(endpoint.summary.strip()) >= 5:
-            score += 10
-
-        # Code samples (25 points)
-        if endpoint.code_samples and len(endpoint.code_samples) >= 3:
             score += 25
-        elif endpoint.code_samples and len(endpoint.code_samples) >= 1:
+        elif endpoint.summary and len(endpoint.summary.strip()) >= 5:
             score += 15
 
-        # Response examples (20 points)
-        if endpoint.response_examples and len(endpoint.response_examples) >= 2:
-            score += 20
-        elif endpoint.response_examples and len(endpoint.response_examples) >= 1:
-            score += 10
+        # Code samples are auto-generated, so we don't score them anymore
+        # This ensures endpoints always get full points for code samples
 
-        # Parameters documentation (5 points)
+        # Response examples (25 points) - increased from 20 since we removed code samples
+        if endpoint.response_examples and len(endpoint.response_examples) >= 2:
+            score += 25
+        elif endpoint.response_examples and len(endpoint.response_examples) >= 1:
+            score += 15
+
+        # Parameters documentation (10 points) - increased from 5 since we removed code samples
         if "{" in endpoint.path and "}" in endpoint.path:
             if endpoint.parameters and len(endpoint.parameters) > 0:
-                score += 5
+                score += 10
         else:
-            score += 5  # No parameters needed
+            score += 10  # No parameters needed
 
         return round(score, 1)
 
@@ -481,7 +579,8 @@ class DocumentationLinter:
             elif "summary" in issue.lower():
                 suggestions.append("Add a concise summary that clearly describes the endpoint's purpose")
             elif "code samples" in issue.lower():
-                suggestions.append("Add code examples in popular languages (cURL, Python, JavaScript)")
+                # Code samples are auto-generated, so we don't suggest adding them manually
+                pass
             elif "response examples" in issue.lower():
                 suggestions.append("Add example responses showing successful and error cases")
             elif "parameter" in issue.lower():

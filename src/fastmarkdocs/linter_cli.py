@@ -31,7 +31,9 @@ class LinterConfig:
         """Initialize configuration from file or defaults."""
         self.exclude_endpoints: list[dict[str, Any]] = []
         self.spec_generator: list[str] = []
+        self.spec_generator_output: Optional[str] = None
         self.docs: list[str] = []
+        self.openapi: Optional[str] = None
         self.recursive: bool = True
         self.base_url: str = "https://api.example.com"
         self.format: str = "text"
@@ -61,11 +63,26 @@ class LinterConfig:
 
         # Load spec generator commands
         if "spec_generator" in config_data:
-            self.spec_generator = config_data["spec_generator"]
+            spec_gen_config = config_data["spec_generator"]
+            if isinstance(spec_gen_config, list):
+                # Legacy format: list of commands
+                self.spec_generator = spec_gen_config
+            elif isinstance(spec_gen_config, dict):
+                # New format: dict with commands and output_file
+                self.spec_generator = spec_gen_config.get("commands", [])
+                self.spec_generator_output = spec_gen_config.get("output_file")
+            else:
+                raise ValueError(
+                    "spec_generator must be a list of commands or a dict with 'commands' and 'output_file'"
+                )
 
         # Load docs directories
         if "docs" in config_data:
             self.docs = config_data["docs"]
+
+        # Load OpenAPI file path
+        if "openapi" in config_data:
+            self.openapi = config_data["openapi"]
 
         # Load other options
         if "recursive" in config_data:
@@ -126,7 +143,7 @@ def find_config_file() -> Optional[str]:
     return None
 
 
-def run_spec_generator(commands: list[str]) -> str:
+def run_spec_generator(commands: list[str], output_file: Optional[str] = None) -> str:
     """Run spec generator commands and return the path to generated OpenAPI file."""
     if not commands:
         raise ValueError("No spec generator commands provided")
@@ -179,15 +196,23 @@ def run_spec_generator(commands: list[str]) -> str:
             raise
 
     # Try to find the generated OpenAPI file
-    common_names = ["openapi.json", "openapi_complete.json", "openapi_enhanced.json", "swagger.json"]
-    for name in common_names:
-        if Path(name).exists():
-            return name
+    if output_file:
+        # Use specified output file
+        if Path(output_file).exists():
+            return output_file
+        else:
+            raise FileNotFoundError(f"Specified output file not found: {output_file}")
+    else:
+        # Use default file names
+        common_names = ["openapi.json", "openapi_complete.json", "openapi_enhanced.json", "swagger.json"]
+        for name in common_names:
+            if Path(name).exists():
+                return name
 
-    raise FileNotFoundError("Could not find generated OpenAPI file. Expected one of: " + ", ".join(common_names))
+        raise FileNotFoundError("Could not find generated OpenAPI file. Expected one of: " + ", ".join(common_names))
 
 
-def format_results(results: dict[str, Any], format_type: str = "text") -> str:
+def format_results(results: dict[str, Any], format_type: str = "text", show_all: bool = False) -> str:
     """Format linting results for display."""
     if format_type == "json":
         return json.dumps(results, indent=2, ensure_ascii=False)
@@ -239,45 +264,86 @@ def format_results(results: dict[str, Any], format_type: str = "text") -> str:
     # Detailed issues
     if results["missing_documentation"]:
         output.append("❌ Missing Documentation:")
-        for item in results["missing_documentation"][:10]:  # Show first 10
+        items_to_show = results["missing_documentation"] if show_all else results["missing_documentation"][:10]
+        for item in items_to_show:
             output.append(f"   • {item['method']} {item['path']}")
             if item.get("similar_documented_paths"):
-                output.append(f"     Similar documented: {', '.join(item['similar_documented_paths'][:2])}")
-        if len(results["missing_documentation"]) > 10:
+                similar_paths = item["similar_documented_paths"] if show_all else item["similar_documented_paths"][:2]
+                output.append(f"     Similar documented: {', '.join(similar_paths)}")
+        if not show_all and len(results["missing_documentation"]) > 10:
             output.append(f"   ... and {len(results['missing_documentation']) - 10} more")
         output.append("")
 
     if results["incomplete_documentation"]:
         output.append("📝 Incomplete Documentation:")
         output.append("   📁 Look for these endpoints in your documentation files:")
-        for item in results["incomplete_documentation"][:10]:  # Show first 10
+        items_to_show = results["incomplete_documentation"] if show_all else results["incomplete_documentation"][:10]
+        for item in items_to_show:
             output.append(f"   • {item['method']} {item['path']} (Score: {item['completeness_score']:.1f}%)")
             for issue in item["issues"]:
                 output.append(f"     - {issue}")
             if item.get("suggestions"):
-                output.append(f"     💡 Suggestions: {', '.join(item['suggestions'][:2])}")
-        if len(results["incomplete_documentation"]) > 10:
+                suggestions = item["suggestions"] if show_all else item["suggestions"][:2]
+                output.append(f"     💡 Suggestions: {', '.join(suggestions)}")
+        if not show_all and len(results["incomplete_documentation"]) > 10:
             output.append(f"   ... and {len(results['incomplete_documentation']) - 10} more")
         output.append("")
 
     if results["common_mistakes"]:
         output.append("⚠️ Common Mistakes:")
-        for item in results["common_mistakes"][:5]:  # Show first 5
+        items_to_show = results["common_mistakes"] if show_all else results["common_mistakes"][:5]
+        for item in items_to_show:
             output.append(f"   • {item['type']}: {item['message']}")
             if item.get("suggestion"):
                 output.append(f"     💡 {item['suggestion']}")
-        if len(results["common_mistakes"]) > 5:
+        if not show_all and len(results["common_mistakes"]) > 5:
             output.append(f"   ... and {len(results['common_mistakes']) - 5} more")
+        output.append("")
+
+    if results["orphaned_documentation"]:
+        output.append("👻 Orphaned Documentation:")
+        output.append("   📁 These endpoints are documented but don't exist in your API:")
+        items_to_show = results["orphaned_documentation"] if show_all else results["orphaned_documentation"][:10]
+        for item in items_to_show:
+            output.append(f"   • {item['method']} {item['path']}")
+            if item.get("summary"):
+                if show_all:
+                    summary = item["summary"]
+                else:
+                    summary = item["summary"][:80] + "..." if len(item["summary"]) > 80 else item["summary"]
+                output.append(f"     📝 Summary: {summary}")
+
+            details = []
+            if item.get("description_length", 0) > 0:
+                details.append(f"Description: {item['description_length']} chars")
+            if item.get("has_code_samples"):
+                details.append("Has code samples")
+            if item.get("has_response_examples"):
+                details.append("Has response examples")
+            if item.get("has_parameters"):
+                details.append("Has parameters")
+
+            if details:
+                output.append(f"     📊 Details: {', '.join(details)}")
+
+            if item.get("documentation_file") and item["documentation_file"] != "Unknown file":
+                output.append(f"     📂 File: {item['documentation_file']}")
+
+            if item.get("suggestion"):
+                output.append(f"     💡 {item['suggestion']}")
+        if not show_all and len(results["orphaned_documentation"]) > 10:
+            output.append(f"   ... and {len(results['orphaned_documentation']) - 10} more")
         output.append("")
 
     if results["enhancement_failures"]:
         output.append("🔥 Enhancement Failures:")
-        for item in results["enhancement_failures"][:5]:  # Show first 5
+        items_to_show = results["enhancement_failures"] if show_all else results["enhancement_failures"][:5]
+        for item in items_to_show:
             if "method" in item and "path" in item:
                 output.append(f"   • {item['method']} {item['path']}: {item['message']}")
             else:
                 output.append(f"   • {item['message']}")
-        if len(results["enhancement_failures"]) > 5:
+        if not show_all and len(results["enhancement_failures"]) > 5:
             output.append(f"   ... and {len(results['enhancement_failures']) - 5} more")
         output.append("")
 
@@ -307,6 +373,7 @@ Examples:
   fmd-lint --openapi openapi.json --docs docs/api
   fmd-lint --openapi openapi.json --docs docs/api --format json
   fmd-lint --openapi openapi.json --docs docs/api --output report.txt
+  fmd-lint --openapi openapi.json --docs docs/api --all
   fmd-lint --openapi openapi.json --docs docs/api --no-recursive --base-url https://api.example.com
   fmd-lint --config .fmd-lint.yaml
 
@@ -319,12 +386,17 @@ Configuration file (.fmd-lint.yaml):
       - path: "^/login"
         methods:
           - ".*"
-  spec_generator:
-    - "poetry run python ./generate_openapi.py"
+  openapi: "./openapi.json"
   docs:
     - "./src/doorman/api"
   recursive: true
   base_url: "https://api.example.com"
+
+  # Alternative: Use spec_generator instead of openapi
+  spec_generator:
+    commands:
+      - "poetry run python ./generate_openapi.py"
+    output_file: "./my-custom-schema.json"
 
 Note: The tool exits with code 1 if any issues are found, making it suitable for CI/CD pipelines.
       Recursive directory scanning is enabled by default. Use --no-recursive to disable.
@@ -347,6 +419,8 @@ Note: The tool exits with code 1 if any issues are found, making it suitable for
         "--no-recursive", action="store_true", help="Disable recursive search of documentation directory"
     )
 
+    parser.add_argument("--all", action="store_true", help="Show all details and suggestions without truncation")
+
     args = parser.parse_args()
 
     try:
@@ -360,11 +434,15 @@ Note: The tool exits with code 1 if any issues are found, making it suitable for
         # Override config with command line arguments
         if args.openapi:
             openapi_path = args.openapi
+        elif config.openapi:
+            openapi_path = config.openapi
         elif config.spec_generator:
             # Run spec generator
-            openapi_path = run_spec_generator(config.spec_generator)
+            openapi_path = run_spec_generator(config.spec_generator, config.spec_generator_output)
         else:
-            parser.error("Either --openapi must be provided or spec_generator must be configured")
+            parser.error(
+                "Either --openapi must be provided, openapi must be configured, or spec_generator must be configured"
+            )
 
         if args.docs:
             docs_path = args.docs
@@ -400,7 +478,7 @@ Note: The tool exits with code 1 if any issues are found, making it suitable for
         print(f"✅ Analysis completed in {end_time - start_time:.2f}s", file=sys.stderr)
 
         # Format results
-        formatted_output = format_results(results, format_type)
+        formatted_output = format_results(results, format_type, show_all=args.all)
 
         # Output results
         if output_path:

@@ -269,7 +269,8 @@ Another fake endpoint.
 
             assert "Missing or very short description" in issues_found
             assert "Missing or very short summary" in issues_found
-            assert "No code samples provided" in issues_found
+            # Code samples are auto-generated, so they should not be reported as missing
+            assert "No code samples provided" not in issues_found
             assert "No response examples provided" in issues_found
             assert "Path has parameters but no parameter documentation" in issues_found
 
@@ -493,10 +494,12 @@ This is enhanced documentation for orders.
             suggestions = linter._generate_completion_suggestions(endpoint, issues)
 
             # Should generate appropriate suggestions for each issue type
-            assert len(suggestions) == len(issues)
+            # Note: Code samples don't get suggestions anymore since they're auto-generated
+            assert len(suggestions) == len(issues) - 1  # One less because no code sample suggestions
             assert any("description" in suggestion.lower() for suggestion in suggestions)
             assert any("summary" in suggestion.lower() for suggestion in suggestions)
-            assert any("code examples" in suggestion.lower() for suggestion in suggestions)
+            # Code samples should not generate suggestions since they're auto-generated
+            assert not any("code examples" in suggestion.lower() for suggestion in suggestions)
             assert any("response" in suggestion.lower() for suggestion in suggestions)
             assert any("parameter" in suggestion.lower() for suggestion in suggestions)
 
@@ -743,6 +746,121 @@ class TestFormatResults:
         # Verify structure is preserved
         assert parsed["missing_documentation"][0]["path"] == "/missing"
         assert parsed["common_mistakes"][0]["type"] == "mismatch"
+
+    def test_format_text_with_all_flag(self) -> None:
+        """Test text formatting with --all flag shows complete details."""
+        results = {
+            "summary": {"message": "Issues found", "coverage": "60.0%", "completeness": "45.0%", "total_issues": 15},
+            "statistics": {
+                "total_openapi_endpoints": 20,
+                "total_documented_endpoints": 12,
+                "documentation_coverage_percentage": 60.0,
+                "average_completeness_score": 45.0,
+                "issues": {
+                    "total_issues": 15,
+                    "missing_documentation": 8,
+                    "incomplete_documentation": 4,
+                    "common_mistakes": 2,
+                    "orphaned_documentation": 1,
+                    "enhancement_failures": 0,
+                },
+            },
+            "missing_documentation": [
+                {
+                    "method": "GET",
+                    "path": f"/endpoint{i}",
+                    "similar_documented_paths": ["/similar1", "/similar2", "/similar3"],
+                }
+                for i in range(12)  # More than 10 to test truncation
+            ],
+            "incomplete_documentation": [
+                {
+                    "method": "GET",
+                    "path": "/incomplete1",
+                    "issues": ["Missing description"],
+                    "completeness_score": 45.0,
+                    "suggestions": ["Add description", "Add examples", "Add parameters"],
+                }
+            ],
+            "common_mistakes": [
+                {
+                    "type": "path_parameter_mismatch",
+                    "message": "Parameter mismatch found",
+                    "suggestion": "Fix the parameter names",
+                }
+                for _ in range(6)  # More than 5 to test truncation
+            ],
+            "orphaned_documentation": [
+                {
+                    "method": "GET",
+                    "path": "/orphaned",
+                    "message": "Orphaned endpoint",
+                    "summary": "This is a very long summary that should be truncated in normal mode but shown in full when using the --all flag to demonstrate the functionality",
+                    "suggestion": "Remove this documentation",
+                }
+                for _ in range(12)  # More than 10 to test truncation
+            ],
+            "enhancement_failures": [
+                {"method": "GET", "path": f"/failed{i}", "message": "Enhancement failed"}
+                for i in range(6)  # More than 5 to test truncation
+            ],
+            "recommendations": [],
+        }
+
+        # Test without --all flag (default behavior with truncation)
+        output_truncated = format_results(results, "text", show_all=False)
+
+        # Should show truncation indicators
+        assert "... and 2 more" in output_truncated  # Missing documentation
+        assert "... and 1 more" in output_truncated  # Common mistakes or enhancement failures
+
+        # Should truncate long summary
+        assert "This is a very long summary that should be truncated in normal mode but shown in..." in output_truncated
+
+        # Should truncate similar paths (only show first 2)
+        assert "/similar1" in output_truncated
+        assert "/similar2" in output_truncated
+        assert "/similar3" not in output_truncated  # Third similar path should be truncated
+
+        # Should truncate suggestions (only show first 2)
+        assert "Add description" in output_truncated
+        assert "Add examples" in output_truncated
+        assert "Add parameters" not in output_truncated  # Third suggestion should be truncated
+
+        # Test with --all flag (show everything)
+        output_all = format_results(results, "text", show_all=True)
+
+        # Should NOT show truncation indicators
+        assert "... and" not in output_all
+
+        # Should show full summary
+        assert (
+            "This is a very long summary that should be truncated in normal mode but shown in full when using the --all flag to demonstrate the functionality"
+            in output_all
+        )
+
+        # Should show all similar paths
+        assert "/similar1" in output_all
+        assert "/similar2" in output_all
+        assert "/similar3" in output_all
+
+        # Should show all suggestions
+        assert "Add description" in output_all
+        assert "Add examples" in output_all
+        assert "Add parameters" in output_all
+
+        # Should show all items (12 missing docs, 6 common mistakes, 12 orphaned, 6 enhancement failures)
+        missing_count = output_all.count("GET /endpoint")
+        assert missing_count == 12  # All missing documentation items
+
+        common_mistakes_count = output_all.count("path_parameter_mismatch")
+        assert common_mistakes_count == 6  # All common mistakes
+
+        orphaned_count = output_all.count("GET /orphaned")
+        assert orphaned_count == 12  # All orphaned documentation items
+
+        enhancement_failures_count = output_all.count("GET /failed")
+        assert enhancement_failures_count == 6  # All enhancement failures
 
 
 class TestCLIMain:
@@ -1267,6 +1385,7 @@ exclude:
     - path: "^/health"
       methods:
         - ".*"
+openapi: "./openapi.json"
 spec_generator:
   - "poetry run python ./generate_openapi.py"
   - "echo 'Generated OpenAPI'"
@@ -1291,8 +1410,11 @@ output: "report.json"
             assert config.exclude_endpoints[1]["path"] == "^/health"
             assert config.exclude_endpoints[1]["methods"] == [".*"]
 
+            assert config.openapi == "./openapi.json"
+
             assert len(config.spec_generator) == 2
             assert "poetry run python ./generate_openapi.py" in config.spec_generator
+            assert config.spec_generator_output is None  # Legacy format
 
             assert len(config.docs) == 2
             assert "./src/doorman/api" in config.docs
@@ -1301,6 +1423,32 @@ output: "report.json"
             assert config.base_url == "https://api.example.com"
             assert config.format == "json"
             assert config.output == "report.json"
+
+    def test_load_from_file_new_spec_generator_format(self) -> None:
+        """Test loading configuration with new spec_generator format."""
+        config_content = """
+spec_generator:
+  commands:
+    - "poetry run python ./generate_openapi.py"
+    - "echo 'Generated'"
+  output_file: "./custom-schema.json"
+docs:
+  - "./docs"
+"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            config = LinterConfig(str(config_file))
+
+            assert len(config.spec_generator) == 2
+            assert "poetry run python ./generate_openapi.py" in config.spec_generator
+            assert "echo 'Generated'" in config.spec_generator
+            assert config.spec_generator_output == "./custom-schema.json"
+
+            assert len(config.docs) == 1
+            assert "./docs" in config.docs
 
     def test_load_from_file_partial_config(self) -> None:
         """Test loading partial configuration from YAML file."""
@@ -1527,6 +1675,41 @@ class TestConfigurationHelpers:
             finally:
                 os.chdir(original_cwd)
 
+    def test_run_spec_generator_with_output_file(self) -> None:
+        """Test spec generator with custom output file."""
+        commands = ['echo \'{"test": "data"}\' > custom-schema.json']
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                result_file = run_spec_generator(commands, "custom-schema.json")
+                assert result_file == "custom-schema.json"
+                assert Path("custom-schema.json").exists()
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_run_spec_generator_output_file_not_found(self) -> None:
+        """Test spec generator when specified output file is not created."""
+        commands = ["echo 'done'"]  # Doesn't create the expected file
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                with pytest.raises(FileNotFoundError, match="Specified output file not found: nonexistent.json"):
+                    run_spec_generator(commands, "nonexistent.json")
+
+            finally:
+                os.chdir(original_cwd)
+
 
 class TestCLIWithConfiguration:
     """Test CLI functionality with configuration files."""
@@ -1661,6 +1844,131 @@ curl -X GET "/test"
                         success = e.code == 0 or e.code is None
 
                     assert success
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_main_with_openapi_config(self) -> None:
+        """Test CLI with openapi configuration."""
+        config_content = """
+openapi: "./openapi.json"
+docs:
+  - "."
+"""
+
+        openapi_schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {"/test": {"get": {"summary": "Test"}}},
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create config file
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            # Create OpenAPI file
+            openapi_file = Path(temp_dir) / "openapi.json"
+            openapi_file.write_text(json.dumps(openapi_schema))
+
+            # Create complete documentation
+            (Path(temp_dir) / "test.md").write_text(
+                """
+## GET /test
+
+Test endpoint.
+
+### Description
+This is a test endpoint.
+
+### Code Examples
+
+```bash
+curl -X GET "/test"
+```
+
+### Response Examples
+
+```json
+{"status": "ok"}
+```
+"""
+            )
+
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                with patch("sys.argv", ["fmd-lint", "--config", str(config_file)]):
+                    try:
+                        main()
+                        success = True
+                    except SystemExit as e:
+                        success = e.code == 0 or e.code is None
+
+                    assert success
+
+            finally:
+                os.chdir(original_cwd)
+
+    def test_main_with_new_spec_generator_format(self) -> None:
+        """Test CLI with new spec_generator format (commands + output_file)."""
+        config_content = """
+spec_generator:
+  commands:
+    - "echo '{\\"openapi\\": \\"3.0.0\\", \\"info\\": {\\"title\\": \\"Test API\\", \\"version\\": \\"1.0.0\\"}, \\"paths\\": {\\"/test\\": {\\"get\\": {\\"summary\\": \\"Test\\"}}}}' > custom-schema.json"
+  output_file: "./custom-schema.json"
+docs:
+  - "."
+"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create config file
+            config_file = Path(temp_dir) / ".fmd-lint.yaml"
+            config_file.write_text(config_content)
+
+            # Create complete documentation
+            (Path(temp_dir) / "test.md").write_text(
+                """
+## GET /test
+
+Test endpoint.
+
+### Description
+This is a test endpoint.
+
+### Code Examples
+
+```bash
+curl -X GET "/test"
+```
+
+### Response Examples
+
+```json
+{"status": "ok"}
+```
+"""
+            )
+
+            original_cwd = Path.cwd()
+            try:
+                import os
+
+                os.chdir(temp_dir)
+
+                with patch("sys.argv", ["fmd-lint", "--config", str(config_file)]):
+                    try:
+                        main()
+                        success = True
+                    except SystemExit as e:
+                        success = e.code == 0 or e.code is None
+
+                    assert success
+                    # Verify the custom schema file was created
+                    assert Path("custom-schema.json").exists()
 
             finally:
                 os.chdir(original_cwd)
