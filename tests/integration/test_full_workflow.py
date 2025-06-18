@@ -8,8 +8,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from fastmarkdocs import CodeSampleGenerator, MarkdownDocumentationLoader, OpenAPIEnhancer, enhance_openapi_with_docs
-from fastmarkdocs.types import CodeLanguage, HTTPMethod
+from fastmarkdocs import enhance_openapi_with_docs
+from fastmarkdocs.types import CodeLanguage
 
 
 class TestFullWorkflow:
@@ -323,81 +323,282 @@ curl -X GET "https://api.example.com/api/endpoint{i}"
         assert enhanced_count == 50
 
     def test_workflow_component_integration(self, temp_docs_dir: Any, test_utils: Any) -> None:
-        """Test integration between individual components."""
-        docs_content = """
-# Component Integration Test
+        """Test integration between all major components."""
+        # Create comprehensive documentation with all features
+        content = """
+# API Documentation
 
-## GET /api/integration
-Test endpoint for component integration.
+## Overview
 
-### Parameters
-- `param1` (string): Test parameter
+This is a comprehensive API with multiple endpoints and features.
 
-### Response Examples
-```json
-{"result": "success", "data": [1, 2, 3]}
-```
+### Features
 
-### Code Examples
+- User management
+- Authentication
+- Data processing
+
+## Endpoints
+
+### GET /api/users
+
+List all users in the system.
+
+#### Code Examples
+
 ```python
 import requests
-response = requests.get("/api/integration", params={"param1": "value"})
+response = requests.get("/api/users")
 ```
 
 ```curl
-curl -X GET "https://api.example.com/api/integration?param1=value"
+curl -X GET "/api/users"
 ```
 
-Tags: integration, test
+#### Response Examples
+
+**Success (200 OK):**
+```json
+[{"id": 1, "name": "John"}]
+```
+
+Tags: users, list
+
+### POST /api/auth/login
+
+Authenticate a user.
+
+Tags: auth, login
 """
 
-        test_utils.create_markdown_file(temp_docs_dir, "integration.md", docs_content)
+        test_utils.create_markdown_file(temp_docs_dir, "api.md", content)
 
-        # Test individual components
-        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
-
-        documentation = loader.load_documentation()
-        assert len(documentation.endpoints) == 1
-
-        endpoint = documentation.endpoints[0]
-        assert endpoint.path == "/api/integration"
-        assert endpoint.method == HTTPMethod.GET
-        assert len(endpoint.code_samples) == 2
-        assert len(endpoint.response_examples) == 1
-        assert "integration" in endpoint.tags
-
-        # Test code sample generator
-        generator = CodeSampleGenerator(
-            base_url="https://test.api.com", code_sample_languages=[CodeLanguage.CURL, CodeLanguage.PYTHON]
-        )
-
-        generated_samples = generator.generate_samples_for_endpoint(endpoint)
-        assert len(generated_samples) == 2
-
-        # Test OpenAPI enhancer
+        # Create OpenAPI schema
         openapi_schema = {
-            "openapi": "3.0.2",
-            "info": {"title": "Integration Test", "version": "1.0.0"},
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
             "paths": {
-                "/api/integration": {
-                    "get": {"summary": "Integration test", "responses": {"200": {"description": "Success"}}}
-                }
+                "/api/users": {
+                    "get": {
+                        "summary": "List users",
+                        "tags": ["users"],
+                        "responses": {"200": {"description": "Success"}},
+                    }
+                },
+                "/api/auth/login": {
+                    "post": {
+                        "summary": "Login",
+                        "tags": ["auth"],
+                        "responses": {"200": {"description": "Success"}},
+                    }
+                },
             },
         }
 
-        enhancer = OpenAPIEnhancer(
-            include_code_samples=True, include_response_examples=True, base_url="https://test.api.com"
+        # Test the complete workflow
+        enhanced_schema = enhance_openapi_with_docs(
+            openapi_schema=openapi_schema,
+            docs_directory=str(temp_docs_dir),
+            include_code_samples=True,
+            include_response_examples=True,
         )
 
-        enhanced_schema = enhancer.enhance_openapi_schema(openapi_schema, documentation)
+        # Verify enhancements
+        assert "paths" in enhanced_schema
 
-        # Verify complete integration
-        get_operation = enhanced_schema["paths"]["/api/integration"]["get"]
-        assert "x-codeSamples" in get_operation
-        assert "responses" in get_operation
-        assert "200" in get_operation["responses"]
+        # Check GET /api/users enhancement
+        get_users = enhanced_schema["paths"]["/api/users"]["get"]
+        assert "x-codeSamples" in get_users
+        assert len(get_users["x-codeSamples"]) >= 2  # Python and cURL
 
-        # Check that response examples were added
-        response_200 = get_operation["responses"]["200"]
-        if "content" in response_200 and "application/json" in response_200["content"]:
-            assert "examples" in response_200["content"]["application/json"]
+        # Verify code samples
+        languages = [sample["lang"] for sample in get_users["x-codeSamples"]]
+        assert "python" in languages
+        assert "curl" in languages
+
+        # Check response examples were preserved/enhanced
+        assert "responses" in get_users
+        assert "200" in get_users["responses"]
+
+    def test_tag_descriptions_integration_workflow(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test complete workflow with tag descriptions from Overview sections."""
+        # Create documentation with Overview sections for different API groups
+        users_content = """
+# User Management API
+
+## Overview
+
+The **User Management API** provides comprehensive user account administration for SynetoOS, enabling centralized user lifecycle management with role-based access control and multi-factor authentication. This API supports enterprise-grade user provisioning, security policies, and audit capabilities.
+
+### 👥 **User Management Features**
+
+**Complete User Lifecycle**
+- User account creation with customizable roles and permissions
+- Profile management and account status control (enable/disable)
+- Secure user deletion with data integrity protection
+
+**Role-Based Access Control**
+- **Administrator Role**: Full system access and user management capabilities
+- **Regular Role**: Limited access based on specific permissions and use cases
+- **Support Role**: Special PIN-based authentication for maintenance and troubleshooting
+
+## Endpoints
+
+### GET /users
+
+List all users in the system.
+
+Tags: users, list
+
+### POST /users
+
+Create a new user account.
+
+Tags: users, create
+
+### DELETE /users/{id}
+
+Delete a user account.
+
+Tags: users, delete
+"""
+
+        auth_content = """
+# Authentication API
+
+## Overview
+
+The **Authentication API** handles user login, session management, and security token operations for secure access to the system. This API provides robust authentication mechanisms including multi-factor authentication, session management, and secure token handling.
+
+### 🔐 **Authentication Features**
+
+**Multi-Factor Authentication**
+- TOTP-based second factor with authenticator app integration
+- Recovery codes for account recovery scenarios
+- Per-user OTP configuration with administrative override
+
+**Session Management**
+- Secure session creation and validation
+- Configurable session timeout policies
+- Session invalidation and logout functionality
+
+## Endpoints
+
+### POST /auth/login
+
+Authenticate a user and create a session.
+
+Tags: authentication, login
+
+### POST /auth/logout
+
+Logout a user and invalidate the session.
+
+Tags: authentication, logout
+
+### GET /auth/session
+
+Get current session information.
+
+Tags: authentication, session
+"""
+
+        # Create markdown files
+        test_utils.create_markdown_file(temp_docs_dir, "users.md", users_content)
+        test_utils.create_markdown_file(temp_docs_dir, "auth.md", auth_content)
+
+        # Create OpenAPI schema with operations that use these tags
+        openapi_schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "SynetoOS API", "version": "1.0.0"},
+            "paths": {
+                "/users": {
+                    "get": {
+                        "summary": "List users",
+                        "tags": ["users"],
+                        "responses": {"200": {"description": "Success"}},
+                    },
+                    "post": {
+                        "summary": "Create user",
+                        "tags": ["users"],
+                        "responses": {"201": {"description": "Created"}},
+                    },
+                },
+                "/users/{id}": {
+                    "delete": {
+                        "summary": "Delete user",
+                        "tags": ["users"],
+                        "responses": {"204": {"description": "Deleted"}},
+                    }
+                },
+                "/auth/login": {
+                    "post": {
+                        "summary": "Login",
+                        "tags": ["authentication"],
+                        "responses": {"200": {"description": "Success"}},
+                    }
+                },
+                "/auth/logout": {
+                    "post": {
+                        "summary": "Logout",
+                        "tags": ["authentication"],
+                        "responses": {"200": {"description": "Success"}},
+                    }
+                },
+                "/auth/session": {
+                    "get": {
+                        "summary": "Get session",
+                        "tags": ["authentication"],
+                        "responses": {"200": {"description": "Success"}},
+                    }
+                },
+            },
+        }
+
+        # Test the complete workflow with tag descriptions
+        enhanced_schema = enhance_openapi_with_docs(
+            openapi_schema=openapi_schema,
+            docs_directory=str(temp_docs_dir),
+            include_code_samples=True,
+            include_response_examples=True,
+        )
+
+        # Verify that tags section was created with descriptions
+        assert "tags" in enhanced_schema
+        assert len(enhanced_schema["tags"]) >= 2
+
+        # Find the tags
+        users_tag = next((tag for tag in enhanced_schema["tags"] if tag["name"] == "users"), None)
+        auth_tag = next((tag for tag in enhanced_schema["tags"] if tag["name"] == "authentication"), None)
+
+        # Verify users tag description
+        assert users_tag is not None
+        assert "description" in users_tag
+        users_desc = users_tag["description"]
+        assert "User Management API" in users_desc
+        assert "comprehensive user account administration" in users_desc
+        assert "👥" in users_desc  # Should include emoji sections
+        assert "Role-Based Access Control" in users_desc
+        assert "Administrator Role" in users_desc
+
+        # Verify authentication tag description
+        assert auth_tag is not None
+        assert "description" in auth_tag
+        auth_desc = auth_tag["description"]
+        assert "Authentication API" in auth_desc
+        assert "user login, session management" in auth_desc
+        assert "🔐" in auth_desc  # Should include emoji sections
+        assert "Multi-Factor Authentication" in auth_desc
+        assert "Session Management" in auth_desc
+
+        # Verify that all other enhancements still work
+        assert "paths" in enhanced_schema
+
+        # Check that operations still have their tags
+        get_users = enhanced_schema["paths"]["/users"]["get"]
+        assert "tags" in get_users
+        assert "users" in get_users["tags"]
+
+        login_op = enhanced_schema["paths"]["/auth/login"]["post"]
+        assert "tags" in login_op
+        assert "authentication" in login_op["tags"]

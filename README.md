@@ -12,6 +12,7 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 
 ✨ **Rich Documentation**: Transform markdown files into comprehensive API documentation<br/>
 🔧 **OpenAPI Enhancement**: Automatically enhance your OpenAPI/Swagger schemas<br/>
+🏷️ **Smart Tag Descriptions**: Automatically extract tag descriptions from markdown Overview sections<br/>
 🌍 **Multi-language Code Samples**: Generate code examples in Python, JavaScript, TypeScript, Go, Java, PHP, Ruby, C#, and cURL<br/>
 📝 **Markdown-First**: Write documentation in familiar markdown format<br/>
 🔗 **API Cross-References**: Include links to other APIs in your system with automatic formatting<br/>
@@ -180,6 +181,108 @@ const users = await response.json();
 ```
 
 ```
+
+## Smart Tag Descriptions
+
+FastMarkDocs automatically extracts rich tag descriptions from markdown **Overview** sections, creating comprehensive OpenAPI tag documentation without manual configuration.
+
+### How It Works
+
+When you include an `## Overview` section in your markdown files, FastMarkDocs automatically:
+1. **Extracts** the overview content (including subsections, formatting, and emojis)
+2. **Associates** it with all tags used in that file
+3. **Enhances** your OpenAPI schema with a proper `tags` section
+
+### Example Structure
+
+Create markdown files with Overview sections:
+
+**`docs/api/users.md`:**
+```markdown
+# User Management API
+
+## Overview
+
+The **User Management API** provides comprehensive user account administration for enterprise applications, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.
+
+### 👥 **User Management Features**
+
+- User account creation with customizable roles and permissions
+- Profile management and account status control (enable/disable)
+- Secure user deletion with data integrity protection
+
+### 🛡️ **Security Features**
+
+- Configurable password complexity requirements
+- Multi-factor authentication with TOTP support
+- Comprehensive audit logging for compliance
+
+## Endpoints
+
+### GET /users
+List all users in the system.
+
+Tags: users, list
+
+### POST /users
+Create a new user account.
+
+Tags: users, create
+```
+
+**`docs/api/authentication.md`:**
+```markdown
+# Authentication API
+
+## Overview
+
+The **Authentication API** handles secure user login, session management, and security token operations. This API provides robust authentication mechanisms including multi-factor authentication and secure session handling.
+
+### 🔐 **Authentication Features**
+
+- JWT-based authentication with configurable expiration
+- Multi-factor authentication with recovery codes
+- Session management with automatic timeout
+
+## Endpoints
+
+### POST /auth/login
+Authenticate a user and create a session.
+
+Tags: authentication, login
+
+### POST /auth/logout
+Logout a user and invalidate the session.
+
+Tags: authentication, logout
+```
+
+### Generated OpenAPI Enhancement
+
+FastMarkDocs automatically creates this in your OpenAPI schema:
+
+```json
+{
+  "tags": [
+    {
+      "name": "users",
+      "description": "The **User Management API** provides comprehensive user account administration for enterprise applications, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.\n\n### 👥 **User Management Features**\n\n- User account creation with customizable roles and permissions\n- Profile management and account status control (enable/disable)\n- Secure user deletion with data integrity protection\n\n### 🛡️ **Security Features**\n\n- Configurable password complexity requirements\n- Multi-factor authentication with TOTP support\n- Comprehensive audit logging for compliance"
+    },
+    {
+      "name": "authentication", 
+      "description": "The **Authentication API** handles secure user login, session management, and security token operations. This API provides robust authentication mechanisms including multi-factor authentication and secure session handling.\n\n### 🔐 **Authentication Features**\n\n- JWT-based authentication with configurable expiration\n- Multi-factor authentication with recovery codes\n- Session management with automatic timeout"
+    }
+  ]
+}
+```
+
+### Benefits
+
+- 📝 **No Extra Configuration**: Works automatically with existing markdown files
+- 🎨 **Rich Formatting**: Preserves markdown formatting, emojis, and structure
+- 🔄 **Consistent Documentation**: Same overview content appears in both markdown and OpenAPI docs
+- 🏷️ **Smart Association**: All tags in a file share the same overview description
+- 🔧 **Backward Compatible**: Doesn't affect existing functionality
 
 ## CLI Tools
 

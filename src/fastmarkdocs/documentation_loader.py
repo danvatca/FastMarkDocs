@@ -208,6 +208,7 @@ class MarkdownDocumentationLoader:
             total_code_samples = 0
             languages_found = set()
             collected_metadata = {}
+            collected_tag_descriptions = {}
 
             for file_path in markdown_files:
                 try:
@@ -219,6 +220,10 @@ class MarkdownDocumentationLoader:
 
                     # Collect global code samples
                     global_examples.extend(file_data["code_samples"])
+
+                    # Extract tag descriptions from this file
+                    file_tag_descriptions = self._extract_tag_descriptions_from_content(file_data["content"])
+                    collected_tag_descriptions.update(file_tag_descriptions)
 
                     # Update statistics
                     total_code_samples += len(file_data["code_samples"])
@@ -260,6 +265,7 @@ class MarkdownDocumentationLoader:
                     "docs_directory": docs_path,
                     **collected_metadata,  # Include collected frontmatter metadata
                 },
+                tag_descriptions=collected_tag_descriptions,
             )
 
             # Cache the documentation result if caching is enabled (thread-safe)
@@ -705,8 +711,8 @@ class MarkdownDocumentationLoader:
         in_parameters_section = False
 
         for line in lines:
-            # Check for Parameters section
-            if re.match(r"^#{3,4}\s*Parameters?", line, re.IGNORECASE):
+            # Check for parameters section header
+            if re.match(r"^#{3,4}\s*(Parameters?|Query Parameters?|Path Parameters?)", line, re.IGNORECASE):
                 in_parameters_section = True
                 continue
 
@@ -716,24 +722,102 @@ class MarkdownDocumentationLoader:
                 continue
 
             if in_parameters_section:
-                # Look for parameter list items (e.g., "- `limit` (integer, optional): Description")
-                param_match = re.match(r"^-\s*`([^`]+)`\s*\(([^)]+)\):\s*(.+)", line.strip())
+                # Parse parameter lines (- `name` (type, required): description)
+                param_match = re.match(r"^\s*-\s*`([^`]+)`\s*\(([^,)]+)(?:,\s*(required|optional))?\):\s*(.+)", line)
                 if param_match:
                     name = param_match.group(1)
-                    type_info = param_match.group(2)
-                    description = param_match.group(3)
+                    param_type = param_match.group(2)
+                    required_str = param_match.group(3)
+                    description = param_match.group(4)
 
-                    # Parse type and required status
-                    required = "required" in type_info.lower()
-                    param_type = type_info.split(",")[0].strip()
+                    required = required_str == "required" if required_str else None
 
                     parameters.append(
-                        ParameterDocumentation(
-                            name=name, description=description, type=param_type, required=required, example=None
-                        )
+                        ParameterDocumentation(name=name, description=description, type=param_type, required=required)
                     )
 
         return parameters
+
+    def _extract_tag_descriptions_from_content(self, content: str) -> dict[str, str]:
+        """
+        Extract tag descriptions from markdown content by finding Overview sections
+        and associating them with tags used in the same file.
+
+        Args:
+            content: Markdown content
+
+        Returns:
+            Dictionary mapping tag names to their descriptions from Overview sections
+        """
+        tag_descriptions: dict[str, str] = {}
+
+        # First, extract all tags used in this file
+        file_tags = set()
+        lines = content.split("\n")
+
+        for line in lines:
+            # Extract tags from "Tags:" lines
+            tag_match = re.match(r"^Tags?:\s*(.+)", line, re.IGNORECASE)
+            if tag_match:
+                tags = [tag.strip() for tag in tag_match.group(1).split(",")]
+                file_tags.update(tags)
+
+        # If no tags found, return empty dict
+        if not file_tags:
+            return tag_descriptions
+
+        # Extract Overview section content
+        overview_content = self._extract_overview_section(content)
+        if overview_content:
+            # Associate the overview content with all tags in this file
+            # This assumes that the Overview section describes the API group
+            # that all endpoints in this file belong to
+            for tag in file_tags:
+                tag_descriptions[tag] = overview_content.strip()
+
+        return tag_descriptions
+
+    def _extract_overview_section(self, content: str) -> Optional[str]:
+        """
+        Extract the Overview section content from markdown.
+
+        Args:
+            content: Markdown content
+
+        Returns:
+            Overview section content or None if not found
+        """
+        lines = content.split("\n")
+        overview_lines = []
+        in_overview = False
+        overview_found = False
+
+        for line in lines:
+            # Check for Overview section header
+            if line.strip() == "## Overview":
+                in_overview = True
+                overview_found = True
+                continue
+
+            # Stop collecting when we hit the next major section
+            if in_overview:
+                header_match = re.match(r"^(#{1,2})\s+", line)
+                if header_match:
+                    # This is an h1 or h2 header, stop overview collection
+                    break
+                else:
+                    # Regular content line in overview
+                    overview_lines.append(line)
+
+        if overview_found and overview_lines:
+            # Remove trailing empty lines
+            while overview_lines and not overview_lines[-1].strip():
+                overview_lines.pop()
+
+            if overview_lines:
+                return "\n".join(overview_lines)
+
+        return None
 
     def _extract_frontmatter(self, content: str) -> tuple[dict[str, Any], str]:
         """

@@ -14,6 +14,7 @@ This comprehensive guide covers everything you need to know about using FastMark
 - [Quick Start](#quick-start)
 - [Markdown Structure](#markdown-structure)
 - [Documentation Organization](#documentation-organization)
+- [Smart Tag Descriptions](#smart-tag-descriptions)
 - [Code Samples](#code-samples)
 - [Response Examples](#response-examples)
 - [Configuration](#configuration)
@@ -213,6 +214,133 @@ Remove a user from the system.
 - Use descriptive names: `users.md`, `authentication.md`
 - Group related endpoints: `user-management.md`
 - Use hyphens for multi-word names: `order-processing.md`
+
+## Smart Tag Descriptions
+
+FastMarkDocs automatically extracts rich tag descriptions from markdown **Overview** sections, creating comprehensive OpenAPI tag documentation that enhances your API's discoverability and usability.
+
+### Overview Sections
+
+Include an `## Overview` section at the beginning of your markdown files to provide context and detailed descriptions for API groups:
+
+```markdown
+# User Management API
+
+## Overview
+
+The **User Management API** provides comprehensive user account administration for enterprise applications, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.
+
+### 👥 **Core Features**
+
+**User Lifecycle Management**
+- Account creation with customizable roles and permissions
+- Profile management and status control (enable/disable)
+- Secure account deletion with data integrity protection
+
+**Security & Authentication**
+- Multi-factor authentication with TOTP support
+- Configurable password complexity requirements
+- Comprehensive audit logging for compliance monitoring
+
+### 🔐 **Access Control**
+
+- **Administrator Role**: Full system access and user management
+- **Manager Role**: Department-level user management capabilities  
+- **User Role**: Self-service profile management only
+
+## Endpoints
+
+### GET /users
+List all users in the system.
+
+Tags: users, list
+
+### POST /users
+Create a new user account.
+
+Tags: users, create
+```
+
+### How Tag Association Works
+
+FastMarkDocs automatically:
+
+1. **Scans** each markdown file for `## Overview` sections
+2. **Extracts** the complete overview content (including subsections, formatting, emojis)
+3. **Identifies** all tags used in the same file (from `Tags:` lines)
+4. **Associates** the overview description with all discovered tags
+5. **Generates** OpenAPI tag definitions in your schema
+
+### Generated OpenAPI Output
+
+The above example automatically generates this OpenAPI enhancement:
+
+```json
+{
+  "tags": [
+    {
+      "name": "users",
+      "description": "The **User Management API** provides comprehensive user account administration for enterprise applications, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.\n\n### 👥 **Core Features**\n\n**User Lifecycle Management**\n- Account creation with customizable roles and permissions\n- Profile management and status control (enable/disable)\n- Secure account deletion with data integrity protection\n\n**Security & Authentication**\n- Multi-factor authentication with TOTP support\n- Configurable password complexity requirements\n- Comprehensive audit logging for compliance monitoring\n\n### 🔐 **Access Control**\n\n- **Administrator Role**: Full system access and user management\n- **Manager Role**: Department-level user management capabilities  \n- **User Role**: Self-service profile management only"
+    }
+  ]
+}
+```
+
+### Multiple API Groups Example
+
+For larger applications, organize different API groups in separate files:
+
+**`docs/api/users.md`:**
+```markdown
+# User Management API
+
+## Overview
+
+Comprehensive user account administration with enterprise-grade security features.
+
+## Endpoints
+
+### GET /users
+Tags: users, accounts
+
+### POST /users  
+Tags: users, accounts, admin
+```
+
+**`docs/api/authentication.md`:**
+```markdown
+# Authentication API
+
+## Overview
+
+Secure authentication system with JWT tokens, multi-factor authentication, and session management.
+
+## Endpoints
+
+### POST /auth/login
+Tags: auth, login
+
+### POST /auth/logout
+Tags: auth, session
+```
+
+This creates separate tag descriptions for `users`, `accounts`, `admin`, `auth`, `login`, and `session` tags.
+
+### Best Practices for Overview Sections
+
+1. **Be Descriptive**: Provide comprehensive context about the API group's purpose
+2. **Use Rich Formatting**: Include emojis, bold text, and structured sections
+3. **Highlight Key Features**: Use subsections to organize important capabilities
+4. **Include Security Notes**: Document authentication and authorization requirements
+5. **Maintain Consistency**: Use similar structure across all overview sections
+
+### Benefits
+
+- 🏷️ **Automatic Tag Generation**: No manual OpenAPI tag configuration needed
+- 📝 **Rich Documentation**: Preserves all markdown formatting and structure
+- 🔄 **Single Source of Truth**: Same content appears in markdown and OpenAPI docs
+- 🎨 **Professional Appearance**: Enhanced API documentation with proper categorization
+- 🔧 **Zero Configuration**: Works automatically with existing markdown files
 
 ## Code Samples
 

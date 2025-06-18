@@ -15,6 +15,7 @@ import pytest
 from fastmarkdocs.documentation_loader import MarkdownDocumentationLoader
 from fastmarkdocs.exceptions import DocumentationLoadError
 from fastmarkdocs.types import CodeLanguage, HTTPMethod
+from fastmarkdocs.utils import extract_endpoint_info
 
 
 class TestMarkdownDocumentationLoader:
@@ -1875,3 +1876,275 @@ Some other content here.
         # Should only find the first response example before the interruption
         assert len(endpoints[0].response_examples) == 1
         assert endpoints[0].response_examples[0].status_code == 200
+
+    def test_extract_endpoint_info_general_docs_only(self) -> None:
+        """Test extract_endpoint_info with only general docs content."""
+
+        # Content with no endpoints
+        content = """
+# General Documentation
+
+This is general documentation content that applies to the whole API.
+
+## Features
+
+- Feature 1
+- Feature 2
+"""
+
+        general_docs = "This is general documentation for the entire API."
+
+        endpoint_info = extract_endpoint_info(content, general_docs)
+
+        # Should not find any endpoint
+        assert endpoint_info["path"] is None
+        assert endpoint_info["method"] is None
+        assert endpoint_info["summary"] is None
+
+        # Should not have description when no endpoint is found and no overview
+        assert endpoint_info["description"] is None
+
+    def test_extract_tag_descriptions_from_content(self) -> None:
+        """Test extraction of tag descriptions from markdown content with Overview sections."""
+        loader = MarkdownDocumentationLoader()
+
+        content_with_overview = """
+# User Management API Documentation
+
+## Overview
+
+The **User Management API** provides comprehensive user account administration for SynetoOS, enabling centralized user lifecycle management with role-based access control and multi-factor authentication. This API supports enterprise-grade user provisioning, security policies, and audit capabilities.
+
+### 👥 **User Management Features**
+
+**Complete User Lifecycle**
+- User account creation with customizable roles and permissions
+- Profile management and account status control (enable/disable)
+- Secure user deletion with data integrity protection
+
+### 🛡️ **Security Features**
+
+**Password Security**
+- Configurable password complexity requirements and minimum length
+- Secure password hashing with industry-standard algorithms
+- No plain-text password storage or transmission
+
+## Endpoints
+
+### GET /users
+
+**List all users**
+
+Retrieves a complete list of all user accounts in the system.
+
+Tags: users, list
+
+### POST /users
+
+**Create new user**
+
+Creates a new user account with specified credentials and configuration.
+
+Tags: users, create
+"""
+
+        tag_descriptions = loader._extract_tag_descriptions_from_content(content_with_overview)
+
+        # Should extract tag descriptions for all tags in the file
+        assert "users" in tag_descriptions
+        assert "list" in tag_descriptions
+        assert "create" in tag_descriptions
+
+        # All tags should have the same overview description
+        expected_description = tag_descriptions["users"]
+        assert "User Management API" in expected_description
+        assert "comprehensive user account administration" in expected_description
+        assert "👥" in expected_description  # Should include emoji sections
+        assert "🛡️" in expected_description
+
+        # All tags from this file should have the same description
+        assert tag_descriptions["list"] == expected_description
+        assert tag_descriptions["create"] == expected_description
+
+    def test_extract_tag_descriptions_no_overview(self) -> None:
+        """Test tag description extraction when no Overview section exists."""
+        loader = MarkdownDocumentationLoader()
+
+        content_without_overview = """
+# API Documentation
+
+### GET /users
+
+List all users.
+
+Tags: users, list
+
+### POST /users
+
+Create a user.
+
+Tags: users, create
+"""
+
+        tag_descriptions = loader._extract_tag_descriptions_from_content(content_without_overview)
+
+        # Should return empty dict when no Overview section exists
+        assert tag_descriptions == {}
+
+    def test_extract_tag_descriptions_no_tags(self) -> None:
+        """Test tag description extraction when no tags are present."""
+        loader = MarkdownDocumentationLoader()
+
+        content_with_overview_no_tags = """
+# API Documentation
+
+## Overview
+
+This is an overview of the API with comprehensive documentation.
+
+### GET /users
+
+List all users.
+
+### POST /users
+
+Create a user.
+"""
+
+        tag_descriptions = loader._extract_tag_descriptions_from_content(content_with_overview_no_tags)
+
+        # Should return empty dict when no tags are found
+        assert tag_descriptions == {}
+
+    def test_extract_overview_section(self) -> None:
+        """Test extraction of Overview section content."""
+        loader = MarkdownDocumentationLoader()
+
+        content_with_overview = """
+# API Documentation
+
+## Overview
+
+The **User Management API** provides comprehensive user account administration.
+
+### Features
+
+- Feature 1
+- Feature 2
+
+### Security
+
+Security features are important.
+
+## Endpoints
+
+### GET /users
+
+List users.
+"""
+
+        overview_content = loader._extract_overview_section(content_with_overview)
+
+        assert overview_content is not None
+        assert "User Management API" in overview_content
+        assert "Feature 1" in overview_content
+        assert "Security features are important" in overview_content
+        # Should not include the "## Endpoints" section
+        assert "## Endpoints" not in overview_content
+        assert "List users" not in overview_content
+
+    def test_extract_overview_section_not_found(self) -> None:
+        """Test overview section extraction when section doesn't exist."""
+        loader = MarkdownDocumentationLoader()
+
+        content_without_overview = """
+# API Documentation
+
+## Introduction
+
+This is just an introduction.
+
+### GET /users
+
+List users.
+"""
+
+        overview_content = loader._extract_overview_section(content_without_overview)
+
+        assert overview_content is None
+
+    def test_load_documentation_with_tag_descriptions(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test that tag descriptions are properly collected during documentation loading."""
+        users_content = """
+# User Management API
+
+## Overview
+
+The **User Management API** provides comprehensive user account administration for SynetoOS, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.
+
+## Endpoints
+
+### GET /users
+
+List all users in the system.
+
+Tags: users, list
+
+### POST /users
+
+Create a new user account.
+
+Tags: users, create
+"""
+
+        auth_content = """
+# Authentication API
+
+## Overview
+
+The **Authentication API** handles user login, session management, and security token operations for secure access to the system.
+
+## Endpoints
+
+### POST /auth/login
+
+Authenticate a user and create a session.
+
+Tags: authentication, login
+
+### POST /auth/logout
+
+Logout a user and invalidate the session.
+
+Tags: authentication, logout
+"""
+
+        # Create markdown files
+        test_utils.create_markdown_file(temp_docs_dir, "users.md", users_content)
+        test_utils.create_markdown_file(temp_docs_dir, "auth.md", auth_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Check that tag descriptions were collected
+        assert hasattr(documentation, "tag_descriptions")
+        assert len(documentation.tag_descriptions) > 0
+
+        # Check specific tag descriptions
+        assert "users" in documentation.tag_descriptions
+        assert "authentication" in documentation.tag_descriptions
+
+        users_desc = documentation.tag_descriptions["users"]
+        auth_desc = documentation.tag_descriptions["authentication"]
+
+        assert "User Management API" in users_desc
+        assert "comprehensive user account administration" in users_desc
+
+        assert "Authentication API" in auth_desc
+        assert "user login, session management" in auth_desc
+
+        # All tags from the same file should have the same description
+        if "list" in documentation.tag_descriptions:
+            assert documentation.tag_descriptions["list"] == users_desc
+        if "create" in documentation.tag_descriptions:
+            assert documentation.tag_descriptions["create"] == users_desc

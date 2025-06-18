@@ -307,6 +307,9 @@ class OpenAPIEnhancer:
             # Add global information
             self._enhance_global_info(enhanced_schema, documentation, stats)
 
+            # Enhance tags with descriptions
+            self._enhance_tags_with_descriptions(enhanced_schema, documentation, stats)
+
             return enhanced_schema
 
         except Exception as e:
@@ -628,3 +631,45 @@ class OpenAPIEnhancer:
         """
         if endpoint_doc.description:
             operation["description"] = endpoint_doc.description
+
+    def _enhance_tags_with_descriptions(
+        self, schema: dict[str, Any], documentation: DocumentationData, stats: dict[str, int]
+    ) -> None:
+        """
+        Enhance tags in the OpenAPI schema with descriptions from the documentation.
+
+        Args:
+            schema: OpenAPI schema
+            documentation: Documentation data
+            stats: Enhancement statistics
+        """
+        # Collect all unique tags from endpoints
+        all_tags = set()
+        if "paths" in schema:
+            for path_item in schema["paths"].values():
+                for operation in path_item.values():
+                    if isinstance(operation, dict) and "tags" in operation:
+                        all_tags.update(operation["tags"])
+
+        # Create or enhance tags section only if we have tag descriptions
+        if all_tags and documentation.tag_descriptions:
+            if "tags" not in schema:
+                schema["tags"] = []
+
+            # Convert existing tags to a dict for easier lookup
+            existing_tags = {tag["name"]: tag for tag in schema["tags"] if isinstance(tag, dict) and "name" in tag}
+
+            # Add or enhance tags with descriptions
+            for tag_name in all_tags:
+                if tag_name in documentation.tag_descriptions:
+                    tag_description = documentation.tag_descriptions[tag_name]
+
+                    if tag_name in existing_tags:
+                        # Update existing tag with description if it doesn't have one
+                        if "description" not in existing_tags[tag_name]:
+                            existing_tags[tag_name]["description"] = tag_description
+                            stats["descriptions_enhanced"] += 1
+                    else:
+                        # Add new tag with description
+                        schema["tags"].append({"name": tag_name, "description": tag_description})
+                        stats["descriptions_enhanced"] += 1

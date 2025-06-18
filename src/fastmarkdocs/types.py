@@ -102,6 +102,20 @@ class ParameterDocumentation:
 
 
 @dataclass
+class TagDescription:
+    """Represents a tag with its description from markdown overview sections."""
+
+    name: str
+    description: str
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValueError("Tag name cannot be empty")
+        if not self.description:
+            raise ValueError("Tag description cannot be empty")
+
+
+@dataclass
 class EndpointDocumentation:
     """Complete documentation for an API endpoint."""
 
@@ -129,6 +143,7 @@ class DocumentationData:
     endpoints: list[EndpointDocumentation] = field(default_factory=list)
     global_examples: list[CodeSample] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    tag_descriptions: dict[str, str] = field(default_factory=dict)
 
     def __getitem__(self, key: str) -> Any:
         """Allow dictionary-style access for backwards compatibility."""
@@ -138,6 +153,8 @@ class DocumentationData:
             return self.global_examples
         elif key == "metadata":
             return self.metadata
+        elif key == "tag_descriptions":
+            return self.tag_descriptions
         else:
             raise KeyError(f"'{key}' not found in DocumentationData")
 

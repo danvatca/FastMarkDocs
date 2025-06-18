@@ -1,6 +1,29 @@
 # Users API Documentation
 
-This section covers all user-related endpoints in the API.
+## Overview
+
+The **Users API** provides comprehensive user account management capabilities for the application. This API enables user lifecycle management including account creation, profile retrieval, updates, and deletion operations.
+
+### 👤 **User Management Features**
+
+**Account Operations**
+- User account creation with automatic ID assignment
+- Profile information retrieval and management
+- Account status control (active/inactive users)
+- Secure user deletion with proper cleanup
+
+**Data Management**
+- Email uniqueness validation across the system
+- Flexible user filtering and pagination support
+- Complete user profile data access
+- Robust error handling for invalid operations
+
+### 🔍 **Query Capabilities**
+
+- **List Users**: Retrieve paginated user lists with filtering options
+- **User Details**: Get complete profile information for specific users
+- **Status Filtering**: Filter users by active/inactive status
+- **Search & Pagination**: Efficient data retrieval for large user bases
 
 ## GET /users
 

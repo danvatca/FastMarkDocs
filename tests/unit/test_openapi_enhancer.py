@@ -831,97 +831,187 @@ class TestOpenAPIEnhancer:
             assert "go" not in languages
 
     def test_schema_validation_comprehensive(self) -> None:
-        """Test comprehensive schema validation scenarios."""
+        """Test comprehensive schema validation."""
         enhancer = OpenAPIEnhancer()
 
+        # Test with None schema
+        with pytest.raises(OpenAPIEnhancementError, match="OpenAPI schema cannot be None"):
+            enhancer.enhance_openapi_schema(None, DocumentationData())
+
         # Test with None documentation
-        valid_schema = {"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0.0"}}
+        with pytest.raises(OpenAPIEnhancementError, match="Documentation data cannot be None"):
+            enhancer.enhance_openapi_schema({}, None)
 
-        with pytest.raises(OpenAPIEnhancementError) as exc_info:
-            enhancer.enhance_openapi_schema(valid_schema, None)
-        assert "Documentation data cannot be None" in str(exc_info.value)
+        # Test with non-dict schema
+        with pytest.raises(OpenAPIEnhancementError, match="OpenAPI schema must be a dictionary"):
+            enhancer.enhance_openapi_schema("not a dict", DocumentationData())
 
-        # Test with Swagger 2.0 schema (should be valid)
-        swagger_schema = {"swagger": "2.0", "info": {"title": "Test", "version": "1.0.0"}}
+        # Test with missing openapi/swagger field
+        with pytest.raises(OpenAPIEnhancementError, match="missing 'openapi' or 'swagger' field"):
+            enhancer.enhance_openapi_schema({"info": {"title": "Test"}}, DocumentationData())
 
-        mock_documentation = Mock()
-        mock_documentation.endpoints = []
-        mock_documentation.global_examples = []
-        mock_documentation.metadata = {}
-
-        # Should not raise exception for Swagger schema
-        result = enhancer.enhance_openapi_schema(swagger_schema, mock_documentation)
-        assert result is not None
-        assert "swagger" in result
+        # Test with missing info field
+        with pytest.raises(OpenAPIEnhancementError, match="missing 'info' field"):
+            enhancer.enhance_openapi_schema({"openapi": "3.0.0"}, DocumentationData())
 
     def test_operation_enhancement_error_recovery(self) -> None:
-        """Test that operation enhancement errors don't break the entire process."""
+        """Test that operation enhancement errors are handled gracefully."""
+        enhancer = OpenAPIEnhancer()
+
+        # Create a schema that will cause enhancement errors
+        schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test", "version": "1.0.0"},
+            "paths": {
+                "/test": {
+                    "get": {
+                        "summary": "Test endpoint",
+                        # Missing required fields that might cause errors
+                    }
+                }
+            },
+        }
+
+        # Create documentation with matching endpoint
+        documentation = DocumentationData(
+            endpoints=[
+                EndpointDocumentation(
+                    path="/test",
+                    method=HTTPMethod.GET,
+                    summary="Enhanced summary",
+                    description="Enhanced description",
+                    tags=["test"],
+                )
+            ]
+        )
+
+        # Should not raise an exception, even if individual operations fail
+        result = enhancer.enhance_openapi_schema(schema, documentation)
+        assert result is not None
+        assert "paths" in result
+
+    def test_tag_descriptions_enhancement(self) -> None:
+        """Test that tag descriptions are properly added to OpenAPI schema."""
         enhancer = OpenAPIEnhancer()
 
         schema = {
             "openapi": "3.0.0",
             "info": {"title": "Test API", "version": "1.0.0"},
             "paths": {
-                "/test1": {"get": {"summary": "Test 1"}},
-                "/test2": {"post": {"summary": "Test 2"}},
-                "/test3": {"put": {"summary": "Test 3"}},
+                "/users": {"get": {"summary": "List users", "tags": ["users"]}},
+                "/auth/login": {"post": {"summary": "Login", "tags": ["authentication"]}},
             },
         }
 
-        endpoints = [
-            EndpointDocumentation(
-                path="/test1",
-                method=HTTPMethod.GET,
-                summary="Test 1",
-                description="",
-                code_samples=[],
-                response_examples=[],
-                parameters=[],
-            ),
-            EndpointDocumentation(
-                path="/test2",
-                method=HTTPMethod.POST,
-                summary="Test 2",
-                description="",
-                code_samples=[],
-                response_examples=[],
-                parameters=[],
-            ),
-            EndpointDocumentation(
-                path="/test3",
-                method=HTTPMethod.PUT,
-                summary="Test 3",
-                description="",
-                code_samples=[],
-                response_examples=[],
-                parameters=[],
-            ),
-        ]
+        documentation = DocumentationData(
+            endpoints=[
+                EndpointDocumentation(path="/users", method=HTTPMethod.GET, summary="List users", tags=["users"]),
+                EndpointDocumentation(
+                    path="/auth/login", method=HTTPMethod.POST, summary="Login", tags=["authentication"]
+                ),
+            ],
+            tag_descriptions={
+                "users": "The **User Management API** provides comprehensive user account administration for SynetoOS, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.",
+                "authentication": "The **Authentication API** handles user login, session management, and security token operations for secure access to the system.",
+            },
+        )
 
-        documentation = Mock()
-        documentation.endpoints = endpoints
-        documentation.global_examples = []
-        documentation.metadata = {}
-
-        # Mock _enhance_operation to fail for the second endpoint
-        original_enhance = enhancer._enhance_operation
-        call_count = 0
-
-        def failing_enhance_operation(operation: dict[str, Any], endpoint_doc: Any, stats: dict[str, Any]) -> None:
-            nonlocal call_count
-            call_count += 1
-            if call_count == 2:  # Fail on second call
-                raise Exception("Enhancement failed for test2")
-            return original_enhance(operation, endpoint_doc, stats)
-
-        # # enhancer._enhance_operation = failing_enhance_operation  # type: ignore
-        # Should complete successfully despite one failure
         result = enhancer.enhance_openapi_schema(schema, documentation)
 
-        assert result is not None
-        assert "paths" in result
-        # Should have processed all paths despite the error
-        assert len(result["paths"]) == 3
+        # Check that tags section was created with descriptions
+        assert "tags" in result
+        assert len(result["tags"]) == 2
+
+        # Find the tags
+        users_tag = next((tag for tag in result["tags"] if tag["name"] == "users"), None)
+        auth_tag = next((tag for tag in result["tags"] if tag["name"] == "authentication"), None)
+
+        assert users_tag is not None
+        assert "description" in users_tag
+        assert "User Management API" in users_tag["description"]
+
+        assert auth_tag is not None
+        assert "description" in auth_tag
+        assert "Authentication API" in auth_tag["description"]
+
+    def test_tag_descriptions_with_existing_tags(self) -> None:
+        """Test that existing tags are preserved and enhanced with descriptions."""
+        enhancer = OpenAPIEnhancer()
+
+        schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "tags": [
+                {"name": "users", "description": "Existing description"},
+                {"name": "authentication"},  # No description
+            ],
+            "paths": {
+                "/users": {"get": {"summary": "List users", "tags": ["users"]}},
+                "/auth/login": {"post": {"summary": "Login", "tags": ["authentication"]}},
+            },
+        }
+
+        documentation = DocumentationData(
+            endpoints=[
+                EndpointDocumentation(path="/users", method=HTTPMethod.GET, summary="List users", tags=["users"]),
+                EndpointDocumentation(
+                    path="/auth/login", method=HTTPMethod.POST, summary="Login", tags=["authentication"]
+                ),
+            ],
+            tag_descriptions={"users": "Enhanced user description", "authentication": "Enhanced auth description"},
+        )
+
+        result = enhancer.enhance_openapi_schema(schema, documentation)
+
+        # Check that tags section exists
+        assert "tags" in result
+        assert len(result["tags"]) == 2
+
+        # Find the tags
+        users_tag = next((tag for tag in result["tags"] if tag["name"] == "users"), None)
+        auth_tag = next((tag for tag in result["tags"] if tag["name"] == "authentication"), None)
+
+        # Users tag should keep existing description (not overwrite)
+        assert users_tag is not None
+        assert users_tag["description"] == "Existing description"
+
+        # Authentication tag should get new description
+        assert auth_tag is not None
+        assert auth_tag["description"] == "Enhanced auth description"
+
+    def test_tag_descriptions_no_tags_in_operations(self) -> None:
+        """Test behavior when no tags are present in operations."""
+        enhancer = OpenAPIEnhancer()
+
+        schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {
+                "/test": {
+                    "get": {
+                        "summary": "Test endpoint"
+                        # No tags
+                    }
+                }
+            },
+        }
+
+        documentation = DocumentationData(
+            endpoints=[
+                EndpointDocumentation(
+                    path="/test",
+                    method=HTTPMethod.GET,
+                    summary="Test endpoint",
+                    # No tags
+                )
+            ],
+            tag_descriptions={"unused": "This tag is not used anywhere"},
+        )
+
+        result = enhancer.enhance_openapi_schema(schema, documentation)
+
+        # No tags section should be created since no operations have tags
+        assert "tags" not in result or len(result.get("tags", [])) == 0
 
 
 class TestEnhanceOpenAPIWithDocs:

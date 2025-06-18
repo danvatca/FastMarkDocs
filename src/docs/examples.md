@@ -12,6 +12,7 @@ This page provides real-world examples and tutorials for using FastMarkDocs in d
 ## Table of Contents
 
 - [Basic FastAPI Integration](#basic-fastapi-integration)
+- [Smart Tag Descriptions](#smart-tag-descriptions)
 - [E-commerce API Documentation](#e-commerce-api-documentation)
 - [Authentication & Authorization](#authentication--authorization)
 - [Multi-language Code Samples](#multi-language-code-samples)
@@ -325,6 +326,163 @@ if (response.ok) {
 
 Tags: users, create
 ```
+
+## Smart Tag Descriptions
+
+FastMarkDocs automatically generates rich tag descriptions from markdown Overview sections. This feature enhances your OpenAPI documentation by providing comprehensive context for each API group.
+
+### Complete Example with Tag Descriptions
+
+Here's a complete example showing how Overview sections create beautiful tag descriptions:
+
+**docs/api/users.md**
+```markdown
+# User Management API
+
+## Overview
+
+The **User Management API** provides comprehensive user account administration for enterprise applications, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.
+
+### 👤 **Core Capabilities**
+
+**Account Management**
+- User registration and profile creation
+- Account activation and deactivation
+- Secure password management with complexity requirements
+- Profile information updates and maintenance
+
+**Access Control**
+- Role-based permissions (Admin, Manager, User)
+- Multi-factor authentication with TOTP support
+- Session management with configurable timeouts
+- API key generation and management
+
+### 🔐 **Security Features**
+
+- **Password Security**: Bcrypt hashing with configurable complexity
+- **Account Protection**: Automatic lockout after failed attempts
+- **Audit Logging**: Comprehensive activity tracking for compliance
+- **Data Privacy**: GDPR-compliant data handling and deletion
+
+## Endpoints
+
+### GET /users
+List all users with optional filtering and pagination.
+
+Tags: users, accounts, list
+
+### POST /users
+Create a new user account with role assignment.
+
+Tags: users, accounts, create
+
+### GET /users/{user_id}
+Retrieve detailed information for a specific user.
+
+Tags: users, accounts, profile
+
+### PUT /users/{user_id}
+Update user profile information and settings.
+
+Tags: users, accounts, update
+
+### DELETE /users/{user_id}
+Permanently delete a user account.
+
+Tags: users, accounts, delete, admin
+```
+
+**docs/api/authentication.md**
+```markdown
+# Authentication API
+
+## Overview
+
+The **Authentication API** provides secure user authentication and session management for the application. This API handles login, logout, token management, and multi-factor authentication workflows.
+
+### 🔐 **Authentication Methods**
+
+**Primary Authentication**
+- Username/password authentication with secure hashing
+- Email-based login with verification
+- API key authentication for service-to-service calls
+- OAuth 2.0 integration with external providers
+
+**Multi-Factor Authentication**
+- TOTP (Time-based One-Time Password) support
+- SMS-based verification codes
+- Recovery codes for account recovery
+- Hardware token support (FIDO2/WebAuthn)
+
+### 🎫 **Token Management**
+
+- **JWT Tokens**: Stateless authentication with configurable expiration
+- **Refresh Tokens**: Long-lived tokens for seamless re-authentication
+- **Session Tokens**: Server-side session management
+- **API Keys**: Permanent authentication for automated systems
+
+## Endpoints
+
+### POST /auth/login
+Authenticate user credentials and create session.
+
+Tags: auth, login, session
+
+### POST /auth/logout
+Terminate user session and invalidate tokens.
+
+Tags: auth, logout, session
+
+### POST /auth/refresh
+Refresh expired access tokens using refresh token.
+
+Tags: auth, tokens, refresh
+
+### POST /auth/mfa/setup
+Configure multi-factor authentication for user account.
+
+Tags: auth, mfa, security
+
+### POST /auth/mfa/verify
+Verify multi-factor authentication code.
+
+Tags: auth, mfa, verification
+```
+
+### Generated OpenAPI Enhancement
+
+The above markdown files automatically generate this comprehensive OpenAPI tags section:
+
+```json
+{
+  "tags": [
+    {
+      "name": "users",
+      "description": "The **User Management API** provides comprehensive user account administration for enterprise applications, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.\n\n### 👤 **Core Capabilities**\n\n**Account Management**\n- User registration and profile creation\n- Account activation and deactivation\n- Secure password management with complexity requirements\n- Profile information updates and maintenance\n\n**Access Control**\n- Role-based permissions (Admin, Manager, User)\n- Multi-factor authentication with TOTP support\n- Session management with configurable timeouts\n- API key generation and management\n\n### 🔐 **Security Features**\n\n- **Password Security**: Bcrypt hashing with configurable complexity\n- **Account Protection**: Automatic lockout after failed attempts\n- **Audit Logging**: Comprehensive activity tracking for compliance\n- **Data Privacy**: GDPR-compliant data handling and deletion"
+    },
+    {
+      "name": "auth",
+      "description": "The **Authentication API** provides secure user authentication and session management for the application. This API handles login, logout, token management, and multi-factor authentication workflows.\n\n### 🔐 **Authentication Methods**\n\n**Primary Authentication**\n- Username/password authentication with secure hashing\n- Email-based login with verification\n- API key authentication for service-to-service calls\n- OAuth 2.0 integration with external providers\n\n**Multi-Factor Authentication**\n- TOTP (Time-based One-Time Password) support\n- SMS-based verification codes\n- Recovery codes for account recovery\n- Hardware token support (FIDO2/WebAuthn)\n\n### 🎫 **Token Management**\n\n- **JWT Tokens**: Stateless authentication with configurable expiration\n- **Refresh Tokens**: Long-lived tokens for seamless re-authentication\n- **Session Tokens**: Server-side session management\n- **API Keys**: Permanent authentication for automated systems"
+    }
+  ]
+}
+```
+
+### Key Benefits
+
+1. **Professional Documentation**: Rich, formatted descriptions appear in Swagger/Redoc interfaces
+2. **Zero Configuration**: No manual OpenAPI tag configuration required
+3. **Consistent Branding**: Maintain consistent documentation style across all API groups
+4. **Enhanced Discoverability**: Users can quickly understand API capabilities
+5. **Automatic Synchronization**: Documentation stays in sync between markdown and OpenAPI
+
+### Best Practices
+
+- **Use Rich Formatting**: Include emojis, bold text, and structured sections
+- **Be Comprehensive**: Provide complete context about the API group's purpose
+- **Organize Logically**: Use subsections to group related capabilities
+- **Include Security Information**: Document authentication and authorization requirements
+- **Maintain Consistency**: Use similar structure across all Overview sections
 
 ## E-commerce API Documentation
 

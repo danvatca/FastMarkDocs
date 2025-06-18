@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Tag Descriptions**: Automatically extract rich tag descriptions from markdown Overview sections
+  - Parses `## Overview` sections from markdown files with full formatting support
+  - Associates overview content with all tags used in the same file
+  - Generates comprehensive OpenAPI tags section with rich descriptions
+  - Preserves markdown formatting, emojis, and structured content
+  - Works automatically with zero configuration required
+  - Enhances API documentation discoverability and professional appearance
 - **fmd-init**: Documentation scaffolding tool for existing FastAPI projects
   - Automatically scans Python files for FastAPI endpoints (`@app.get`, `@router.post`, etc.)
   - Extracts endpoint information including paths, methods, docstrings, and tags

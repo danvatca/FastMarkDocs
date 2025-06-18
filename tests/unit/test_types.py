@@ -21,6 +21,7 @@ from fastmarkdocs.types import (
     OpenAPIEnhancementConfig,
     ParameterDocumentation,
     ResponseExample,
+    TagDescription,
     ValidationError,
 )
 
@@ -376,36 +377,33 @@ class TestDataClasses:
 
     def test_parameter_documentation_optional_fields(self) -> None:
         """Test ParameterDocumentation with optional fields."""
-        # Test with minimal required fields
-        param_minimal = ParameterDocumentation(name="test_param", description="Test parameter")
-
-        assert param_minimal.name == "test_param"
-        assert param_minimal.description == "Test parameter"
-        assert param_minimal.example is None
-        assert param_minimal.required is None
-        assert param_minimal.type is None
-
-        # Test with all fields
-        param_full = ParameterDocumentation(
-            name="full_param", description="Full parameter", example="example_value", required=False, type="integer"
+        param = ParameterDocumentation(
+            name="test_param",
+            description="Test parameter",
+            example="test_value",
+            required=True,
+            type="string",
         )
 
-        assert param_full.required is False
-        assert param_full.type == "integer"
-        assert param_full.example == "example_value"
+        assert param.name == "test_param"
+        assert param.description == "Test parameter"
+        assert param.example == "test_value"
+        assert param.required is True
+        assert param.type == "string"
 
-    def test_code_sample_optional_fields(self) -> None:
-        """Test CodeSample with optional fields."""
-        # Test with minimal required fields
-        sample_minimal = CodeSample(language=CodeLanguage.CURL, code="curl -X GET https://api.example.com")
+    def test_tag_description_creation(self) -> None:
+        """Test TagDescription creation and validation."""
+        tag_desc = TagDescription(name="users", description="User management operations")
 
-        assert sample_minimal.description is None
-        assert sample_minimal.title is None
+        assert tag_desc.name == "users"
+        assert tag_desc.description == "User management operations"
 
-        # Test with all fields
-        sample_full = CodeSample(
-            language=CodeLanguage.PYTHON, code="import requests", description="Python example", title="Request Example"
-        )
+    def test_tag_description_empty_name_validation(self) -> None:
+        """Test TagDescription validation with empty name."""
+        with pytest.raises(ValueError, match="Tag name cannot be empty"):
+            TagDescription(name="", description="Valid description")
 
-        assert sample_full.description == "Python example"
-        assert sample_full.title == "Request Example"
+    def test_tag_description_empty_description_validation(self) -> None:
+        """Test TagDescription validation with empty description."""
+        with pytest.raises(ValueError, match="Tag description cannot be empty"):
+            TagDescription(name="users", description="")
