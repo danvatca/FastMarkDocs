@@ -1210,3 +1210,668 @@ This is general documentation.
         result = loader._load_general_docs(str(temp_docs_dir))
         assert result is not None
         assert "# General Documentation" in result
+
+    def test_response_examples_multi_endpoint_bug_reproduction(self) -> None:
+        """Test that reproduces the bug where response examples are not detected in multi-endpoint files."""
+        loader = MarkdownDocumentationLoader()
+
+        # Multi-endpoint content that reproduces the bug from the bug report
+        multi_endpoint_content = """
+### POST /v1/session
+
+Login to the system and create a new session.
+
+#### Response Examples
+
+**Success (200 OK):**
+```json
+{
+  "id": "user123",
+  "username": "admin",
+  "isOtpEnabled": false
+}
+```
+
+**OTP Required (204 No Content):**
+```
+HTTP/1.1 204 No Content
+Set-Cookie: temporary_session=temp_token_123; Path=/; HttpOnly; Secure
+```
+
+**Invalid Credentials (401 Unauthorized):**
+```json
+{
+  "error": "Invalid credentials",
+  "code": "INVALID_CREDENTIALS"
+}
+```
+
+**Account Locked (423 Locked):**
+```json
+{
+  "error": "Account is locked",
+  "code": "ACCOUNT_LOCKED",
+  "lockoutTime": "2024-01-15T10:30:00Z"
+}
+```
+
+**Server Error (500 Internal Server Error):**
+```json
+{
+  "error": "Internal server error",
+  "code": "INTERNAL_ERROR"
+}
+```
+
+---
+
+### POST /v1/session:verifyOtp
+
+Verify OTP and complete the authentication process.
+
+#### Response Examples
+
+**Success (200 OK):**
+```json
+{
+  "id": "user123",
+  "username": "admin",
+  "recoveryCodes": ["recovery1", "recovery2", "recovery3"]
+}
+```
+
+**Invalid OTP (401 Unauthorized):**
+```json
+{
+  "error": "Invalid OTP code",
+  "code": "INVALID_OTP"
+}
+```
+
+**OTP Expired (401 Unauthorized):**
+```json
+{
+  "error": "OTP code has expired",
+  "code": "OTP_EXPIRED"
+}
+```
+
+**Too Many Attempts (429 Too Many Requests):**
+```json
+{
+  "error": "Too many OTP attempts",
+  "code": "TOO_MANY_ATTEMPTS",
+  "retryAfter": 300
+}
+```
+"""
+
+        # Extract endpoints from the multi-endpoint content
+        endpoints = loader._extract_endpoints_from_content(multi_endpoint_content)
+
+        # Should find 2 endpoints
+        assert len(endpoints) == 2
+
+        # First endpoint: POST /v1/session
+        session_endpoint = endpoints[0]
+        assert session_endpoint.path == "/v1/session"
+        assert session_endpoint.method.value == "POST"
+
+        # BUG: This should find 5 response examples but currently finds 0
+        print(f"POST /v1/session response examples found: {len(session_endpoint.response_examples)}")
+        assert (
+            len(session_endpoint.response_examples) == 5
+        ), f"Expected 5 response examples, found {len(session_endpoint.response_examples)}"
+
+        # Second endpoint: POST /v1/session:verifyOtp
+        verify_otp_endpoint = endpoints[1]
+        assert verify_otp_endpoint.path == "/v1/session:verifyOtp"
+        assert verify_otp_endpoint.method.value == "POST"
+
+        # BUG: This should find 4 response examples but currently finds 0
+        print(f"POST /v1/session:verifyOtp response examples found: {len(verify_otp_endpoint.response_examples)}")
+        assert (
+            len(verify_otp_endpoint.response_examples) == 4
+        ), f"Expected 4 response examples, found {len(verify_otp_endpoint.response_examples)}"
+
+    def test_response_examples_status_code_extraction(self) -> None:
+        """Test that status codes are correctly extracted from response description lines."""
+        loader = MarkdownDocumentationLoader()
+
+        content_with_status_codes = """
+### POST /v1/test
+
+Test endpoint with various status codes.
+
+#### Response Examples
+
+**Success (200 OK):**
+```json
+{
+  "id": "test123",
+  "status": "success"
+}
+```
+
+**Created (201 Created):**
+```json
+{
+  "id": "test456",
+  "status": "created"
+}
+```
+
+**Bad Request (400 Bad Request):**
+```json
+{
+  "error": "Invalid input",
+  "code": "BAD_REQUEST"
+}
+```
+
+**Unauthorized (401 Unauthorized):**
+```json
+{
+  "error": "Authentication required",
+  "code": "UNAUTHORIZED"
+}
+```
+
+**Not Found (404 Not Found):**
+```json
+{
+  "error": "Resource not found",
+  "code": "NOT_FOUND"
+}
+```
+
+**Server Error (500 Internal Server Error):**
+```json
+{
+  "error": "Internal server error",
+  "code": "INTERNAL_ERROR"
+}
+```
+"""
+
+        # Extract endpoints from the content
+        endpoints = loader._extract_endpoints_from_content(content_with_status_codes)
+
+        # Should find 1 endpoint
+        assert len(endpoints) == 1
+
+        endpoint = endpoints[0]
+        assert endpoint.path == "/v1/test"
+        assert endpoint.method.value == "POST"
+
+        # Should find 6 response examples with correct status codes
+        assert len(endpoint.response_examples) == 6
+
+        # Verify status codes are extracted correctly
+        expected_status_codes = [200, 201, 400, 401, 404, 500]
+        expected_descriptions = ["Success", "Created", "Bad Request", "Unauthorized", "Not Found", "Server Error"]
+
+        actual_status_codes = [example.status_code for example in endpoint.response_examples]
+        actual_descriptions = [example.description for example in endpoint.response_examples]
+
+        assert (
+            actual_status_codes == expected_status_codes
+        ), f"Expected {expected_status_codes}, got {actual_status_codes}"
+        assert (
+            actual_descriptions == expected_descriptions
+        ), f"Expected {expected_descriptions}, got {actual_descriptions}"
+
+        # Verify content is parsed correctly
+        for i, example in enumerate(endpoint.response_examples):
+            assert isinstance(example.content, dict)
+            if i < 2:  # Success and Created responses
+                assert "id" in example.content
+                assert "status" in example.content
+            else:  # Error responses
+                assert "error" in example.content
+                assert "code" in example.content
+
+    def test_response_examples_complex_multi_endpoint_structure(self) -> None:
+        """Test response examples detection in complex multi-endpoint files with extensive content."""
+        loader = MarkdownDocumentationLoader()
+
+        # Complex multi-endpoint content that closely matches syneto-doorman structure
+        complex_content = """### POST /v1/session
+
+**Create a new authentication session**
+
+This endpoint authenticates users and creates a session. It supports multiple authentication methods:
+
+1. **Username/Password Authentication**: Standard login for regular users
+2. **PIN Authentication**: Quick access for support personnel
+
+**Authentication Flow:**
+- If OTP is disabled: Returns a session cookie immediately
+- If OTP is enabled: Returns a temporary session cookie and requires OTP verification
+
+**Response Scenarios:**
+- `200 OK`: Session created successfully (OTP disabled)
+- `203 Non-Authoritative Information`: OTP setup required (first-time OTP users)
+- `204 No Content`: Temporary session created, OTP verification needed
+- `401 Unauthorized`: Invalid credentials
+- `429 Too Many Requests`: Rate limited by fail2ban
+
+#### Code Examples
+
+##### cURL
+```bash
+curl -X POST "{base_url}/v1/session" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Real-IP: 192.168.1.100" \\
+  -d '{
+    "username": "admin",
+    "password": "your_password"
+  }'
+```
+
+##### Python
+```python
+import requests
+
+url = "{base_url}/v1/session"
+headers = {
+    "Content-Type": "application/json",
+    "X-Real-IP": "192.168.1.100"
+}
+data = {
+    "username": "admin",
+    "password": "your_password"
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.status_code)
+print(response.cookies.get('session'))
+```
+
+#### Request Examples
+
+**Username/Password Authentication:**
+```json
+{
+  "username": "admin",
+  "password": "your_password"
+}
+```
+
+**PIN Authentication (Support Access):**
+```json
+{
+  "pin": "123456"
+}
+```
+
+#### Response Examples
+
+**Success (200 OK) - Session created:**
+```json
+{
+  "id": "user123",
+  "username": "admin",
+  "fullName": "Administrator",
+  "role": "administrator",
+  "isOtpEnabled": false
+}
+```
+
+**OTP Required (204 No Content) - Temporary session created:**
+```
+HTTP/1.1 204 No Content
+Set-Cookie: temporary_session=temp_token_123; Path=/; HttpOnly; Secure
+Content-Length: 0
+```
+
+**OTP Setup Required (203 Non-Authoritative Information):**
+```json
+{
+  "authenticatorLink": "otpauth://totp/Syneto:admin?secret=JBSWY3DPEHPK3PXP&issuer=Syneto",
+  "secret": "JBSWY3DPEHPK3PXP"
+}
+```
+
+**Authentication Failed (401 Unauthorized):**
+```json
+{
+  "detail": "Invalid credentials"
+}
+```
+
+**Rate Limited (429 Too Many Requests):**
+```json
+{
+  "detail": "Too many authentication attempts. Please try again later."
+}
+```
+
+---
+
+### GET /v1/session
+
+**Get current session information**
+
+Retrieves details about the currently authenticated user based on the session cookie.
+
+#### Response Example
+
+**Success (200 OK):**
+```json
+{
+  "id": "user123",
+  "username": "admin",
+  "fullName": "System Administrator",
+  "role": "administrator"
+}
+```
+
+---
+
+### DELETE /v1/session
+
+**Terminate current session and logout user**
+
+Logs out the current user by invalidating their session cookie.
+
+#### Response Examples
+
+**Success (204 No Content):**
+```
+HTTP/1.1 204 No Content
+Set-Cookie: session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0
+Content-Length: 0
+```
+
+### POST /v1/session:verifyOtp
+
+**Verify One-Time Password (OTP)**
+
+Completes the two-factor authentication process by verifying the OTP code.
+
+**Supported Code Types:**
+- **6-digit TOTP codes**: Time-based codes from authenticator apps
+- **8-digit recovery codes**: Backup codes for account recovery
+
+**Process:**
+1. User provides temporary session token (from initial login)
+2. User submits OTP code
+3. System validates the code
+4. If valid, issues a full session token
+5. If first-time setup, provides recovery codes
+
+**Security Features:**
+- Rate limiting to prevent brute force attacks
+- Automatic account lockout after multiple failures
+- Recovery codes are single-use only
+
+#### Code Examples
+
+##### cURL
+```bash
+curl -X POST "{base_url}/v1/session:verifyOtp" \\
+  -H "Content-Type: application/json" \\
+  -H "Cookie: temporary_session=your_temp_token" \\
+  -H "X-Real-IP: 192.168.1.100" \\
+  -d '{
+    "code": "123456"
+  }'
+```
+
+##### Python
+```python
+import requests
+
+url = "{base_url}/v1/session:verifyOtp"
+headers = {
+    "Content-Type": "application/json",
+    "X-Real-IP": "192.168.1.100"
+}
+cookies = {"temporary_session": "your_temp_token"}
+data = {"code": "123456"}
+
+response = requests.post(url, headers=headers, cookies=cookies, json=data)
+session_cookie = response.cookies.get('session')
+print(f"Session established: {session_cookie}")
+```
+
+#### Request Examples
+
+**OTP Code Verification:**
+```json
+{
+  "code": "123456"
+}
+```
+
+**Recovery Code Usage:**
+```json
+{
+  "code": "12345678"
+}
+```
+
+#### Response Examples
+
+**OTP Verified with Recovery Codes (200 OK) - First-time setup:**
+```json
+{
+  "recoveryCodes": [
+    "12345678",
+    "87654321",
+    "11223344",
+    "44332211",
+    "55667788"
+  ]
+}
+```
+
+**OTP Verified (204 No Content):**
+```
+HTTP/1.1 204 No Content
+Set-Cookie: session=full_session_token_456; Path=/; HttpOnly; Secure; SameSite=Strict
+Content-Length: 0
+```
+
+**Invalid OTP Code (401 Unauthorized):**
+```json
+{
+  "detail": "Invalid OTP code"
+}
+```
+
+**Rate Limited (429 Too Many Requests):**
+```json
+{
+  "detail": "Too many OTP verification attempts. Please try again later."
+}
+```
+"""
+
+        # Extract endpoints from the complex content
+        endpoints = loader._extract_endpoints_from_content(complex_content)
+
+        # Should find 4 endpoints
+        assert len(endpoints) == 4
+
+        # Verify each endpoint has the correct number of response examples
+        post_session = next((ep for ep in endpoints if ep.path == "/v1/session" and ep.method.value == "POST"), None)
+        get_session = next((ep for ep in endpoints if ep.path == "/v1/session" and ep.method.value == "GET"), None)
+        delete_session = next(
+            (ep for ep in endpoints if ep.path == "/v1/session" and ep.method.value == "DELETE"), None
+        )
+        post_verify = next(
+            (ep for ep in endpoints if ep.path == "/v1/session:verifyOtp" and ep.method.value == "POST"), None
+        )
+
+        # POST /v1/session should have 5 response examples
+        assert post_session is not None
+        assert len(post_session.response_examples) == 5
+        status_codes = [ex.status_code for ex in post_session.response_examples]
+        assert 200 in status_codes
+        assert 204 in status_codes
+        assert 203 in status_codes
+        assert 401 in status_codes
+        assert 429 in status_codes
+
+        # GET /v1/session should have 1 response example
+        assert get_session is not None
+        assert len(get_session.response_examples) == 1
+        assert get_session.response_examples[0].status_code == 200
+
+        # DELETE /v1/session should have 1 response example
+        assert delete_session is not None
+        assert len(delete_session.response_examples) == 1
+        assert delete_session.response_examples[0].status_code == 204
+
+        # POST /v1/session:verifyOtp should have 4 response examples
+        assert post_verify is not None
+        assert len(post_verify.response_examples) == 4
+        verify_status_codes = [ex.status_code for ex in post_verify.response_examples]
+        assert 200 in verify_status_codes
+        assert 204 in verify_status_codes
+        assert 401 in verify_status_codes
+        assert 429 in verify_status_codes
+
+    def test_response_examples_edge_cases(self) -> None:
+        """Test response examples detection with various edge cases."""
+        loader = MarkdownDocumentationLoader()
+
+        # Test case 1: Response Examples section with no actual examples
+        content_no_examples = """### POST /v1/test
+
+Test endpoint.
+
+#### Response Examples
+
+This endpoint doesn't have any examples yet.
+"""
+        endpoints = loader._extract_endpoints_from_content(content_no_examples)
+        assert len(endpoints) == 1
+        assert len(endpoints[0].response_examples) == 0
+
+        # Test case 2: Multiple Response Examples headers (should handle the first one)
+        content_multiple_headers = """### POST /v1/test
+
+Test endpoint.
+
+#### Response Examples
+
+**Success (200 OK):**
+```json
+{"status": "ok"}
+```
+
+#### More Response Examples
+
+**Error (400 Bad Request):**
+```json
+{"error": "bad request"}
+```
+"""
+        endpoints = loader._extract_endpoints_from_content(content_multiple_headers)
+        assert len(endpoints) == 1
+        # Should find only the first response example (the second is under a different header)
+        assert len(endpoints[0].response_examples) == 1
+        assert endpoints[0].response_examples[0].status_code == 200
+
+        # Test case 3: Response Examples with mixed content types
+        content_mixed_types = """### POST /v1/test
+
+Test endpoint.
+
+#### Response Examples
+
+**JSON Response (200 OK):**
+```json
+{"data": "json"}
+```
+
+**Plain Text Response (200 OK):**
+```
+Plain text response
+```
+
+**XML Response (200 OK):**
+```xml
+<response>xml</response>
+```
+
+**Empty Response (204 No Content):**
+```
+HTTP/1.1 204 No Content
+Content-Length: 0
+```
+"""
+        endpoints = loader._extract_endpoints_from_content(content_mixed_types)
+        assert len(endpoints) == 1
+        assert len(endpoints[0].response_examples) == 4
+
+        # Verify different content types are handled
+        status_codes = [ex.status_code for ex in endpoints[0].response_examples]
+        assert status_codes.count(200) == 3  # Three 200 responses
+        assert status_codes.count(204) == 1  # One 204 response
+
+        # Test case 4: Response Examples with complex status descriptions
+        content_complex_descriptions = """### POST /v1/test
+
+Test endpoint.
+
+#### Response Examples
+
+**Created Successfully with Additional Processing (201 Created) - Resource created and queued for processing:**
+```json
+{"id": "123", "status": "created"}
+```
+
+**Partial Content Returned Due to Size Limits (206 Partial Content) - Large dataset truncated:**
+```json
+{"data": [], "truncated": true}
+```
+
+**Authentication Required for Protected Resource (401 Unauthorized) - Invalid or missing token:**
+```json
+{"error": "authentication_required"}
+```
+"""
+        endpoints = loader._extract_endpoints_from_content(content_complex_descriptions)
+        assert len(endpoints) == 1
+        assert len(endpoints[0].response_examples) == 3
+
+        # Verify status codes are extracted correctly from complex descriptions
+        status_codes = [ex.status_code for ex in endpoints[0].response_examples]
+        assert 201 in status_codes
+        assert 206 in status_codes
+        assert 401 in status_codes
+
+        # Test case 5: Response Examples interrupted by other sections
+        content_interrupted = """### POST /v1/test
+
+Test endpoint.
+
+#### Response Examples
+
+**Success (200 OK):**
+```json
+{"status": "ok"}
+```
+
+#### Parameters
+
+- `param1` (string): A parameter
+
+#### More Content
+
+Some other content here.
+
+**This should not be parsed as a response example (400 Bad Request):**
+```json
+{"error": "not parsed"}
+```
+"""
+        endpoints = loader._extract_endpoints_from_content(content_interrupted)
+        assert len(endpoints) == 1
+        # Should only find the first response example before the interruption
+        assert len(endpoints[0].response_examples) == 1
+        assert endpoints[0].response_examples[0].status_code == 200

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from .documentation_loader import MarkdownDocumentationLoader
+from .endpoint_analyzer import UnifiedEndpointAnalyzer
 from .openapi_enhancer import OpenAPIEnhancer
 from .types import EndpointDocumentation
 
@@ -51,6 +52,9 @@ class DocumentationLinter:
         # Load documentation
         self.loader = MarkdownDocumentationLoader(docs_directory=str(docs_directory), recursive=recursive)
         self.documentation = self.loader.load_documentation()
+
+        # Create unified analyzer
+        self.analyzer = UnifiedEndpointAnalyzer(openapi_schema, base_url=base_url)
 
         # Create enhancer for testing
         self.enhancer = OpenAPIEnhancer(include_code_samples=True, include_response_examples=True, base_url=base_url)
@@ -166,29 +170,22 @@ class DocumentationLinter:
 
     def _extract_openapi_endpoints(self) -> set[tuple[str, str]]:
         """Extract all endpoints from OpenAPI schema, excluding configured exclusions."""
-        endpoints = set()
+        # Get exclusions from config
+        exclusions = set()
+        if self.config:
+            # Build exclusions set from config
+            for path, methods in self.openapi_schema.get("paths", {}).items():
+                for method in methods.keys():
+                    if method.upper() in ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]:
+                        method_upper = method.upper()
+                        if self.config.should_exclude_endpoint(method_upper, path):
+                            exclusions.add((method_upper, path))
 
-        for path, methods in self.openapi_schema.get("paths", {}).items():
-            for method in methods.keys():
-                if method.upper() in ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]:
-                    method_upper = method.upper()
-
-                    # Check if this endpoint should be excluded
-                    if self.config and self.config.should_exclude_endpoint(method_upper, path):
-                        continue
-
-                    endpoints.add((method_upper, path))
-
-        return endpoints
+        return self.analyzer.extract_openapi_endpoints(exclusions)
 
     def _extract_markdown_endpoints(self) -> set[tuple[str, str]]:
         """Extract all endpoints from markdown documentation."""
-        endpoints = set()
-
-        for endpoint in self.documentation.endpoints:
-            endpoints.add((endpoint.method.value, endpoint.path))
-
-        return endpoints
+        return self.analyzer.extract_documentation_endpoints(self.documentation.endpoints)
 
     def _find_missing_documentation(
         self, openapi_endpoints: set[tuple[str, str]], markdown_endpoints: set[tuple[str, str]]
@@ -219,40 +216,25 @@ class DocumentationLinter:
         incomplete = []
 
         for endpoint in self.documentation.endpoints:
-            issues = []
-
-            # Check for missing description
-            if not endpoint.description or len(endpoint.description.strip()) < 10:
-                issues.append("Missing or very short description")
-
-            # Check for missing summary
-            if not endpoint.summary or len(endpoint.summary.strip()) < 5:
-                issues.append("Missing or very short summary")
+            # Get OpenAPI operation for this endpoint
+            openapi_operation = self.analyzer.get_openapi_operation(endpoint.method.value, endpoint.path)
 
             # Auto-generate code samples if missing
             if not endpoint.code_samples:
                 self._auto_generate_code_samples(endpoint)
-                # Note: We no longer add "No code samples provided" to issues since we auto-generate them
 
-            # Check for missing response examples
-            if not endpoint.response_examples:
-                issues.append("No response examples provided")
+            # Analyze endpoint using unified analyzer
+            analysis = self.analyzer.analyze_endpoint(endpoint, openapi_operation)
 
-            # Check for missing parameters documentation
-            if endpoint.parameters is None or len(endpoint.parameters) == 0:
-                # Check if the path has parameters
-                if "{" in endpoint.path and "}" in endpoint.path:
-                    issues.append("Path has parameters but no parameter documentation")
-
-            if issues:
+            if analysis.quality_issues:
                 incomplete.append(
                     {
                         "method": endpoint.method.value,
                         "path": endpoint.path,
                         "severity": "warning",
-                        "issues": issues,
-                        "completeness_score": self._calculate_completeness_score(endpoint),
-                        "suggestions": self._generate_completion_suggestions(endpoint, issues),
+                        "issues": analysis.quality_issues,
+                        "completeness_score": analysis.completeness_score,
+                        "suggestions": self._generate_completion_suggestions(endpoint, analysis.quality_issues),
                     }
                 )
 
@@ -483,89 +465,35 @@ class DocumentationLinter:
 
     def _find_similar_paths(self, target_path: str, endpoints: set[tuple[str, str]]) -> list[str]:
         """Find similar paths in a set of endpoints."""
-        similar = []
-        target_parts = target_path.split("/")
-
-        for _, path in endpoints:
-            path_parts = path.split("/")
-
-            # Check if paths have similar structure
-            if len(path_parts) == len(target_parts):
-                similarity = sum(
-                    1 for a, b in zip(target_parts, path_parts) if a == b or (a.startswith("{") and b.startswith("{"))
-                )
-                if similarity >= len(target_parts) * 0.7:  # 70% similarity
-                    similar.append(path)
-
+        candidate_paths = [path for _, path in endpoints]
+        similar = self.analyzer.find_similar_paths(target_path, candidate_paths)
         return similar[:3]  # Return top 3 similar paths
 
     def _find_similar_openapi_paths(self, target_path: str, openapi_endpoints: set[tuple[str, str]]) -> list[str]:
         """Find similar paths in OpenAPI endpoints."""
+        candidate_paths = [path for _, path in openapi_endpoints]
+        similar_paths = self.analyzer.find_similar_paths(target_path, candidate_paths)
+
+        # Format with method names for better reporting
         similar = []
-        target_parts = target_path.split("/")
-
-        for method, path in openapi_endpoints:
-            path_parts = path.split("/")
-
-            # Check if paths have similar structure
-            if len(path_parts) == len(target_parts):
-                similarity = sum(
-                    1 for a, b in zip(target_parts, path_parts) if a == b or (a.startswith("{") and b.startswith("{"))
-                )
-                if similarity >= len(target_parts) * 0.7:  # 70% similarity
+        for similar_path in similar_paths[:3]:
+            # Find the method for this path
+            for method, path in openapi_endpoints:
+                if path == similar_path:
                     similar.append(f"{method} {path}")
+                    break
 
-        return similar[:3]  # Return top 3 similar paths
+        return similar
 
     def _get_openapi_operation(self, method: str, path: str) -> dict[str, Any]:
         """Get OpenAPI operation details for an endpoint."""
-        paths = self.openapi_schema.get("paths", {})
-        if not isinstance(paths, dict):
-            return {}
-
-        path_item = paths.get(path, {})
-        if not isinstance(path_item, dict):
-            return {}
-
-        operation = path_item.get(method.lower(), {})
-        if not isinstance(operation, dict):
-            return {}
-
-        return operation
+        return self.analyzer.get_openapi_operation(method, path)
 
     def _calculate_completeness_score(self, endpoint: EndpointDocumentation) -> float:
         """Calculate a completeness score (0-100) for an endpoint."""
-        score = 0
-
-        # Description (40 points) - increased from 30 since we removed code samples
-        if endpoint.description and len(endpoint.description.strip()) >= 50:
-            score += 40
-        elif endpoint.description and len(endpoint.description.strip()) >= 10:
-            score += 20
-
-        # Summary (25 points) - increased from 20 since we removed code samples
-        if endpoint.summary and len(endpoint.summary.strip()) >= 10:
-            score += 25
-        elif endpoint.summary and len(endpoint.summary.strip()) >= 5:
-            score += 15
-
-        # Code samples are auto-generated, so we don't score them anymore
-        # This ensures endpoints always get full points for code samples
-
-        # Response examples (25 points) - increased from 20 since we removed code samples
-        if endpoint.response_examples and len(endpoint.response_examples) >= 2:
-            score += 25
-        elif endpoint.response_examples and len(endpoint.response_examples) >= 1:
-            score += 15
-
-        # Parameters documentation (10 points) - increased from 5 since we removed code samples
-        if "{" in endpoint.path and "}" in endpoint.path:
-            if endpoint.parameters and len(endpoint.parameters) > 0:
-                score += 10
-        else:
-            score += 10  # No parameters needed
-
-        return round(score, 1)
+        # Use the unified analyzer for consistency
+        analysis = self.analyzer.analyze_endpoint(endpoint)
+        return analysis.completeness_score
 
     def _generate_completion_suggestions(self, endpoint: EndpointDocumentation, issues: list[str]) -> list[str]:
         """Generate suggestions for completing documentation."""

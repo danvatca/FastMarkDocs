@@ -267,8 +267,9 @@ Another fake endpoint.
             for item in incomplete:
                 issues_found.extend(item["issues"])
 
-            assert "Missing or very short description" in issues_found
-            assert "Missing or very short summary" in issues_found
+            # Check for the specific error messages from the unified analyzer
+            assert any("Description too short" in issue or "Missing description" in issue for issue in issues_found)
+            assert any("Summary too short" in issue or "Missing summary" in issue for issue in issues_found)
             # Code samples are auto-generated, so they should not be reported as missing
             assert "No code samples provided" not in issues_found
             assert "No response examples provided" in issues_found

@@ -13,6 +13,7 @@ from typing import Any, Optional
 
 from .code_samples import CodeSampleGenerator
 from .documentation_loader import MarkdownDocumentationLoader
+from .endpoint_analyzer import UnifiedEndpointAnalyzer
 from .exceptions import DocumentationLoadError, OpenAPIEnhancementError
 from .types import (
     APILink,
@@ -226,6 +227,9 @@ class OpenAPIEnhancer:
             base_url=base_url, custom_headers=self.custom_headers, code_sample_languages=self.code_sample_languages
         )
 
+        # Will be initialized when enhance_openapi_schema is called
+        self.analyzer: Optional[UnifiedEndpointAnalyzer] = None
+
     def enhance_openapi_schema(
         self, openapi_schema: dict[str, Any], documentation: DocumentationData
     ) -> dict[str, Any]:
@@ -265,6 +269,9 @@ class OpenAPIEnhancer:
         try:
             # Create a deep copy to avoid modifying the original
             enhanced_schema = copy.deepcopy(openapi_schema)
+
+            # Initialize unified analyzer for this schema
+            self.analyzer = UnifiedEndpointAnalyzer(openapi_schema, base_url=self.base_url)
 
             # Track enhancement statistics
             stats = {"endpoints_enhanced": 0, "code_samples_added": 0, "descriptions_enhanced": 0, "examples_added": 0}
@@ -558,39 +565,45 @@ class OpenAPIEnhancer:
         Returns:
             True if paths match
         """
-        # Exact match first
-        if openapi_path == doc_path:
-            return True
+        if self.analyzer:
+            # Use unified analyzer for consistent path matching
+            similarity = self.analyzer._calculate_path_similarity(openapi_path, doc_path)
+            return similarity >= 0.8  # High confidence match
+        else:
+            # Fallback to original path matching logic if analyzer not available
+            # Exact match first
+            if openapi_path == doc_path:
+                return True
 
-        # Normalize paths by removing leading/trailing slashes
-        openapi_normalized = openapi_path.strip("/")
-        doc_normalized = doc_path.strip("/")
+            # Normalize paths by removing leading/trailing slashes
+            openapi_normalized = openapi_path.strip("/")
+            doc_normalized = doc_path.strip("/")
 
-        if openapi_normalized == doc_normalized:
-            return True
+            if openapi_normalized == doc_normalized:
+                return True
 
-        # Check if paths match with different parameter names
-        # e.g., /api/users/{id} should match /api/users/{user_id}
-        openapi_parts = openapi_normalized.split("/")
-        doc_parts = doc_normalized.split("/")
+            # Check if paths match with different parameter names
+            # e.g., /api/users/{id} should match /api/users/{user_id}
+            openapi_parts = openapi_normalized.split("/")
+            doc_parts = doc_normalized.split("/")
 
-        if len(openapi_parts) != len(doc_parts):
-            return False
-
-        for openapi_part, doc_part in zip(openapi_parts, doc_parts):
-            # If both are path parameters, they match regardless of name
-            if (
-                openapi_part.startswith("{")
-                and openapi_part.endswith("}")
-                and doc_part.startswith("{")
-                and doc_part.endswith("}")
-            ):
-                continue
-            # Otherwise they must match exactly
-            elif openapi_part != doc_part:
+            if len(openapi_parts) != len(doc_parts):
                 return False
 
-        return True
+            for openapi_part, doc_part in zip(openapi_parts, doc_parts):
+                # If both are path parameters, they match regardless of name
+                if (
+                    openapi_part.startswith("{")
+                    and openapi_part.endswith("}")
+                    and doc_part.startswith("{")
+                    and doc_part.endswith("}")
+                ):
+                    continue
+                # Otherwise they must match exactly
+                elif openapi_part != doc_part:
+                    return False
+
+            return True
 
     def _methods_match(self, openapi_method: str, doc_method: HTTPMethod) -> bool:
         """

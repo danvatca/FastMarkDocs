@@ -448,7 +448,7 @@ class MarkdownDocumentationLoader:
                         code_samples.extend(additional_samples)
 
                 # Extract response examples from this section
-                response_examples = self._extract_response_examples(section)
+                response_examples: list[ResponseExample] = self._extract_response_examples(section)
 
                 # If no response examples in this section, check subsequent section too
                 if not response_examples and i + 1 < len(sections):
@@ -545,65 +545,128 @@ class MarkdownDocumentationLoader:
         Returns:
             List of response examples
         """
-        response_examples = []
+        response_examples: list[ResponseExample] = []
         lines = content.split("\n")
 
         in_response_section = False
         in_code_block = False
         current_code: list[str] = []
         current_status = 200  # Default status code
+        current_description = ""  # Current response description
 
-        for line in lines:
-            # Check for Response Examples section
-            if re.match(r"^#{3,4}\s*Response\s+Examples?", line, re.IGNORECASE):
-                in_response_section = True
-                continue
+        for line_num, line in enumerate(lines, 1):
+            try:
+                # Check for Response Examples section (more flexible matching)
+                if re.match(r"^#{3,4}\s*Response\s+Examples?", line, re.IGNORECASE):
+                    in_response_section = True
+                    continue
 
-            # Check for next section (exit response examples)
-            if in_response_section and re.match(r"^#{3,4}\s+", line):
-                in_response_section = False
-                continue
+                # Check for next section (exit response examples)
+                if in_response_section and re.match(r"^#{3,4}\s+", line):
+                    # Before exiting, handle any unclosed code block
+                    if in_code_block and current_code:
+                        self._finalize_response_example(
+                            response_examples, current_code, current_status, current_description
+                        )
+                        current_code = []
+                        in_code_block = False
+                    in_response_section = False
+                    continue
 
-            if in_response_section:
-                # Check for code block start
-                if line.strip().startswith("```"):
-                    if in_code_block:
-                        # End of code block - create response example
-                        if current_code:
-                            content_str = "\n".join(current_code).strip()
-                            # Try to parse JSON content
-                            try:
-                                import json
-
-                                content_dict = json.loads(content_str)
-                            except (json.JSONDecodeError, ValueError):
-                                # If not valid JSON, store as string in a wrapper
-                                content_dict = {"raw_content": content_str}
-
-                            response_examples.append(
-                                ResponseExample(
-                                    status_code=current_status,
-                                    description=f"Response example with status {current_status}",
-                                    content=content_dict,
-                                )
+                if in_response_section:
+                    # Check for response description lines with status codes
+                    # Enhanced pattern to handle more variations
+                    status_match = re.search(r".*\((\d+).*\).*:", line)
+                    if status_match and line.strip().startswith("**") and line.strip().endswith(":**"):
+                        # Before starting new response, finalize any pending code block
+                        if in_code_block and current_code:
+                            self._finalize_response_example(
+                                response_examples, current_code, current_status, current_description
                             )
                             current_code = []
-                        in_code_block = False
-                    else:
-                        # Start of code block
-                        in_code_block = True
-                        # Check for status code in the line (e.g., "```json 201")
-                        parts = line.strip().split()
-                        if len(parts) > 1 and parts[1].isdigit():
-                            current_status = int(parts[1])
+                            in_code_block = False
+
+                        current_status = int(status_match.group(1))
+                        # Extract description from the line with better parsing
+                        desc_match = re.search(r"\*\*(.*?)\s*\(\d+.*\):", line)
+                        if desc_match:
+                            current_description = desc_match.group(1).strip()
                         else:
-                            current_status = 200
-                elif in_code_block:
-                    current_code.append(line)
+                            # Fallback: extract everything before the status code
+                            fallback_match = re.search(r"\*\*(.*?)\s*\(", line)
+                            current_description = (
+                                fallback_match.group(1).strip()
+                                if fallback_match
+                                else f"Response with status {current_status}"
+                            )
+                        continue
+
+                    # Check for code block start/end
+                    if line.strip().startswith("```"):
+                        if in_code_block:
+                            # End of code block - create response example
+                            if current_code:
+                                self._finalize_response_example(
+                                    response_examples, current_code, current_status, current_description
+                                )
+                                current_code = []
+                            in_code_block = False
+                            # Reset description for next example
+                            current_description = ""
+                        else:
+                            # Start of code block
+                            in_code_block = True
+                            # Check for status code in the line (e.g., "```json 201")
+                            parts = line.strip().split()
+                            if len(parts) > 1 and parts[1].isdigit():
+                                current_status = int(parts[1])
+                                current_description = f"Response with status {current_status}"
+                            # If no status code in code block line and no previous description, use default
+                            elif not current_description:
+                                current_status = 200
+                                current_description = f"Response example with status {current_status}"
+                    elif in_code_block:
+                        current_code.append(line)
+
+            except (ValueError, AttributeError, IndexError) as e:
+                # Log parsing errors but continue processing
+                # This prevents a single malformed line from breaking the entire parsing
+                import warnings
+
+                warnings.warn(
+                    f"Error parsing response example at line {line_num}: {str(e)}. " f"Line content: {repr(line)}",
+                    stacklevel=2,
+                )
+                continue
 
         # Handle case where code block is at end of content
         if in_code_block and current_code:
+            self._finalize_response_example(response_examples, current_code, current_status, current_description)
+
+        return response_examples
+
+    def _finalize_response_example(
+        self,
+        response_examples: list[ResponseExample],
+        current_code: list[str],
+        current_status: int,
+        current_description: str,
+    ) -> None:
+        """
+        Helper method to finalize and add a response example.
+
+        Args:
+            response_examples: List to append the example to
+            current_code: Lines of code content
+            current_status: HTTP status code
+            current_description: Description of the response
+        """
+        try:
             content_str = "\n".join(current_code).strip()
+            if not content_str:
+                # Skip empty code blocks
+                return
+
             # Try to parse JSON content
             try:
                 import json
@@ -616,12 +679,15 @@ class MarkdownDocumentationLoader:
             response_examples.append(
                 ResponseExample(
                     status_code=current_status,
-                    description=f"Response example with status {current_status}",
+                    description=current_description or f"Response example with status {current_status}",
                     content=content_dict,
                 )
             )
+        except Exception as e:
+            # Log but don't fail on individual example processing errors
+            import warnings
 
-        return response_examples
+            warnings.warn(f"Error finalizing response example with status {current_status}: {str(e)}", stacklevel=2)
 
     def _extract_parameters(self, content: str) -> list[ParameterDocumentation]:
         """
