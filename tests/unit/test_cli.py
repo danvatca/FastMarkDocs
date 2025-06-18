@@ -13,6 +13,7 @@ import pytest
 
 from fastmarkdocs.linter import DocumentationLinter
 from fastmarkdocs.linter_cli import LinterConfig, find_config_file, format_results, main, run_spec_generator
+from fastmarkdocs.types import DocumentationData, EndpointDocumentation, HTTPMethod
 
 
 class TestDocumentationLinter:
@@ -2137,3 +2138,65 @@ curl /users
 
             # Should have 100% coverage since excluded endpoints are not counted
             assert results["statistics"]["documentation_coverage_percentage"] == 100
+
+    def test_exclusion_prevents_orphaned_documentation_reports(self):
+        """Test that excluded endpoints are not reported as orphaned documentation."""
+        # Mock OpenAPI schema with only /users endpoint (no /health)
+        openapi_schema = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {"/users": {"get": {"summary": "Get users", "responses": {"200": {"description": "Success"}}}}},
+        }
+
+        # Create documentation with both /users and /health endpoints
+        endpoints = [
+            EndpointDocumentation(
+                method=HTTPMethod.GET, path="/users", summary="Get users", description="Get all users from the system"
+            ),
+            EndpointDocumentation(
+                method=HTTPMethod.GET, path="/health", summary="Health check", description="Health check endpoint"
+            ),
+        ]
+
+        documentation = DocumentationData(endpoints=endpoints)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create linter with real temp directory
+            linter = DocumentationLinter(openapi_schema, temp_dir)
+
+            # Override the documentation with our test data
+            linter.documentation = documentation
+
+            # Test without exclusions - /health should be orphaned
+            results_without_exclusions = linter.lint()
+            orphaned_without = results_without_exclusions["orphaned_documentation"]
+
+            # Should find /health as orphaned
+            health_orphaned = any(
+                orphan["method"] == "GET" and orphan["path"] == "/health" for orphan in orphaned_without
+            )
+            assert health_orphaned, "Expected /health to be reported as orphaned without exclusions"
+
+            # Test with exclusions - /health should NOT be orphaned
+            config = LinterConfig()
+            config.exclude_endpoints = [{"path": "/health", "methods": ["GET"]}]
+            linter.config = config
+
+            results_with_exclusions = linter.lint()
+            orphaned_with = results_with_exclusions["orphaned_documentation"]
+
+            # Should NOT find /health as orphaned
+            health_orphaned_with_exclusions = any(
+                orphan["method"] == "GET" and orphan["path"] == "/health" for orphan in orphaned_with
+            )
+            assert (
+                not health_orphaned_with_exclusions
+            ), "Expected /health NOT to be reported as orphaned with exclusions"
+
+            # Verify statistics are consistent
+            stats = results_with_exclusions["statistics"]
+            assert stats["total_documented_endpoints"] == 1, "Should count only non-excluded documented endpoints"
+            assert stats["total_openapi_endpoints"] == 1, "Should count only non-excluded OpenAPI endpoints"
+            assert (
+                stats["documentation_coverage_percentage"] == 100.0
+            ), "Should show 100% coverage when excluding /health"

@@ -184,8 +184,21 @@ class DocumentationLinter:
         return self.analyzer.extract_openapi_endpoints(exclusions)
 
     def _extract_markdown_endpoints(self) -> set[tuple[str, str]]:
-        """Extract all endpoints from markdown documentation."""
-        return self.analyzer.extract_documentation_endpoints(self.documentation.endpoints)
+        """Extract all endpoints from markdown documentation, excluding configured exclusions."""
+        # Get all endpoints from documentation
+        all_endpoints = self.analyzer.extract_documentation_endpoints(self.documentation.endpoints)
+
+        # Apply exclusions if config is available
+        if self.config:
+            excluded_endpoints = set()
+            for method, path in all_endpoints:
+                if self.config.should_exclude_endpoint(method, path):
+                    excluded_endpoints.add((method, path))
+
+            # Return endpoints minus exclusions
+            return all_endpoints - excluded_endpoints
+
+        return all_endpoints
 
     def _find_missing_documentation(
         self, openapi_endpoints: set[tuple[str, str]], markdown_endpoints: set[tuple[str, str]]
@@ -345,11 +358,6 @@ class DocumentationLinter:
 
         for method, path in markdown_endpoints:
             if (method, path) not in openapi_endpoints:
-                # Check if this endpoint is excluded by configuration
-                if self.config and self.config.should_exclude_endpoint(method, path):
-                    # Skip excluded endpoints - they're not truly orphaned
-                    continue
-
                 # Check if this is already identified as a common mistake
                 similar_openapi = self._find_similar_openapi_paths(path, openapi_endpoints)
 
