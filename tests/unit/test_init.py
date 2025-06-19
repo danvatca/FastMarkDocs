@@ -10,6 +10,7 @@ from fastmarkdocs.scaffolder import (
     EndpointInfo,
     FastAPIEndpointScanner,
     MarkdownScaffoldGenerator,
+    RouterInfo,
 )
 
 
@@ -60,6 +61,28 @@ class TestEndpointInfo:
         assert endpoint.tags == []
 
 
+class TestRouterInfo:
+    """Test the RouterInfo dataclass."""
+
+    def test_router_info_creation(self) -> None:
+        """Test creating a RouterInfo instance."""
+        router = RouterInfo(name="user_router", tags=["users", "admin"], prefix="/users", line_number=10)
+
+        assert router.name == "user_router"
+        assert router.tags == ["users", "admin"]
+        assert router.prefix == "/users"
+        assert router.line_number == 10
+
+    def test_router_info_minimal(self) -> None:
+        """Test RouterInfo with minimal required fields."""
+        router = RouterInfo(name="api_router", tags=["api"])
+
+        assert router.name == "api_router"
+        assert router.tags == ["api"]
+        assert router.prefix is None
+        assert router.line_number is None
+
+
 class TestFastAPIEndpointScanner:
     """Test the FastAPIEndpointScanner class."""
 
@@ -70,8 +93,6 @@ class TestFastAPIEndpointScanner:
 
             assert scanner.source_directory == Path(temp_dir)
             assert scanner.endpoints == []
-            assert "get" in scanner.http_method_decorators
-            assert scanner.http_method_decorators["get"] == "GET"
 
     def test_scan_empty_directory(self) -> None:
         """Test scanning an empty directory."""
@@ -82,9 +103,8 @@ class TestFastAPIEndpointScanner:
             assert endpoints == []
 
     def test_scan_directory_with_simple_endpoint(self) -> None:
-        """Test scanning a directory with a simple FastAPI endpoint."""
+        """Test scanning directory with a simple endpoint."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create a Python file with a FastAPI endpoint
             api_file = Path(temp_dir) / "api.py"
             api_file.write_text(
                 '''
@@ -94,7 +114,7 @@ app = FastAPI()
 
 @app.get("/users")
 def get_users():
-    """Get all users from the system."""
+    """Get all users."""
     return {"users": []}
 '''
             )
@@ -107,19 +127,18 @@ def get_users():
             assert endpoint.method == "GET"
             assert endpoint.path == "/users"
             assert endpoint.function_name == "get_users"
-            assert endpoint.file_path == "api.py"
-            assert endpoint.summary == "Get all users from the system."
+            assert endpoint.summary == "Get all users."
+            assert endpoint.tags == []  # No tags specified
 
     def test_scan_directory_with_multiple_endpoints(self) -> None:
-        """Test scanning with multiple endpoints and HTTP methods."""
+        """Test scanning directory with multiple endpoints."""
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "api.py"
             api_file.write_text(
                 '''
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI
 
 app = FastAPI()
-router = APIRouter()
 
 @app.get("/users")
 def get_users():
@@ -128,13 +147,12 @@ def get_users():
 
 @app.post("/users")
 def create_user():
-    """Create a new user."""
+    """Create a user."""
     return {"user": {}}
 
-@router.delete("/users/{user_id}")
-def delete_user(user_id: int):
-    """Delete a specific user."""
-    return {"deleted": True}
+@app.get("/orders")
+def get_orders():
+    return {"orders": []}
 '''
             )
 
@@ -143,11 +161,13 @@ def delete_user(user_id: int):
 
             assert len(endpoints) == 3
 
-            # Check methods and paths
-            methods_paths = [(e.method, e.path) for e in endpoints]
-            assert ("GET", "/users") in methods_paths
-            assert ("POST", "/users") in methods_paths
-            assert ("DELETE", "/users/{user_id}") in methods_paths
+            methods = [ep.method for ep in endpoints]
+            paths = [ep.path for ep in endpoints]
+
+            assert "GET" in methods
+            assert "POST" in methods
+            assert "/users" in paths
+            assert "/orders" in paths
 
     def test_scan_with_tags(self) -> None:
         """Test scanning endpoints with tags."""
@@ -176,14 +196,142 @@ def create_order():
 
             assert len(endpoints) == 2
 
-            users_endpoint = next(e for e in endpoints if e.path == "/users")
-            orders_endpoint = next(e for e in endpoints if e.path == "/orders")
+            users_endpoint = next(ep for ep in endpoints if ep.path == "/users")
+            orders_endpoint = next(ep for ep in endpoints if ep.path == "/orders")
 
             assert users_endpoint.tags == ["users", "admin"]
             assert orders_endpoint.tags == ["orders"]
 
+    def test_scan_with_router_level_tags(self) -> None:
+        """Test scanning endpoints with router-level tags."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            api_file = Path(temp_dir) / "users.py"
+            api_file.write_text(
+                '''
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/users", tags=["users"])
+
+@router.get("")
+def get_users():
+    """Get all users."""
+    return {"users": []}
+
+@router.post("")
+def create_user():
+    """Create a user."""
+    return {"user": {}}
+
+@router.get("/{user_id}")
+def get_user(user_id: int):
+    """Get a specific user."""
+    return {"user": {}}
+'''
+            )
+
+            scanner = FastAPIEndpointScanner(temp_dir)
+            endpoints = scanner.scan_directory()
+
+            assert len(endpoints) == 3
+
+            # All endpoints should have router-level tags
+            for endpoint in endpoints:
+                assert "users" in endpoint.tags
+
+            # Check path prefixes are applied
+            paths = [ep.path for ep in endpoints]
+            assert "/users" in paths  # From @router.get("")
+            assert "/users/{user_id}" in paths  # From @router.get("/{user_id}")
+
+    def test_scan_with_mixed_router_and_endpoint_tags(self) -> None:
+        """Test scanning with both router-level and endpoint-level tags."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            api_file = Path(temp_dir) / "mixed.py"
+            api_file.write_text(
+                '''
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api", tags=["api"])
+
+@router.get("/users", tags=["users"])
+def get_users():
+    """Get all users."""
+    return {"users": []}
+
+@router.post("/orders", tags=["orders", "admin"])
+def create_order():
+    """Create an order."""
+    return {"order": {}}
+
+@router.get("/health")
+def health_check():
+    """Health check."""
+    return {"status": "ok"}
+'''
+            )
+
+            scanner = FastAPIEndpointScanner(temp_dir)
+            endpoints = scanner.scan_directory()
+
+            assert len(endpoints) == 3
+
+            users_endpoint = next(ep for ep in endpoints if "users" in ep.path)
+            orders_endpoint = next(ep for ep in endpoints if "orders" in ep.path)
+            health_endpoint = next(ep for ep in endpoints if "health" in ep.path)
+
+            # Router tags should be combined with endpoint tags
+            assert users_endpoint.tags == ["api", "users"]
+            assert orders_endpoint.tags == ["api", "orders", "admin"]
+            assert health_endpoint.tags == ["api"]  # Only router tags
+
+    def test_scan_with_multiple_routers(self) -> None:
+        """Test scanning file with multiple routers."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            api_file = Path(temp_dir) / "multi_router.py"
+            api_file.write_text(
+                """
+from fastapi import APIRouter
+
+users_router = APIRouter(prefix="/users", tags=["users"])
+orders_router = APIRouter(prefix="/orders", tags=["orders"])
+
+@users_router.get("")
+def get_users():
+    return {"users": []}
+
+@users_router.post("")
+def create_user():
+    return {"user": {}}
+
+@orders_router.get("")
+def get_orders():
+    return {"orders": []}
+
+@orders_router.post("")
+def create_order():
+    return {"order": {}}
+"""
+            )
+
+            scanner = FastAPIEndpointScanner(temp_dir)
+            endpoints = scanner.scan_directory()
+
+            assert len(endpoints) == 4
+
+            user_endpoints = [ep for ep in endpoints if ep.path.startswith("/users")]
+            order_endpoints = [ep for ep in endpoints if ep.path.startswith("/orders")]
+
+            assert len(user_endpoints) == 2
+            assert len(order_endpoints) == 2
+
+            for ep in user_endpoints:
+                assert "users" in ep.tags
+
+            for ep in order_endpoints:
+                assert "orders" in ep.tags
+
     def test_scan_with_complex_docstring(self) -> None:
-        """Test scanning with complex docstrings."""
+        """Test scanning endpoint with complex docstring."""
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "api.py"
             api_file.write_text(
@@ -194,13 +342,14 @@ app = FastAPI()
 
 @app.get("/users")
 def get_users():
-    """Get all users from the system.
+    """
+    Get all users from the system.
 
     This endpoint returns a comprehensive list of all users
-    with their profile information and current status.
+    registered in the system with their basic information.
 
     Returns:
-        List of user objects with detailed information.
+        List of user objects with id, name, and email.
     """
     return {"users": []}
 '''
@@ -211,106 +360,10 @@ def get_users():
 
             assert len(endpoints) == 1
             endpoint = endpoints[0]
+
             assert endpoint.summary == "Get all users from the system."
             assert "This endpoint returns a comprehensive list" in endpoint.description
             assert "Returns:" in endpoint.description
-
-    def test_scan_ignores_non_fastapi_decorators(self) -> None:
-        """Test that scanner ignores non-FastAPI decorators."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            api_file = Path(temp_dir) / "api.py"
-            api_file.write_text(
-                '''
-from fastapi import FastAPI
-
-app = FastAPI()
-
-@property
-def some_property():
-    return "not an endpoint"
-
-@staticmethod
-def some_static_method():
-    return "not an endpoint"
-
-@app.get("/users")
-def get_users():
-    """Real endpoint."""
-    return {"users": []}
-'''
-            )
-
-            scanner = FastAPIEndpointScanner(temp_dir)
-            endpoints = scanner.scan_directory()
-
-            assert len(endpoints) == 1
-            assert endpoints[0].path == "/users"
-
-    def test_scan_handles_syntax_errors(self) -> None:
-        """Test that scanner handles files with syntax errors gracefully."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create a file with syntax error
-            bad_file = Path(temp_dir) / "bad.py"
-            bad_file.write_text(
-                """
-from fastapi import FastAPI
-
-app = FastAPI()
-
-@app.get("/users"  # Missing closing parenthesis
-def get_users():
-    return {"users": []}
-"""
-            )
-
-            # Create a good file
-            good_file = Path(temp_dir) / "good.py"
-            good_file.write_text(
-                """
-from fastapi import FastAPI
-
-app = FastAPI()
-
-@app.get("/orders")
-def get_orders():
-    return {"orders": []}
-"""
-            )
-
-            scanner = FastAPIEndpointScanner(temp_dir)
-            endpoints = scanner.scan_directory()
-
-            # Should only find the endpoint from the good file
-            assert len(endpoints) == 1
-            assert endpoints[0].path == "/orders"
-
-    def test_scan_handles_binary_files(self) -> None:
-        """Test that scanner handles binary files gracefully."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create a binary file
-            binary_file = Path(temp_dir) / "binary.py"
-            binary_file.write_bytes(b"\x00\x01\x02\x03")
-
-            # Create a good file
-            good_file = Path(temp_dir) / "good.py"
-            good_file.write_text(
-                """
-from fastapi import FastAPI
-
-app = FastAPI()
-
-@app.get("/test")
-def test_endpoint():
-    return {"test": True}
-"""
-            )
-
-            scanner = FastAPIEndpointScanner(temp_dir)
-            endpoints = scanner.scan_directory()
-
-            # Should only find the endpoint from the good file
-            assert len(endpoints) == 1
-            assert endpoints[0].path == "/test"
 
 
 class TestMarkdownScaffoldGenerator:

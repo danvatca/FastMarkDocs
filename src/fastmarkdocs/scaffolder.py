@@ -31,6 +31,16 @@ class EndpointInfo:
             self.tags = []
 
 
+@dataclass
+class RouterInfo:
+    """Information about a discovered APIRouter."""
+
+    name: str
+    tags: list[str]
+    prefix: Optional[str] = None
+    line_number: Optional[int] = None
+
+
 class FastAPIEndpointScanner:
     """Scanner for discovering FastAPI endpoints in Python source code."""
 
@@ -38,75 +48,124 @@ class FastAPIEndpointScanner:
         """Initialize the scanner with a source directory."""
         self.source_directory = Path(source_directory)
         self.endpoints: list[EndpointInfo] = []
-
-        # Common FastAPI decorators and their HTTP methods
         self.http_method_decorators = {
             "get": "GET",
             "post": "POST",
             "put": "PUT",
-            "delete": "DELETE",
             "patch": "PATCH",
+            "delete": "DELETE",
             "head": "HEAD",
             "options": "OPTIONS",
             "trace": "TRACE",
         }
 
     def scan_directory(self) -> list[EndpointInfo]:
-        """Scan the source directory for FastAPI endpoints."""
+        """Scan the directory for FastAPI endpoints."""
         self.endpoints = []
 
-        # Find all Python files recursively
-        python_files = list(self.source_directory.rglob("*.py"))
-
-        for file_path in python_files:
+        for file_path in self.source_directory.rglob("*.py"):
             try:
                 self._scan_file(file_path)
-            except Exception as e:
-                print(f"Warning: Could not scan {file_path}: {e}")
+            except (SyntaxError, UnicodeDecodeError):
+                # Skip files with syntax errors or encoding issues
                 continue
 
         return self.endpoints
 
     def _scan_file(self, file_path: Path) -> None:
-        """Scan a single Python file for FastAPI endpoints."""
+        """Scan a single Python file for endpoints."""
         try:
             with open(file_path, encoding="utf-8") as f:
                 content = f.read()
-        except UnicodeDecodeError:
-            # Skip binary files
-            return
 
-        try:
             tree = ast.parse(content)
-        except SyntaxError:
-            # Skip files with syntax errors
-            return
 
-        # Visit all nodes in the AST
+            # First pass: discover routers and their tags
+            routers = self._discover_routers(tree)
+
+            # Second pass: discover endpoints and associate with router tags
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef):
+                    endpoint_info = self._extract_endpoint_info(node, file_path, content, routers)
+                    if endpoint_info:
+                        self.endpoints.append(endpoint_info)
+
+        except Exception:
+            # Skip files that can't be processed
+            pass
+
+    def _discover_routers(self, tree: ast.AST) -> dict[str, RouterInfo]:
+        """Discover APIRouter definitions and extract their tags."""
+        routers: dict[str, RouterInfo] = {}
+
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                endpoint_info = self._extract_endpoint_info(node, file_path, content)
-                if endpoint_info:
-                    self.endpoints.append(endpoint_info)
+            if isinstance(node, ast.Assign):
+                # Look for router = APIRouter(...) assignments
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        router_name = target.id
+
+                        if isinstance(node.value, ast.Call):
+                            # Check if it's an APIRouter call
+                            if self._is_api_router_call(node.value):
+                                router_info = self._extract_router_info(node.value, router_name, node.lineno)
+                                if router_info:
+                                    routers[router_name] = router_info
+
+        return routers
+
+    def _is_api_router_call(self, call_node: ast.Call) -> bool:
+        """Check if a call node is creating an APIRouter."""
+        if isinstance(call_node.func, ast.Name):
+            return call_node.func.id == "APIRouter"
+        elif isinstance(call_node.func, ast.Attribute):
+            return call_node.func.attr == "APIRouter"
+        return False
+
+    def _extract_router_info(self, call_node: ast.Call, router_name: str, line_number: int) -> Optional[RouterInfo]:
+        """Extract information from an APIRouter constructor call."""
+        tags = []
+        prefix = None
+
+        # Extract tags and prefix from keyword arguments
+        for keyword in call_node.keywords:
+            if keyword.arg == "tags":
+                if isinstance(keyword.value, ast.List):
+                    for elt in keyword.value.elts:
+                        if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                            tags.append(elt.value)
+            elif keyword.arg == "prefix":
+                if isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+                    prefix = keyword.value.value
+
+        if tags:  # Only create RouterInfo if tags are found
+            return RouterInfo(name=router_name, tags=tags, prefix=prefix, line_number=line_number)
+
+        return None
 
     def _extract_endpoint_info(
-        self, func_node: ast.FunctionDef, file_path: Path, content: str
+        self, func_node: ast.FunctionDef, file_path: Path, content: str, routers: dict[str, RouterInfo]
     ) -> Optional[EndpointInfo]:
-        """Extract endpoint information from a function node."""
-        # Look for FastAPI decorators
+        """Extract endpoint information from a function definition."""
         for decorator in func_node.decorator_list:
-            endpoint_info = self._parse_decorator(decorator, func_node, file_path, content)
+            endpoint_info = self._parse_decorator(decorator, func_node, file_path, content, routers)
             if endpoint_info:
                 return endpoint_info
 
         return None
 
     def _parse_decorator(
-        self, decorator: ast.AST, func_node: ast.FunctionDef, file_path: Path, content: str
+        self,
+        decorator: ast.AST,
+        func_node: ast.FunctionDef,
+        file_path: Path,
+        content: str,
+        routers: dict[str, RouterInfo],
     ) -> Optional[EndpointInfo]:
         """Parse a decorator to extract endpoint information."""
         method = None
         path = None
+        router_tags = []
 
         # Handle different decorator patterns
         if isinstance(decorator, ast.Call):
@@ -120,17 +179,37 @@ class FastAPIEndpointScanner:
                     if decorator.args and isinstance(decorator.args[0], ast.Constant):
                         path = decorator.args[0].value
 
+                    # Check if this is a router-based endpoint
+                    if isinstance(decorator.func.value, ast.Name):
+                        router_name = decorator.func.value.id
+                        if router_name in routers:
+                            router_info = routers[router_name]
+                            router_tags = router_info.tags.copy()
+
+                            # Combine router prefix with endpoint path
+                            if router_info.prefix:
+                                # Handle prefix combination
+                                prefix = router_info.prefix.rstrip("/")
+                                endpoint_path = path.lstrip("/") if path else ""
+                                if endpoint_path:
+                                    path = f"{prefix}/{endpoint_path}"
+                                else:
+                                    path = prefix
+
         elif isinstance(decorator, ast.Attribute):
             # @app.get (without parentheses - less common)
             method_name = decorator.attr
             if method_name in self.http_method_decorators:
                 method = self.http_method_decorators[method_name]
 
-        if method and path:
+        if method and path is not None:
             # Extract additional information
             docstring = ast.get_docstring(func_node)
             summary, description = self._parse_docstring(docstring)
-            tags = self._extract_tags_from_decorator(decorator)
+            endpoint_tags = self._extract_tags_from_decorator(decorator)
+
+            # Combine router tags with endpoint tags (endpoint tags take precedence)
+            combined_tags = router_tags + [tag for tag in endpoint_tags if tag not in router_tags]
 
             return EndpointInfo(
                 method=method,
@@ -141,7 +220,7 @@ class FastAPIEndpointScanner:
                 docstring=docstring,
                 summary=summary,
                 description=description,
-                tags=tags,
+                tags=combined_tags,
             )
 
         return None
