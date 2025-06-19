@@ -163,9 +163,10 @@ class FastAPIEndpointScanner:
                     if endpoint_infos:
                         self.endpoints.extend(endpoint_infos)
 
-        except Exception:
-            # Skip files that can't be processed
-            pass
+        except (SyntaxError, UnicodeDecodeError, OSError):
+            # Skip files with syntax errors, encoding issues, or file access problems
+            # These are expected when scanning directories with non-Python files or invalid Python code
+            return
 
     def _discover_routers(self, tree: ast.AST) -> dict[str, RouterInfo]:
         """Discover APIRouter definitions and extract their tags."""
