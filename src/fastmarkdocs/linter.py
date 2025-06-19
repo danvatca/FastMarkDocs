@@ -662,7 +662,8 @@ class DocumentationLinter:
                 + total_incomplete
                 + total_mistakes
                 + total_orphaned
-                + total_enhancement_failures,
+                + total_enhancement_failures
+                + total_todos,
             },
         }
 

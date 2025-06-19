@@ -539,22 +539,32 @@ class MarkdownScaffoldGenerator:
 
     def generate_scaffolding(self, endpoints: list[EndpointInfo]) -> dict[str, str]:
         """Generate markdown scaffolding for discovered endpoints."""
-        if not endpoints:
-            return {}
-
-        # Group endpoints by tags or create a general file
-        grouped_endpoints = self._group_endpoints(endpoints)
         generated_files = {}
 
-        for group_name, group_endpoints in grouped_endpoints.items():
-            file_content = self._generate_markdown_content(group_name, group_endpoints)
-            file_path = self.output_directory / f"{group_name}.md"
+        # Always generate general_docs.md
+        general_docs_content = self._generate_general_docs()
+        general_docs_path = self.output_directory / "general_docs.md"
 
-            # Write the file
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(file_content)
+        # Write general docs file
+        with open(general_docs_path, "w", encoding="utf-8") as f:
+            f.write(general_docs_content)
 
-            generated_files[str(file_path)] = file_content
+        generated_files[str(general_docs_path)] = general_docs_content
+
+        # Generate endpoint-specific documentation if endpoints exist
+        if endpoints:
+            # Group endpoints by tags or create a general file
+            grouped_endpoints = self._group_endpoints(endpoints)
+
+            for group_name, group_endpoints in grouped_endpoints.items():
+                file_content = self._generate_markdown_content(group_name, group_endpoints)
+                file_path = self.output_directory / f"{group_name}.md"
+
+                # Write the file
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(file_content)
+
+                generated_files[str(file_path)] = file_content
 
         return generated_files
 
@@ -675,6 +685,310 @@ class MarkdownScaffoldGenerator:
         lines.append("")
 
         lines.append("---")
+        lines.append("")
+
+        return "\n".join(lines)
+
+    def _generate_general_docs(self) -> str:
+        """Generate general API documentation with TODO items for important sections."""
+        lines = []
+
+        # Header
+        lines.append("# General API Documentation")
+        lines.append("")
+        lines.append("This document contains general information about the API that applies to all endpoints.")
+        lines.append("This documentation was generated automatically by fmd-init.")
+        lines.append("Please review and enhance the content below.")
+        lines.append("")
+
+        # Overview section
+        lines.append("## Overview")
+        lines.append("")
+        lines.append("TODO: Add a brief overview of your API, its purpose, and main functionality.")
+        lines.append("")
+        lines.append("### Key Features")
+        lines.append("")
+        lines.append("TODO: List the main features and capabilities of your API:")
+        lines.append("- Feature 1")
+        lines.append("- Feature 2")
+        lines.append("- Feature 3")
+        lines.append("")
+
+        # Base URL section
+        lines.append("## Base URL")
+        lines.append("")
+        lines.append("TODO: Specify your API's base URL(s):")
+        lines.append("")
+        lines.append("```")
+        lines.append("Production: https://api.example.com")
+        lines.append("Staging: https://staging-api.example.com")
+        lines.append("Development: http://localhost:8000")
+        lines.append("```")
+        lines.append("")
+
+        # Authentication section
+        lines.append("## Authentication")
+        lines.append("")
+        lines.append("TODO: Document your authentication mechanism. Common approaches include:")
+        lines.append("")
+        lines.append("### API Keys")
+        lines.append("")
+        lines.append("TODO: If using API keys, document how to obtain and use them:")
+        lines.append("")
+        lines.append("```bash")
+        lines.append('curl -H "X-API-Key: your_api_key" https://api.example.com/endpoint')
+        lines.append("```")
+        lines.append("")
+        lines.append("### Bearer Tokens")
+        lines.append("")
+        lines.append("TODO: If using bearer tokens (JWT, OAuth), document the authentication flow:")
+        lines.append("")
+        lines.append("```bash")
+        lines.append('curl -H "Authorization: Bearer your_token" https://api.example.com/endpoint')
+        lines.append("```")
+        lines.append("")
+        lines.append("### Authentication Endpoints")
+        lines.append("")
+        lines.append("TODO: Document authentication-related endpoints:")
+        lines.append("- Login/token generation")
+        lines.append("- Token refresh")
+        lines.append("- Logout/token revocation")
+        lines.append("")
+
+        # Request/Response Format section
+        lines.append("## Request and Response Format")
+        lines.append("")
+        lines.append("### Content Types")
+        lines.append("")
+        lines.append("TODO: Document supported content types:")
+        lines.append("")
+        lines.append("- **Request Content-Type**: `application/json`")
+        lines.append("- **Response Content-Type**: `application/json`")
+        lines.append("")
+        lines.append("### Request Headers")
+        lines.append("")
+        lines.append("TODO: Document required and optional headers:")
+        lines.append("")
+        lines.append("| Header | Required | Description |")
+        lines.append("|--------|----------|-------------|")
+        lines.append("| `Content-Type` | Yes | Must be `application/json` for POST/PUT requests |")
+        lines.append("| `Authorization` | Yes | Authentication token |")
+        lines.append("| `X-Request-ID` | No | Unique request identifier for tracing |")
+        lines.append("")
+        lines.append("### Response Structure")
+        lines.append("")
+        lines.append("TODO: Document your standard response structure:")
+        lines.append("")
+        lines.append("```json")
+        lines.append("{")
+        lines.append('  "data": {},')
+        lines.append('  "meta": {')
+        lines.append('    "timestamp": "2024-01-01T00:00:00Z",')
+        lines.append('    "request_id": "uuid"')
+        lines.append("  }")
+        lines.append("}")
+        lines.append("```")
+        lines.append("")
+
+        # Error Handling section
+        lines.append("## Error Handling")
+        lines.append("")
+        lines.append("TODO: Document your error handling approach and standard error responses.")
+        lines.append("")
+        lines.append("### HTTP Status Codes")
+        lines.append("")
+        lines.append("TODO: List the HTTP status codes your API uses:")
+        lines.append("")
+        lines.append("| Status Code | Meaning | Description |")
+        lines.append("|-------------|---------|-------------|")
+        lines.append("| 200 | OK | Request successful |")
+        lines.append("| 201 | Created | Resource created successfully |")
+        lines.append("| 400 | Bad Request | Invalid request data |")
+        lines.append("| 401 | Unauthorized | Authentication required |")
+        lines.append("| 403 | Forbidden | Insufficient permissions |")
+        lines.append("| 404 | Not Found | Resource not found |")
+        lines.append("| 422 | Unprocessable Entity | Validation errors |")
+        lines.append("| 429 | Too Many Requests | Rate limit exceeded |")
+        lines.append("| 500 | Internal Server Error | Server error |")
+        lines.append("")
+        lines.append("### Error Response Format")
+        lines.append("")
+        lines.append("TODO: Document your standard error response structure:")
+        lines.append("")
+        lines.append("```json")
+        lines.append("{")
+        lines.append('  "error": {')
+        lines.append('    "code": "VALIDATION_ERROR",')
+        lines.append('    "message": "The request data is invalid",')
+        lines.append('    "details": [')
+        lines.append("      {")
+        lines.append('        "field": "email",')
+        lines.append('        "message": "Invalid email format"')
+        lines.append("      }")
+        lines.append("    ]")
+        lines.append("  },")
+        lines.append('  "meta": {')
+        lines.append('    "timestamp": "2024-01-01T00:00:00Z",')
+        lines.append('    "request_id": "uuid"')
+        lines.append("  }")
+        lines.append("}")
+        lines.append("```")
+        lines.append("")
+
+        # Rate Limiting section
+        lines.append("## Rate Limiting")
+        lines.append("")
+        lines.append("TODO: Document your rate limiting policy:")
+        lines.append("")
+        lines.append("### Limits")
+        lines.append("")
+        lines.append("TODO: Specify rate limits for different types of requests:")
+        lines.append("")
+        lines.append("- **Authenticated requests**: 1000 requests per hour")
+        lines.append("- **Unauthenticated requests**: 100 requests per hour")
+        lines.append("- **Specific endpoints**: Custom limits as documented")
+        lines.append("")
+        lines.append("### Rate Limit Headers")
+        lines.append("")
+        lines.append("TODO: Document rate limit response headers:")
+        lines.append("")
+        lines.append("| Header | Description |")
+        lines.append("|--------|-------------|")
+        lines.append("| `X-RateLimit-Limit` | Total number of requests allowed |")
+        lines.append("| `X-RateLimit-Remaining` | Number of requests remaining |")
+        lines.append("| `X-RateLimit-Reset` | Time when the rate limit resets |")
+        lines.append("")
+
+        # Pagination section
+        lines.append("## Pagination")
+        lines.append("")
+        lines.append("TODO: Document pagination for list endpoints:")
+        lines.append("")
+        lines.append("### Query Parameters")
+        lines.append("")
+        lines.append("TODO: Document pagination parameters:")
+        lines.append("")
+        lines.append("| Parameter | Type | Default | Description |")
+        lines.append("|-----------|------|---------|-------------|")
+        lines.append("| `page` | integer | 1 | Page number |")
+        lines.append("| `per_page` | integer | 20 | Items per page (max 100) |")
+        lines.append("| `sort` | string | - | Sort field |")
+        lines.append("| `order` | string | asc | Sort order (asc/desc) |")
+        lines.append("")
+        lines.append("### Response Format")
+        lines.append("")
+        lines.append("TODO: Document paginated response structure:")
+        lines.append("")
+        lines.append("```json")
+        lines.append("{")
+        lines.append('  "data": [...],')
+        lines.append('  "pagination": {')
+        lines.append('    "current_page": 1,')
+        lines.append('    "per_page": 20,')
+        lines.append('    "total_pages": 5,')
+        lines.append('    "total_items": 100,')
+        lines.append('    "has_next": true,')
+        lines.append('    "has_prev": false')
+        lines.append("  }")
+        lines.append("}")
+        lines.append("```")
+        lines.append("")
+
+        # Versioning section
+        lines.append("## API Versioning")
+        lines.append("")
+        lines.append("TODO: Document your API versioning strategy:")
+        lines.append("")
+        lines.append("### Version Format")
+        lines.append("")
+        lines.append("TODO: Specify how versions are indicated (URL path, headers, etc.):")
+        lines.append("")
+        lines.append("- **URL Path**: `/v1/users`, `/v2/users`")
+        lines.append("- **Header**: `Accept: application/vnd.api+json;version=1`")
+        lines.append("- **Query Parameter**: `?version=1`")
+        lines.append("")
+        lines.append("### Current Version")
+        lines.append("")
+        lines.append("TODO: Specify the current API version and deprecation policy:")
+        lines.append("")
+        lines.append("- **Current Version**: v1")
+        lines.append("- **Supported Versions**: v1")
+        lines.append("- **Deprecation Notice**: Version deprecation will be announced 6 months in advance")
+        lines.append("")
+
+        # SDKs and Libraries section
+        lines.append("## SDKs and Client Libraries")
+        lines.append("")
+        lines.append("TODO: Document available SDKs and client libraries:")
+        lines.append("")
+        lines.append("### Official SDKs")
+        lines.append("")
+        lines.append("TODO: List official SDKs if available:")
+        lines.append("")
+        lines.append("- **Python**: `pip install your-api-sdk`")
+        lines.append("- **JavaScript**: `npm install your-api-sdk`")
+        lines.append("- **Go**: `go get github.com/yourorg/api-sdk`")
+        lines.append("")
+        lines.append("### Community Libraries")
+        lines.append("")
+        lines.append("TODO: List community-maintained libraries:")
+        lines.append("")
+        lines.append("- Link to community resources")
+        lines.append("")
+
+        # Testing section
+        lines.append("## Testing")
+        lines.append("")
+        lines.append("### Sandbox Environment")
+        lines.append("")
+        lines.append("TODO: Document testing/sandbox environment if available:")
+        lines.append("")
+        lines.append("- **Sandbox URL**: `https://sandbox-api.example.com`")
+        lines.append("- **Test Credentials**: How to obtain test API keys")
+        lines.append("- **Test Data**: Available test data sets")
+        lines.append("")
+        lines.append("### Postman Collection")
+        lines.append("")
+        lines.append("TODO: Provide link to Postman collection if available:")
+        lines.append("")
+        lines.append(
+            "[![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/your-collection-id)"
+        )
+        lines.append("")
+
+        # Support section
+        lines.append("## Support")
+        lines.append("")
+        lines.append("TODO: Document support channels and resources:")
+        lines.append("")
+        lines.append("### Documentation")
+        lines.append("")
+        lines.append("- **API Reference**: Link to detailed API reference")
+        lines.append("- **Guides**: Link to integration guides")
+        lines.append("- **Changelog**: Link to API changelog")
+        lines.append("")
+        lines.append("### Contact")
+        lines.append("")
+        lines.append("TODO: Provide contact information for API support:")
+        lines.append("")
+        lines.append("- **Email**: api-support@example.com")
+        lines.append("- **Documentation Issues**: Link to documentation repository")
+        lines.append("- **Status Page**: Link to API status page")
+        lines.append("")
+
+        # Changelog section
+        lines.append("## Changelog")
+        lines.append("")
+        lines.append("TODO: Maintain a changelog of API changes:")
+        lines.append("")
+        lines.append("### Version 1.0.0 (2024-01-01)")
+        lines.append("")
+        lines.append("- Initial API release")
+        lines.append("- Added core endpoints")
+        lines.append("")
+        lines.append("### Future Versions")
+        lines.append("")
+        lines.append("TODO: Document planned changes and new features")
         lines.append("")
 
         return "\n".join(lines)
@@ -806,17 +1120,16 @@ class DocumentationInitializer:
 
         print(f"\n🎯 Found {len(endpoints)} endpoints total")
 
-        if not endpoints:
-            print("❌ No FastAPI endpoints found. Make sure your source directory contains FastAPI applications.")
-            print("💡 Tip: Check that your Python files contain @app.get(), @router.post(), etc. decorators")
-            return {"endpoints": [], "files": [], "summary": "No endpoints found"}
-
-        # Generate scaffolding
+        # Generate scaffolding (always generates general_docs.md, plus endpoint files if endpoints exist)
         print(f"\n📚 Generating documentation scaffolding in {self.output_directory}...")
         generator = MarkdownScaffoldGenerator(self.output_directory)
         generated_files = generator.generate_scaffolding(endpoints)
 
         print(f"✅ Generated {len(generated_files)} documentation files")
+
+        if not endpoints:
+            print("ℹ️  No FastAPI endpoints found, but general_docs.md was created with API documentation structure.")
+            print("💡 Tip: Check that your Python files contain @app.get(), @router.post(), etc. decorators")
 
         # Create summary
         summary = self._create_summary(endpoints, generated_files)
@@ -850,7 +1163,15 @@ class DocumentationInitializer:
 
         # Generated files
         lines.append("**Generated files:**")
-        for file_path in sorted(generated_files.keys()):
+        general_docs_files = [f for f in generated_files.keys() if "general_docs.md" in f]
+        endpoint_files = [f for f in generated_files.keys() if "general_docs.md" not in f]
+
+        # Show general_docs.md first
+        for file_path in sorted(general_docs_files):
+            lines.append(f"- {file_path} (general API documentation)")
+
+        # Then show endpoint-specific files
+        for file_path in sorted(endpoint_files):
             lines.append(f"- {file_path}")
         lines.append("")
 
@@ -874,12 +1195,17 @@ class DocumentationInitializer:
         # Next steps
         lines.append("**Next steps:**")
         lines.append("1. Review the generated documentation files")
-        lines.append("2. Fill in TODO sections with detailed information")
-        lines.append("3. Add parameter documentation and response examples")
+        lines.append("2. **Complete all TODO items** - The linter will fail until all TODOs are addressed")
+        lines.append("3. Fill in general API information in `general_docs.md` (authentication, rate limiting, etc.)")
+        lines.append("4. Add detailed endpoint descriptions and response examples")
         if untagged_endpoints:
-            lines.append("4. Consider adding tags to untagged endpoints for better organization")
-            lines.append("5. Run `fmd-lint` to check documentation completeness")
+            lines.append("5. Consider adding tags to untagged endpoints for better organization")
+            lines.append("6. Run `fmd-lint` to check documentation completeness and TODO status")
         else:
-            lines.append("4. Run `fmd-lint` to check documentation completeness")
+            lines.append("5. Run `fmd-lint` to check documentation completeness and TODO status")
+
+        lines.append("")
+        lines.append("⚠️  **Important**: The linter will fail if any TODO items remain. This ensures")
+        lines.append("    complete documentation before deployment.")
 
         return "\n".join(lines)

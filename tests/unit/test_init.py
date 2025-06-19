@@ -541,7 +541,14 @@ class TestMarkdownScaffoldGenerator:
             generator = MarkdownScaffoldGenerator(temp_dir)
             result = generator.generate_scaffolding([])
 
-            assert result == {}
+            # Should create general_docs.md even with no endpoints
+            assert len(result) == 1
+            file_path = list(result.keys())[0]
+            assert "general_docs.md" in file_path
+
+            content = result[file_path]
+            assert "# General API Documentation" in content
+            assert "TODO:" in content  # Should contain TODO items
 
     def test_generate_scaffolding_single_endpoint(self) -> None:
         """Test generating scaffolding for a single endpoint."""
@@ -561,11 +568,14 @@ class TestMarkdownScaffoldGenerator:
 
             result = generator.generate_scaffolding([endpoint])
 
-            assert len(result) == 1
-            file_path = list(result.keys())[0]
-            content = result[file_path]
+            # Should create both general_docs.md and users.md
+            assert len(result) == 2
 
-            assert "users.md" in file_path
+            # Find the users.md file
+            users_file = [path for path in result.keys() if "users.md" in path][0]
+            content = result[users_file]
+
+            assert "users.md" in users_file
             assert "# Users API Documentation" in content
             assert "## GET /users" in content
             assert "**Summary:** Get all users" in content
@@ -599,11 +609,14 @@ class TestMarkdownScaffoldGenerator:
 
             result = generator.generate_scaffolding(endpoints)
 
-            assert len(result) == 1
-            content = list(result.values())[0]
+            # Should create both general_docs.md and users.md
+            assert len(result) == 2
 
-            assert "## GET /users" in content
-            assert "## POST /users" in content
+            # Find the users.md file content
+            users_content = [content for path, content in result.items() if "users.md" in path][0]
+
+            assert "## GET /users" in users_content
+            assert "## POST /users" in users_content
 
     def test_generate_scaffolding_multiple_tags(self) -> None:
         """Test generating scaffolding for endpoints with different tags."""
@@ -631,10 +644,12 @@ class TestMarkdownScaffoldGenerator:
 
             result = generator.generate_scaffolding(endpoints)
 
-            assert len(result) == 2
+            # Should create general_docs.md, users.md, and orders.md
+            assert len(result) == 3
 
-            # Check that both files were created
+            # Check that all files were created
             file_paths = list(result.keys())
+            assert any("general_docs.md" in path for path in file_paths)
             assert any("users.md" in path for path in file_paths)
             assert any("orders.md" in path for path in file_paths)
 
@@ -654,10 +669,13 @@ class TestMarkdownScaffoldGenerator:
 
             result = generator.generate_scaffolding([endpoint])
 
-            assert len(result) == 1
-            file_path = list(result.keys())[0]
+            # Should create both general_docs.md and api.md
+            assert len(result) == 2
 
-            assert "api.md" in file_path  # Default group name
+            # Check that api.md was created (default group name)
+            file_paths = list(result.keys())
+            assert any("general_docs.md" in path for path in file_paths)
+            assert any("api.md" in path for path in file_paths)
 
     def test_generate_endpoint_section_with_all_fields(self) -> None:
         """Test generating endpoint section with all fields populated."""
@@ -725,8 +743,10 @@ class TestDocumentationInitializer:
             result = initializer.initialize()
 
             assert result["endpoints"] == []
-            assert result["files"] == []
-            assert "No endpoints found" in result["summary"]
+            # Should still create general_docs.md
+            assert len(result["files"]) == 1
+            assert any("general_docs.md" in f for f in result["files"])
+            assert "general API documentation" in result["summary"]
 
     def test_initialize_with_endpoints(self) -> None:
         """Test initialization with discovered endpoints."""
@@ -757,12 +777,14 @@ def create_order():
             result = initializer.initialize()
 
             assert len(result["endpoints"]) == 2
-            assert len(result["files"]) == 2
+            # Should create general_docs.md, users.md, and orders.md
+            assert len(result["files"]) == 3
             assert "Documentation Initialization Complete" in result["summary"]
             assert "GET: 1" in result["summary"]
             assert "POST: 1" in result["summary"]
 
             # Check that files were actually created
+            assert (output_dir / "general_docs.md").exists()
             assert (output_dir / "users.md").exists()
             assert (output_dir / "orders.md").exists()
 
@@ -773,13 +795,17 @@ def create_order():
             EndpointInfo("POST", "/users", "create_user", "api.py", 20, tags=["users"]),
             EndpointInfo("GET", "/orders", "get_orders", "orders.py", 15, tags=["orders"]),
         ]
-        generated_files = {"docs/users.md": "content", "docs/orders.md": "content"}
+        generated_files = {
+            "docs/general_docs.md": "general content",
+            "docs/users.md": "content",
+            "docs/orders.md": "content",
+        }
 
         initializer = DocumentationInitializer("src", "docs")
         summary = initializer._create_summary(endpoints, generated_files)
 
         assert "3" in summary  # endpoint count
-        assert "2" in summary  # file count
+        assert "3" in summary  # file count (including general_docs.md)
         assert "GET: 2" in summary
         assert "POST: 1" in summary
         assert "docs/users.md" in summary
@@ -792,7 +818,11 @@ def create_order():
             EndpointInfo("POST", "/health", "health_check", "main.py", 5, tags=[]),  # No tags
             EndpointInfo("GET", "/status", "get_status", "main.py", 15, tags=[]),  # No tags
         ]
-        generated_files = {"docs/users.md": "content", "docs/api.md": "content"}
+        generated_files = {
+            "docs/general_docs.md": "general content",
+            "docs/users.md": "content",
+            "docs/api.md": "content",
+        }
 
         initializer = DocumentationInitializer("src", "docs")
         summary = initializer._create_summary(endpoints, generated_files)
@@ -808,7 +838,7 @@ def create_order():
         assert "router = APIRouter(prefix='/prefix', tags=['tag_name'])" in summary
 
         # Should include additional next step
-        assert "4. Consider adding tags to untagged endpoints" in summary
+        assert "5. Consider adding tags to untagged endpoints" in summary
 
     def test_create_summary_no_untagged_endpoints(self) -> None:
         """Test summary creation when all endpoints have tags."""
@@ -816,7 +846,11 @@ def create_order():
             EndpointInfo("GET", "/users", "get_users", "api.py", 10, tags=["users"]),
             EndpointInfo("POST", "/orders", "create_order", "orders.py", 20, tags=["orders"]),
         ]
-        generated_files = {"docs/users.md": "content", "docs/orders.md": "content"}
+        generated_files = {
+            "docs/general_docs.md": "general content",
+            "docs/users.md": "content",
+            "docs/orders.md": "content",
+        }
 
         initializer = DocumentationInitializer("src", "docs")
         summary = initializer._create_summary(endpoints, generated_files)
@@ -826,5 +860,5 @@ def create_order():
         assert "💡 **Tip:**" not in summary
 
         # Should not include the additional next step
-        assert "4. Consider adding tags" not in summary
-        assert "4. Run `fmd-lint`" in summary  # Should go straight to step 4
+        assert "5. Consider adding tags" not in summary
+        assert "5. Run `fmd-lint`" in summary  # Should go straight to step 5

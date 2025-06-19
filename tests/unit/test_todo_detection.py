@@ -179,8 +179,9 @@ TODO: Third todo
         stats = results["statistics"]
         assert stats["issues"]["todo_entries"] == 3
 
-        # Check that TODO entries are tracked separately from regular issues
-        # (total_issues might be > 0 due to other detection logic, but TODOs should be separate)
+        # Check that TODO entries are now included in total_issues count
+        # This means the linter will fail when TODOs are present
+        assert stats["issues"]["total_issues"] >= 3  # Should include TODOs in total count
 
         # Check recommendations
         recommendations = results["recommendations"]
