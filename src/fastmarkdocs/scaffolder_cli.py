@@ -10,9 +10,9 @@ import json
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from .scaffolder import DocumentationInitializer, EndpointInfo
+from .scaffolder import DocumentationInitializer, EndpointInfo, FastAPIEndpointScanner, MarkdownScaffoldGenerator
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -101,7 +101,8 @@ def format_text_output(result: dict[str, Any], verbose: bool = False) -> str:
     """Format the result as human-readable text."""
     lines = []
 
-    if result["endpoints_found"] == 0:
+    endpoints = cast(list[EndpointInfo], result.get("endpoints", []))
+    if len(endpoints) == 0:
         lines.append("🔍 No FastAPI endpoints found in the source directory.")
         lines.append("\nMake sure your source directory contains Python files with FastAPI decorators like:")
         lines.append("  @app.get('/path')")
@@ -167,28 +168,34 @@ def main() -> None:
             # For dry run, use a secure temporary directory that we won't actually write to
             with tempfile.TemporaryDirectory(prefix="fmd-init-dry-run-") as temp_dir:
                 initializer = DocumentationInitializer(args.source_directory, temp_dir)
-                # Override the generator to not actually write files
 
-                def dry_run_generate(endpoints: list[EndpointInfo]) -> dict[str, str]:
-                    # Generate content but don't write files
-                    if not endpoints:
-                        return {}
+                # For dry run, scan endpoints but don't write files
+                scanner = FastAPIEndpointScanner(args.source_directory)
+                endpoints = scanner.scan_directory()
 
-                    grouped_endpoints = initializer.generator._group_endpoints(endpoints)
+                # Generate content but don't write files
+                if endpoints:
+                    generator = MarkdownScaffoldGenerator(temp_dir)
+                    grouped_endpoints = generator._group_endpoints(endpoints)
                     generated_files = {}
 
                     for group_name, group_endpoints in grouped_endpoints.items():
-                        file_content = initializer.generator._generate_markdown_content(group_name, group_endpoints)
+                        file_content = generator._generate_markdown_content(group_name, group_endpoints)
                         file_path = Path(args.output_dir) / f"{group_name}.md"
                         generated_files[str(file_path)] = file_content
+                else:
+                    generated_files = {}
 
-                    return generated_files
+                # Create the result manually
+                from fastmarkdocs.scaffolder import DocumentationInitializer as DI
 
-                # Type ignore needed for monkey patching in dry run mode
-                initializer.generator.generate_scaffolding = dry_run_generate  # type: ignore[method-assign]
+                summary = DI(args.source_directory, temp_dir)._create_summary(endpoints, generated_files)
 
-                # Run the initialization
-                result = initializer.initialize()
+                result = {
+                    "endpoints": endpoints,
+                    "files": list(generated_files.keys()),
+                    "summary": summary,
+                }
         else:
             initializer = DocumentationInitializer(args.source_directory, args.output_dir)
             # Run the initialization
@@ -203,7 +210,8 @@ def main() -> None:
         print(output)
 
         # Exit with appropriate code
-        if result["endpoints_found"] == 0:
+        endpoints = cast(list[EndpointInfo], result.get("endpoints", []))
+        if len(endpoints) == 0:
             sys.exit(1)  # No endpoints found
         else:
             sys.exit(0)  # Success

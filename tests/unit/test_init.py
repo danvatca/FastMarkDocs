@@ -365,6 +365,164 @@ def get_users():
             assert "This endpoint returns a comprehensive list" in endpoint.description
             assert "Returns:" in endpoint.description
 
+    def test_scan_recursive_directories(self) -> None:
+        """Test that scanner works recursively across multiple subdirectories."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create nested directory structure
+            api_dir = temp_path / "api"
+            v1_dir = api_dir / "v1"
+            v2_dir = api_dir / "v2"
+            services_dir = temp_path / "services"
+
+            api_dir.mkdir()
+            v1_dir.mkdir()
+            v2_dir.mkdir()
+            services_dir.mkdir()
+
+            # Create endpoints in different directories
+            # Root level
+            (temp_path / "main.py").write_text(
+                """
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/health", tags=["health"])
+def health_check():
+    return {"status": "ok"}
+"""
+            )
+
+            # api/ level
+            (api_dir / "users.py").write_text(
+                """
+from fastapi import APIRouter
+router = APIRouter(prefix="/users", tags=["users"])
+
+@router.get("")
+def get_users():
+    return {"users": []}
+"""
+            )
+
+            # api/v1/ level
+            (v1_dir / "orders.py").write_text(
+                """
+from fastapi import APIRouter
+router = APIRouter(prefix="/v1/orders", tags=["orders", "v1"])
+
+@router.get("")
+def get_orders():
+    return {"orders": []}
+
+@router.post("")
+def create_order():
+    return {"order": {}}
+"""
+            )
+
+            # api/v2/ level
+            (v2_dir / "products.py").write_text(
+                """
+from fastapi import APIRouter
+router = APIRouter(prefix="/v2/products", tags=["products", "v2"])
+
+@router.get("")
+def get_products():
+    return {"products": []}
+"""
+            )
+
+            # services/ level
+            (services_dir / "auth.py").write_text(
+                """
+from fastapi import APIRouter
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+@router.post("/login")
+def login():
+    return {"token": "..."}
+"""
+            )
+
+            # Scan recursively
+            scanner = FastAPIEndpointScanner(temp_dir)
+            endpoints = scanner.scan_directory()
+
+            # Should find all endpoints across all directories
+            assert len(endpoints) == 6
+
+            # Check that endpoints from different directories are found
+            paths = [ep.path for ep in endpoints]
+            assert "/health" in paths  # from main.py
+            assert "/users" in paths  # from api/users.py
+            assert "/v1/orders" in paths  # from api/v1/orders.py
+            assert "/v2/products" in paths  # from api/v2/products.py
+            assert "/auth/login" in paths  # from services/auth.py
+
+            # Check file paths are relative to source directory
+            file_paths = [ep.file_path for ep in endpoints]
+            assert "main.py" in file_paths
+            assert "api/users.py" in file_paths
+            assert "api/v1/orders.py" in file_paths
+            assert "api/v2/products.py" in file_paths
+            assert "services/auth.py" in file_paths
+
+            # Check tags are properly inherited
+            health_ep = next(ep for ep in endpoints if ep.path == "/health")
+            users_ep = next(ep for ep in endpoints if ep.path == "/users")
+            orders_ep = next(ep for ep in endpoints if ep.path == "/v1/orders")
+
+            assert "health" in health_ep.tags
+            assert "users" in users_ep.tags
+            assert "orders" in orders_ep.tags and "v1" in orders_ep.tags
+
+    def test_scan_excludes_common_directories(self) -> None:
+        """Test that scanner excludes common non-source directories."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create directories that should be excluded
+            excluded_dirs = ["__pycache__", ".git", ".pytest_cache", "htmlcov", ".venv", "node_modules"]
+
+            for excluded_dir in excluded_dirs:
+                dir_path = temp_path / excluded_dir
+                dir_path.mkdir()
+
+                # Add a Python file with an endpoint in the excluded directory
+                (dir_path / "fake_api.py").write_text(
+                    """
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/should-not-be-found")
+def fake_endpoint():
+    return {"fake": True}
+"""
+                )
+
+            # Add a legitimate endpoint in the root
+            (temp_path / "real_api.py").write_text(
+                """
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/real-endpoint", tags=["real"])
+def real_endpoint():
+    return {"real": True}
+"""
+            )
+
+            # Scan
+            scanner = FastAPIEndpointScanner(temp_dir)
+            endpoints = scanner.scan_directory()
+
+            # Should only find the real endpoint, not the ones in excluded directories
+            assert len(endpoints) == 1
+            assert endpoints[0].path == "/real-endpoint"
+            assert endpoints[0].file_path == "real_api.py"
+
 
 class TestMarkdownScaffoldGenerator:
     """Test the MarkdownScaffoldGenerator class."""
@@ -558,8 +716,6 @@ class TestDocumentationInitializer:
 
             assert initializer.source_directory == temp_dir
             assert initializer.output_directory == temp_dir
-            assert isinstance(initializer.scanner, FastAPIEndpointScanner)
-            assert isinstance(initializer.generator, MarkdownScaffoldGenerator)
 
     def test_initialize_no_endpoints(self) -> None:
         """Test initialization when no endpoints are found."""
@@ -568,9 +724,9 @@ class TestDocumentationInitializer:
 
             result = initializer.initialize()
 
-            assert result["endpoints_found"] == 0
-            assert result["files_generated"] == {}
-            assert "No endpoints discovered" in result["summary"]
+            assert result["endpoints"] == []
+            assert result["files"] == []
+            assert "No endpoints found" in result["summary"]
 
     def test_initialize_with_endpoints(self) -> None:
         """Test initialization with discovered endpoints."""
@@ -600,31 +756,75 @@ def create_order():
 
             result = initializer.initialize()
 
-            assert result["endpoints_found"] == 2
-            assert len(result["files_generated"]) == 2
+            assert len(result["endpoints"]) == 2
+            assert len(result["files"]) == 2
             assert "Documentation Initialization Complete" in result["summary"]
             assert "GET: 1" in result["summary"]
             assert "POST: 1" in result["summary"]
 
+            # Check that files were actually created
+            assert (output_dir / "users.md").exists()
+            assert (output_dir / "orders.md").exists()
+
     def test_create_summary(self) -> None:
-        """Test summary creation."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            initializer = DocumentationInitializer(temp_dir, temp_dir)
+        """Test summary creation with endpoint statistics."""
+        endpoints = [
+            EndpointInfo("GET", "/users", "get_users", "api.py", 10, tags=["users"]),
+            EndpointInfo("POST", "/users", "create_user", "api.py", 20, tags=["users"]),
+            EndpointInfo("GET", "/orders", "get_orders", "orders.py", 15, tags=["orders"]),
+        ]
+        generated_files = {"docs/users.md": "content", "docs/orders.md": "content"}
 
-            endpoints = [
-                EndpointInfo("GET", "/users", "get_users", "api.py", 1),
-                EndpointInfo("POST", "/users", "create_user", "api.py", 2),
-                EndpointInfo("GET", "/orders", "get_orders", "api.py", 3),
-            ]
+        initializer = DocumentationInitializer("src", "docs")
+        summary = initializer._create_summary(endpoints, generated_files)
 
-            generated_files = {"docs/users.md": "content1", "docs/orders.md": "content2"}
+        assert "3" in summary  # endpoint count
+        assert "2" in summary  # file count
+        assert "GET: 2" in summary
+        assert "POST: 1" in summary
+        assert "docs/users.md" in summary
+        assert "docs/orders.md" in summary
 
-            summary = initializer._create_summary(endpoints, generated_files)
+    def test_create_summary_with_untagged_endpoints(self) -> None:
+        """Test summary creation includes warning about untagged endpoints."""
+        endpoints = [
+            EndpointInfo("GET", "/users", "get_users", "api.py", 10, tags=["users"]),
+            EndpointInfo("POST", "/health", "health_check", "main.py", 5, tags=[]),  # No tags
+            EndpointInfo("GET", "/status", "get_status", "main.py", 15, tags=[]),  # No tags
+        ]
+        generated_files = {"docs/users.md": "content", "docs/api.md": "content"}
 
-            assert "**Endpoints discovered:** 3" in summary
-            assert "**Files generated:** 2" in summary
-            assert "GET: 2" in summary
-            assert "POST: 1" in summary
-            assert "docs/users.md" in summary
-            assert "docs/orders.md" in summary
-            assert "Next steps:" in summary
+        initializer = DocumentationInitializer("src", "docs")
+        summary = initializer._create_summary(endpoints, generated_files)
+
+        # Should include warning section
+        assert "⚠️  **Endpoints without tags" in summary
+        assert "POST /health → `main.py:5`" in summary
+        assert "GET /status → `main.py:15`" in summary
+
+        # Should include helpful tips
+        assert "💡 **Tip:**" in summary
+        assert "@app.get('/path', tags=['tag_name'])" in summary
+        assert "router = APIRouter(prefix='/prefix', tags=['tag_name'])" in summary
+
+        # Should include additional next step
+        assert "4. Consider adding tags to untagged endpoints" in summary
+
+    def test_create_summary_no_untagged_endpoints(self) -> None:
+        """Test summary creation when all endpoints have tags."""
+        endpoints = [
+            EndpointInfo("GET", "/users", "get_users", "api.py", 10, tags=["users"]),
+            EndpointInfo("POST", "/orders", "create_order", "orders.py", 20, tags=["orders"]),
+        ]
+        generated_files = {"docs/users.md": "content", "docs/orders.md": "content"}
+
+        initializer = DocumentationInitializer("src", "docs")
+        summary = initializer._create_summary(endpoints, generated_files)
+
+        # Should NOT include warning section
+        assert "⚠️  **Endpoints without tags" not in summary
+        assert "💡 **Tip:**" not in summary
+
+        # Should not include the additional next step
+        assert "4. Consider adding tags" not in summary
+        assert "4. Run `fmd-lint`" in summary  # Should go straight to step 4

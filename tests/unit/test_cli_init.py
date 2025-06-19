@@ -175,7 +175,7 @@ class TestFormatOutput:
 
     def test_format_text_output_no_endpoints(self) -> None:
         """Test text formatting when no endpoints found."""
-        result = {"endpoints_found": 0, "files_generated": {}, "summary": "No endpoints discovered"}
+        result = {"endpoints": [], "files": [], "summary": "No endpoints discovered"}
 
         output = format_text_output(result)
 
@@ -186,8 +186,8 @@ class TestFormatOutput:
     def test_format_text_output_with_endpoints(self) -> None:
         """Test text formatting with discovered endpoints."""
         result = {
-            "endpoints_found": 2,
-            "files_generated": {"docs/api.md": "content"},
+            "endpoints": [Mock(), Mock()],  # Two mock endpoints
+            "files": ["docs/api.md"],
             "summary": "📊 **Documentation Initialization Complete**\n- **Endpoints discovered:** 2\n- **Files generated:** 1",
         }
 
@@ -205,10 +205,9 @@ class TestFormatOutput:
         ]
 
         result = {
-            "endpoints_found": 2,
-            "files_generated": {"docs/api.md": "content"},
-            "summary": "Summary text",
             "endpoints": endpoints,
+            "files": ["docs/api.md"],
+            "summary": "Summary text",
         }
 
         output = format_text_output(result, verbose=True)
@@ -235,16 +234,15 @@ class TestFormatOutput:
         ]
 
         result = {
-            "endpoints_found": 1,
-            "files_generated": {"docs/api.md": "content"},
-            "summary": "Summary",
             "endpoints": endpoints,
+            "files": ["docs/api.md"],
+            "summary": "Summary",
         }
 
         output = format_json_output(result)
         parsed = json.loads(output)
 
-        assert parsed["endpoints_found"] == 1
+        assert len(parsed["endpoints"]) == 1
         assert len(parsed["endpoints"]) == 1
 
         endpoint_data = parsed["endpoints"][0]
@@ -256,13 +254,13 @@ class TestFormatOutput:
 
     def test_format_json_output_no_endpoints(self) -> None:
         """Test JSON formatting with no endpoints."""
-        result = {"endpoints_found": 0, "files_generated": {}, "summary": "No endpoints"}
+        result = {"endpoints": [], "files": [], "summary": "No endpoints"}
 
         output = format_json_output(result)
         parsed = json.loads(output)
 
-        assert parsed["endpoints_found"] == 0
-        assert parsed["files_generated"] == {}
+        assert len(parsed["endpoints"]) == 0
+        assert parsed["files"] == []
 
 
 class TestMainFunction:
@@ -274,8 +272,8 @@ class TestMainFunction:
         # Mock the initializer
         mock_initializer = Mock()
         mock_initializer.initialize.return_value = {
-            "endpoints_found": 2,
-            "files_generated": {"docs/api.md": "content"},
+            "endpoints": [Mock(), Mock()],
+            "files": ["docs/api.md"],
             "summary": "Success summary",
         }
         mock_initializer_class.return_value = mock_initializer
@@ -295,8 +293,8 @@ class TestMainFunction:
         # Mock the initializer
         mock_initializer = Mock()
         mock_initializer.initialize.return_value = {
-            "endpoints_found": 0,
-            "files_generated": {},
+            "endpoints": [],
+            "files": [],
             "summary": "No endpoints discovered",
         }
         mock_initializer_class.return_value = mock_initializer
@@ -324,10 +322,9 @@ class TestMainFunction:
         # Mock the initializer
         mock_initializer = Mock()
         mock_initializer.initialize.return_value = {
-            "endpoints_found": 1,
-            "files_generated": {"docs/api.md": "content"},
-            "summary": "Success",
             "endpoints": [EndpointInfo("GET", "/test", "test", "test.py", 1)],
+            "files": ["docs/api.md"],
+            "summary": "Success",
         }
         mock_initializer_class.return_value = mock_initializer
 
@@ -344,7 +341,7 @@ class TestMainFunction:
                     # Check that JSON was printed
                     printed_output = mock_print.call_args[0][0]
                     parsed = json.loads(printed_output)
-                    assert parsed["endpoints_found"] == 1
+                    assert len(parsed["endpoints"]) == 1
 
     @patch("fastmarkdocs.scaffolder_cli.DocumentationInitializer")
     def test_main_with_verbose_flag(self, mock_initializer_class) -> None:
@@ -352,10 +349,9 @@ class TestMainFunction:
         # Mock the initializer
         mock_initializer = Mock()
         mock_initializer.initialize.return_value = {
-            "endpoints_found": 1,
-            "files_generated": {"docs/api.md": "content"},
-            "summary": "Success",
             "endpoints": [EndpointInfo("GET", "/test", "test", "test.py", 1)],
+            "files": ["docs/api.md"],
+            "summary": "Success",
         }
         mock_initializer_class.return_value = mock_initializer
 
@@ -375,16 +371,26 @@ class TestMainFunction:
                     assert "🔍 Scanning:" in verbose_output
                     assert "📁 Output:" in verbose_output
 
+    @patch("fastmarkdocs.scaffolder_cli.FastAPIEndpointScanner")
+    @patch("fastmarkdocs.scaffolder_cli.MarkdownScaffoldGenerator")
     @patch("fastmarkdocs.scaffolder_cli.DocumentationInitializer")
-    def test_main_with_dry_run(self, mock_initializer_class) -> None:
+    def test_main_with_dry_run(self, mock_initializer_class, mock_generator_class, mock_scanner_class) -> None:
         """Test main function with dry run flag."""
-        # Mock the initializer
+        # Mock the scanner
+        mock_scanner = Mock()
+        mock_endpoint = EndpointInfo("GET", "/test", "test", "test.py", 1)
+        mock_scanner.scan_directory.return_value = [mock_endpoint]
+        mock_scanner_class.return_value = mock_scanner
+
+        # Mock the generator
+        mock_generator = Mock()
+        mock_generator._group_endpoints.return_value = {"api": [mock_endpoint]}
+        mock_generator._generate_markdown_content.return_value = "# Test content"
+        mock_generator_class.return_value = mock_generator
+
+        # Mock the initializer (for summary creation)
         mock_initializer = Mock()
-        mock_initializer.initialize.return_value = {
-            "endpoints_found": 1,
-            "files_generated": {"docs/api.md": "content"},
-            "summary": "Success",
-        }
+        mock_initializer._create_summary.return_value = "Success summary"
         mock_initializer_class.return_value = mock_initializer
 
         with tempfile.TemporaryDirectory() as temp_dir:

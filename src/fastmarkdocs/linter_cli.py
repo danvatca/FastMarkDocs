@@ -259,6 +259,8 @@ def format_results(results: dict[str, Any], format_type: str = "text", show_all:
             output.append(f"   • Orphaned documentation: {issues['orphaned_documentation']}")
         if issues["enhancement_failures"] > 0:
             output.append(f"   • Enhancement failures: {issues['enhancement_failures']}")
+        if issues.get("todo_entries", 0) > 0:
+            output.append(f"   • TODO entries: {issues['todo_entries']}")
         output.append("")
 
     # Detailed issues
@@ -345,6 +347,24 @@ def format_results(results: dict[str, Any], format_type: str = "text", show_all:
                 output.append(f"   • {item['message']}")
         if not show_all and len(results["enhancement_failures"]) > 5:
             output.append(f"   ... and {len(results['enhancement_failures']) - 5} more")
+        output.append("")
+
+    if results.get("todo_entries"):
+        output.append("📝 TODO Entries:")
+        output.append("   📁 These TODO items need to be addressed:")
+        items_to_show = results["todo_entries"] if show_all else results["todo_entries"][:10]
+        for item in items_to_show:
+            output.append(f"   • {item['file']}:{item['line']}")
+            output.append(f"     📝 {item['todo_text']}")
+            if item.get("context") and item["context"] != "in documentation":
+                output.append(f"     📍 Location: {item['context']}")
+            # Show a truncated version of the content for context
+            content = item["content"]
+            if not show_all and len(content) > 80:
+                content = content[:77] + "..."
+            output.append(f"     📄 Line: {content}")
+        if not show_all and len(results["todo_entries"]) > 10:
+            output.append(f"   ... and {len(results['todo_entries']) - 10} more")
         output.append("")
 
     # Recommendations

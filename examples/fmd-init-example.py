@@ -343,8 +343,8 @@ def demonstrate_programmatic_usage() -> None:
         result = initializer.initialize()
 
         print("\n✅ Results:")
-        print(f"   📊 Endpoints found: {result['endpoints_found']}")
-        print(f"   📄 Files generated: {len(result['files_generated'])}")
+        print(f"   📊 Endpoints found: {len(result.get('endpoints', []))}")
+        print(f"   📄 Files generated: {len(result.get('files', []))}")
 
         print("\n📋 Generated files:")
         for file_path in result["files_generated"].keys():

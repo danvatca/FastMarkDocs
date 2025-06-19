@@ -103,6 +103,7 @@ class DocumentationLinter:
             "common_mistakes": [],
             "orphaned_documentation": [],
             "enhancement_failures": [],
+            "todo_entries": [],
             "statistics": {},
             "recommendations": [],
         }
@@ -125,6 +126,9 @@ class DocumentationLinter:
 
         # Test enhancement process
         results["enhancement_failures"] = self._test_enhancement_process(openapi_endpoints, markdown_endpoints)
+
+        # Find TODO entries
+        results["todo_entries"] = self._find_todo_entries()
 
         # Generate statistics
         results["statistics"] = self._generate_statistics(openapi_endpoints, markdown_endpoints, results)
@@ -471,6 +475,102 @@ class DocumentationLinter:
 
         return failures
 
+    def _find_todo_entries(self) -> list[dict[str, Any]]:
+        """
+        Find all TODO entries in documentation files.
+
+        Returns:
+            List of TODO entries with file, line number, and content
+        """
+        import re
+
+        from .utils import find_markdown_files
+
+        todo_entries = []
+
+        # Find all markdown files in the documentation directory
+        markdown_files = find_markdown_files(str(self.docs_directory), recursive=self.recursive)
+
+        # TODO pattern - matches "TODO" (case insensitive) followed by optional colon and text
+        todo_pattern = re.compile(r"\bTODO\b\s*:?\s*(.*)", re.IGNORECASE)
+
+        for file_path in markdown_files:
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    lines = f.readlines()
+
+                relative_path = Path(file_path).relative_to(self.docs_directory)
+
+                for line_number, line in enumerate(lines, 1):
+                    # Only process lines that actually contain TODO
+                    if re.search(r"\bTODO\b", line, re.IGNORECASE):
+                        match = todo_pattern.search(line)
+                        if match:
+                            todo_text = match.group(1).strip() if match.group(1) else "No description"
+                            # Clean up the TODO text - only replace if truly empty
+                            if not todo_text or todo_text == "":
+                                todo_text = "No description provided"
+
+                            todo_entries.append(
+                                {
+                                    "file": str(relative_path),
+                                    "line": line_number,
+                                    "content": line.strip(),
+                                    "todo_text": todo_text,
+                                    "context": self._extract_todo_context(lines, line_number - 1),
+                                }
+                            )
+
+            except (FileNotFoundError, PermissionError, UnicodeDecodeError):
+                # Skip files that can't be read
+                continue
+
+        return todo_entries
+
+    def _extract_todo_context(self, lines: list[str], todo_line_index: int) -> str:
+        """
+        Extract context around a TODO entry to help identify what section it's in.
+
+        Args:
+            lines: All lines in the file
+            todo_line_index: Zero-based index of the TODO line
+
+        Returns:
+            Context string (e.g., "in endpoint GET /users", "in Parameters section")
+        """
+        # Look backwards for headings and build context
+        section_context = None
+        endpoint_context = None
+
+        for i in range(todo_line_index - 1, max(0, todo_line_index - 20), -1):
+            line = lines[i].strip()
+
+            # Check for endpoint headers (## GET /path)
+            if line.startswith("##") and any(method in line for method in ["GET", "POST", "PUT", "PATCH", "DELETE"]):
+                # Extract method and path
+                parts = line.split(" ", 2)
+                if len(parts) >= 3:
+                    method = parts[1]
+                    path = parts[2]
+                    endpoint_context = f"in endpoint {method} {path}"
+                    break  # Found endpoint, stop looking
+
+            # Check for section headers (capture the most recent one)
+            elif (line.startswith("###") or line.startswith("####")) and section_context is None:
+                if line.startswith("####"):
+                    section = line.replace("####", "").strip()
+                else:
+                    section = line.replace("###", "").strip()
+                section_context = f"in {section} section"
+
+        # Return the most specific context available
+        if endpoint_context:
+            return endpoint_context
+        elif section_context:
+            return section_context
+        else:
+            return "in documentation"
+
     def _find_similar_paths(self, target_path: str, endpoints: set[tuple[str, str]]) -> list[str]:
         """Find similar paths in a set of endpoints."""
         candidate_paths = [path for _, path in endpoints]
@@ -535,6 +635,7 @@ class DocumentationLinter:
         total_mistakes = len(results["common_mistakes"])
         total_orphaned = len(results["orphaned_documentation"])
         total_enhancement_failures = len(results["enhancement_failures"])
+        total_todos = len(results.get("todo_entries", []))
 
         # Calculate documentation coverage
         documented_existing = len(openapi_endpoints.intersection(markdown_endpoints))
@@ -556,6 +657,7 @@ class DocumentationLinter:
                 "common_mistakes": total_mistakes,
                 "orphaned_documentation": total_orphaned,
                 "enhancement_failures": total_enhancement_failures,
+                "todo_entries": total_todos,
                 "total_issues": total_missing
                 + total_incomplete
                 + total_mistakes
@@ -619,6 +721,20 @@ class DocumentationLinter:
                     "description": f"{stats['issues']['enhancement_failures']} documented endpoints failed to enhance",
                     "action": "Check for path parameter naming mismatches and documentation format issues",
                     "impact": "All documented endpoints will be properly enhanced in OpenAPI",
+                }
+            )
+
+        # TODO entries recommendations
+        if stats["issues"].get("todo_entries", 0) > 0:
+            priority = "medium" if stats["issues"].get("todo_entries", 0) < 10 else "high"
+            recommendations.append(
+                {
+                    "priority": priority,
+                    "category": "completeness",
+                    "title": "Address TODO Entries",
+                    "description": f"Found {stats['issues'].get('todo_entries', 0)} TODO entries in documentation",
+                    "action": "Review and complete all TODO items with proper descriptions, examples, and documentation",
+                    "impact": "Documentation will be complete and ready for production use",
                 }
             )
 

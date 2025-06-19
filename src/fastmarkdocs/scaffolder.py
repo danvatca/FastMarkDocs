@@ -13,6 +13,17 @@ from typing import Any, Optional, Union
 
 
 @dataclass
+class ParameterInfo:
+    """Information about a function parameter."""
+
+    name: str
+    type_hint: Optional[str] = None
+    default_value: Optional[str] = None
+    is_required: bool = True
+    parameter_type: str = "query"  # "path", "query", "body"
+
+
+@dataclass
 class EndpointInfo:
     """Information about a discovered API endpoint."""
 
@@ -25,10 +36,13 @@ class EndpointInfo:
     summary: Optional[str] = None
     description: Optional[str] = None
     tags: Union[list[str], None] = None
+    parameters: Union[list[ParameterInfo], None] = None
 
     def __post_init__(self) -> None:
         if self.tags is None:
             self.tags = []
+        if self.parameters is None:
+            self.parameters = []
 
 
 @dataclass
@@ -60,15 +74,74 @@ class FastAPIEndpointScanner:
         }
 
     def scan_directory(self) -> list[EndpointInfo]:
-        """Scan the directory for FastAPI endpoints."""
+        """Scan the directory recursively for FastAPI endpoints."""
         self.endpoints = []
+        scanned_files = 0
+        skipped_files = 0
 
-        for file_path in self.source_directory.rglob("*.py"):
-            try:
-                self._scan_file(file_path)
-            except (SyntaxError, UnicodeDecodeError):
-                # Skip files with syntax errors or encoding issues
+        print(f"🔍 Scanning {self.source_directory} recursively for Python files...")
+
+        # Get all Python files recursively
+        python_files = list(self.source_directory.rglob("*.py"))
+
+        # Filter out common directories that typically don't contain API endpoints
+        excluded_patterns = [
+            "__pycache__",
+            ".git",
+            ".pytest_cache",
+            "htmlcov",
+            ".venv",
+            "venv",
+            "node_modules",
+            ".tox",
+            "build",
+            "dist",
+            "tests/",  # Exclude test directories
+            "test_",  # Exclude test files
+        ]
+
+        filtered_files = []
+        for file_path in python_files:
+            # Check if file is in an excluded directory
+            if any(pattern in str(file_path) for pattern in excluded_patterns):
                 continue
+            filtered_files.append(file_path)
+
+        print(f"📁 Found {len(python_files)} Python files ({len(filtered_files)} after filtering)")
+
+        if not filtered_files:
+            print("⚠️  No Python files found to scan")
+            return self.endpoints
+
+        # Scan each file
+        for file_path in filtered_files:
+            try:
+                endpoints_before = len(self.endpoints)
+                self._scan_file(file_path)
+                endpoints_after = len(self.endpoints)
+
+                scanned_files += 1
+
+                # Show progress for files that contain endpoints
+                if endpoints_after > endpoints_before:
+                    new_endpoints = endpoints_after - endpoints_before
+                    relative_path = file_path.relative_to(self.source_directory)
+                    print(f"  ✅ {relative_path} → {new_endpoints} endpoint{'s' if new_endpoints != 1 else ''}")
+
+            except (SyntaxError, UnicodeDecodeError):
+                skipped_files += 1
+                relative_path = file_path.relative_to(self.source_directory)
+                print(f"  ⚠️  Skipped {relative_path} (syntax/encoding error)")
+                continue
+            except Exception as e:
+                skipped_files += 1
+                relative_path = file_path.relative_to(self.source_directory)
+                print(f"  ⚠️  Skipped {relative_path} (error: {type(e).__name__})")
+                continue
+
+        # Summary
+        if scanned_files > 0:
+            print(f"📊 Scan complete: {scanned_files} files processed, {skipped_files} skipped")
 
         return self.endpoints
 
@@ -85,10 +158,10 @@ class FastAPIEndpointScanner:
 
             # Second pass: discover endpoints and associate with router tags
             for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef):
-                    endpoint_info = self._extract_endpoint_info(node, file_path, content, routers)
-                    if endpoint_info:
-                        self.endpoints.append(endpoint_info)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    endpoint_infos = self._extract_endpoint_info(node, file_path, content, routers)
+                    if endpoint_infos:
+                        self.endpoints.extend(endpoint_infos)
 
         except Exception:
             # Skip files that can't be processed
@@ -144,20 +217,26 @@ class FastAPIEndpointScanner:
         return None
 
     def _extract_endpoint_info(
-        self, func_node: ast.FunctionDef, file_path: Path, content: str, routers: dict[str, RouterInfo]
-    ) -> Optional[EndpointInfo]:
-        """Extract endpoint information from a function definition."""
+        self,
+        func_node: Union[ast.FunctionDef, ast.AsyncFunctionDef],
+        file_path: Path,
+        content: str,
+        routers: dict[str, RouterInfo],
+    ) -> list[EndpointInfo]:
+        """Extract endpoint information from a function definition. Returns a list since one function can have multiple HTTP method decorators."""
+        endpoints = []
+
         for decorator in func_node.decorator_list:
             endpoint_info = self._parse_decorator(decorator, func_node, file_path, content, routers)
             if endpoint_info:
-                return endpoint_info
+                endpoints.append(endpoint_info)
 
-        return None
+        return endpoints
 
     def _parse_decorator(
         self,
         decorator: ast.AST,
-        func_node: ast.FunctionDef,
+        func_node: Union[ast.FunctionDef, ast.AsyncFunctionDef],
         file_path: Path,
         content: str,
         routers: dict[str, RouterInfo],
@@ -166,6 +245,7 @@ class FastAPIEndpointScanner:
         method = None
         path = None
         router_tags = []
+        include_in_schema = True  # Default to True
 
         # Handle different decorator patterns
         if isinstance(decorator, ast.Call):
@@ -178,6 +258,16 @@ class FastAPIEndpointScanner:
                     # Extract path from first argument
                     if decorator.args and isinstance(decorator.args[0], ast.Constant):
                         path = decorator.args[0].value
+
+                    # Check for include_in_schema parameter
+                    for keyword in decorator.keywords:
+                        if keyword.arg == "include_in_schema":
+                            if isinstance(keyword.value, ast.Constant):
+                                include_in_schema = keyword.value.value
+
+                    # Skip endpoints excluded from schema (error handlers)
+                    if not include_in_schema:
+                        return None
 
                     # Check if this is a router-based endpoint
                     if isinstance(decorator.func.value, ast.Name):
@@ -192,7 +282,11 @@ class FastAPIEndpointScanner:
                                 prefix = router_info.prefix.rstrip("/")
                                 endpoint_path = path.lstrip("/") if path else ""
                                 if endpoint_path:
-                                    path = f"{prefix}/{endpoint_path}"
+                                    # Special handling for colon-based paths (e.g., ":verifyOtp")
+                                    if endpoint_path.startswith(":"):
+                                        path = f"{prefix}{endpoint_path}"
+                                    else:
+                                        path = f"{prefix}/{endpoint_path}"
                                 else:
                                     path = prefix
 
@@ -208,12 +302,16 @@ class FastAPIEndpointScanner:
             summary, description = self._parse_docstring(docstring)
             endpoint_tags = self._extract_tags_from_decorator(decorator)
 
+            # Normalize path to match OpenAPI schema format (remove type annotations)
+            normalized_path = self._normalize_path_for_openapi(path)
+            parameters = self._extract_parameters(func_node, normalized_path, method)
+
             # Combine router tags with endpoint tags (endpoint tags take precedence)
             combined_tags = router_tags + [tag for tag in endpoint_tags if tag not in router_tags]
 
             return EndpointInfo(
                 method=method,
-                path=path,
+                path=normalized_path,  # Use normalized path
                 function_name=func_node.name,
                 file_path=str(file_path.relative_to(self.source_directory)),
                 line_number=func_node.lineno,
@@ -221,6 +319,7 @@ class FastAPIEndpointScanner:
                 summary=summary,
                 description=description,
                 tags=combined_tags,
+                parameters=parameters,
             )
 
         return None
@@ -266,6 +365,168 @@ class FastAPIEndpointScanner:
                                 tags.append(elt.value)
 
         return tags
+
+    def _extract_parameters(
+        self, func_node: Union[ast.FunctionDef, ast.AsyncFunctionDef], path: str, method: str
+    ) -> list[ParameterInfo]:
+        """Extract parameter information from function definition."""
+        parameters = []
+
+        # Extract path parameters from the path string
+        path_params = self._extract_path_parameters(path)
+
+        # Analyze function arguments
+        for arg in func_node.args.args:
+            param_name = arg.arg
+
+            # Skip common FastAPI framework parameters
+            if param_name in ["request", "response", "background_tasks"]:
+                continue
+
+            # Skip dependency injection parameters (those with Depends())
+            if self._is_dependency_parameter(func_node, param_name):
+                continue
+
+            # Determine parameter type and requirements
+            type_hint = self._get_type_hint(arg)
+            default_value = self._get_default_value(func_node, param_name)
+            is_required = default_value is None
+
+            # Determine parameter location (path, query, or body)
+            if param_name in path_params:
+                param_type = "path"
+                is_required = True  # Path parameters are always required
+            elif method.upper() in ["POST", "PUT", "PATCH"] and self._is_body_parameter(arg, type_hint):
+                param_type = "body"
+            else:
+                param_type = "query"
+
+            parameters.append(
+                ParameterInfo(
+                    name=param_name,
+                    type_hint=type_hint,
+                    default_value=default_value,
+                    is_required=is_required,
+                    parameter_type=param_type,
+                )
+            )
+
+        return parameters
+
+    def _extract_path_parameters(self, path: str) -> set[str]:
+        """Extract parameter names from path string like '/users/{user_id}/posts/{post_id}'."""
+        import re
+
+        path_param_pattern = r"\{([^}:]+)(?::[^}]*)?\}"  # Handle {param} and {param:type} formats
+        matches = re.findall(path_param_pattern, path)
+        return set(matches)
+
+    def _normalize_path_for_openapi(self, path: str) -> str:
+        """
+        Normalize path to match OpenAPI schema format.
+
+        FastAPI routes can use {param:type} but OpenAPI schema uses {param}.
+        This method converts {path:path} to {path}, {user_id:int} to {user_id}, etc.
+        """
+        import re
+
+        # Replace {param:type} with {param}
+        normalized_path = re.sub(r"\{([^}:]+):[^}]*\}", r"{\1}", path)
+        return normalized_path
+
+    def _is_dependency_parameter(
+        self, func_node: Union[ast.FunctionDef, ast.AsyncFunctionDef], param_name: str
+    ) -> bool:
+        """Check if a parameter uses FastAPI's Depends() for dependency injection."""
+        # Look for default values that are Depends() calls
+        defaults = func_node.args.defaults
+        args = func_node.args.args
+
+        # Find the parameter index
+        param_index = None
+        for i, arg in enumerate(args):
+            if arg.arg == param_name:
+                param_index = i
+                break
+
+        if param_index is None:
+            return False
+
+        # Check if this parameter has a default value
+        defaults_offset = len(args) - len(defaults)
+        if param_index < defaults_offset:
+            return False
+
+        default_index = param_index - defaults_offset
+        if default_index >= len(defaults):
+            return False
+
+        default_value = defaults[default_index]
+
+        # Check if the default is a Depends() call
+        if isinstance(default_value, ast.Call):
+            if isinstance(default_value.func, ast.Name) and default_value.func.id == "Depends":
+                return True
+            elif isinstance(default_value.func, ast.Attribute) and default_value.func.attr == "Depends":
+                return True
+
+        return False
+
+    def _get_type_hint(self, arg: ast.arg) -> Optional[str]:
+        """Extract type hint from function argument."""
+        if arg.annotation:
+            return ast.unparse(arg.annotation)
+        return None
+
+    def _get_default_value(
+        self, func_node: Union[ast.FunctionDef, ast.AsyncFunctionDef], param_name: str
+    ) -> Optional[str]:
+        """Get the default value for a parameter if it exists."""
+        args = func_node.args.args
+        defaults = func_node.args.defaults
+
+        # Find parameter index
+        param_index = None
+        for i, arg in enumerate(args):
+            if arg.arg == param_name:
+                param_index = i
+                break
+
+        if param_index is None:
+            return None
+
+        # Check if this parameter has a default value
+        defaults_offset = len(args) - len(defaults)
+        if param_index < defaults_offset:
+            return None
+
+        default_index = param_index - defaults_offset
+        if default_index >= len(defaults):
+            return None
+
+        default_value = defaults[default_index]
+
+        # Skip Depends() calls
+        if isinstance(default_value, ast.Call):
+            if isinstance(default_value.func, ast.Name) and default_value.func.id == "Depends":
+                return None
+            elif isinstance(default_value.func, ast.Attribute) and default_value.func.attr == "Depends":
+                return None
+
+        try:
+            return ast.unparse(default_value)
+        except Exception:
+            return "..."
+
+    def _is_body_parameter(self, arg: ast.arg, type_hint: Optional[str]) -> bool:
+        """Determine if a parameter should be treated as a request body."""
+        if not type_hint:
+            return False
+
+        # Common patterns for request body parameters
+        body_indicators = ["Model", "Schema", "Request", "Create", "Update", "Add", "Spec", "BaseModel", "Pydantic"]
+
+        return any(indicator in type_hint for indicator in body_indicators)
 
 
 class MarkdownScaffoldGenerator:
@@ -367,11 +628,14 @@ class MarkdownScaffoldGenerator:
             lines.append(f"- **Tags:** {', '.join(endpoint.tags)}")
         lines.append("")
 
-        # Placeholder sections
-        lines.append("### Parameters")
-        lines.append("")
-        lines.append("TODO: Document path parameters, query parameters, and request body.")
-        lines.append("")
+        # Parameters section
+        if endpoint.parameters:
+            self._add_parameters_section(lines, endpoint.parameters)
+        else:
+            lines.append("### Parameters")
+            lines.append("")
+            lines.append("No parameters detected.")
+            lines.append("")
 
         lines.append("### Response Examples")
         lines.append("")
@@ -386,11 +650,137 @@ class MarkdownScaffoldGenerator:
 
         lines.append("### Code Examples")
         lines.append("")
-        lines.append("TODO: Add code examples will be generated automatically.")
+        lines.append("#### cURL")
+        lines.append("```bash")
+
+        # Generate cURL example
+        curl_example = self._generate_curl_example(endpoint)
+        lines.append(curl_example)
+        lines.append("```")
+        lines.append("")
+
+        lines.append("#### Python")
+        lines.append("```python")
+        lines.append("import requests")
+        lines.append("")
+        lines.append(f"# TODO: Add Python example for {endpoint.method} {endpoint.path}")
+        lines.append(f"response = requests.{endpoint.method.lower()}(")
+        lines.append(f'    url="{{base_url}}{endpoint.path}",')
+        lines.append('    headers={"Authorization": "Bearer your_token"}')
+        if endpoint.method.upper() in ["POST", "PUT", "PATCH"]:
+            lines.append('    json={"TODO": "Add request data"}')
+        lines.append(")")
+        lines.append("print(response.json())")
+        lines.append("```")
         lines.append("")
 
         lines.append("---")
         lines.append("")
+
+        return "\n".join(lines)
+
+    def _add_parameters_section(self, lines: list[str], parameters: list[ParameterInfo]) -> None:
+        """Add parameter documentation sections to the markdown."""
+        # Group parameters by type
+        path_params = [p for p in parameters if p.parameter_type == "path"]
+        query_params = [p for p in parameters if p.parameter_type == "query"]
+        body_params = [p for p in parameters if p.parameter_type == "body"]
+
+        # Path Parameters
+        if path_params:
+            lines.append("### Path Parameters")
+            lines.append("")
+            for param in path_params:
+                type_str = self._format_type_hint(param.type_hint)
+                lines.append(f"- `{param.name}` ({type_str}, required): TODO: Add description")
+            lines.append("")
+
+        # Query Parameters
+        if query_params:
+            lines.append("### Query Parameters")
+            lines.append("")
+            for param in query_params:
+                type_str = self._format_type_hint(param.type_hint)
+                required_str = "required" if param.is_required else "optional"
+                default_info = f", default: {param.default_value}" if param.default_value else ""
+                lines.append(f"- `{param.name}` ({type_str}, {required_str}{default_info}): TODO: Add description")
+            lines.append("")
+
+        # Request Body
+        if body_params:
+            lines.append("### Request Body")
+            lines.append("")
+            for param in body_params:
+                type_str = self._format_type_hint(param.type_hint)
+                required_str = "required" if param.is_required else "optional"
+                lines.append(f"- `{param.name}` ({type_str}, {required_str}): TODO: Add description and schema details")
+            lines.append("")
+            lines.append("**Example:**")
+            lines.append("```json")
+            lines.append("TODO: Add request body example")
+            lines.append("```")
+            lines.append("")
+
+    def _format_type_hint(self, type_hint: Optional[str]) -> str:
+        """Format type hint for documentation."""
+        if not type_hint:
+            return "string"
+
+        # Handle Optional types first (before generic replacements)
+        if "Optional[" in type_hint:
+            # Extract the inner type from Optional[Type]
+            import re
+
+            match = re.search(r"Optional\[([^\]]+)\]", type_hint)
+            if match:
+                inner_type = match.group(1)
+                return self._format_type_hint(inner_type)
+
+        # Simplify common type hints
+        type_mappings = {
+            "str": "string",
+            "int": "integer",
+            "float": "number",
+            "bool": "boolean",
+            "list": "array",
+            "dict": "object",
+            "List": "array",
+            "Dict": "object",
+        }
+
+        # Apply simple mappings
+        for old_type, new_type in type_mappings.items():
+            if old_type in type_hint:
+                type_hint = type_hint.replace(old_type, new_type)
+
+        # Remove module prefixes and clean up
+        type_hint = type_hint.split(".")[-1]  # Remove module prefixes
+        type_hint = type_hint.replace("[", "<").replace("]", ">")  # Replace brackets
+
+        return type_hint
+
+    def _generate_curl_example(self, endpoint: EndpointInfo) -> str:
+        """Generate a realistic cURL example for the endpoint."""
+        lines = []
+
+        # Base curl command
+        lines.append(f'curl -X {endpoint.method} "{{base_url}}{endpoint.path}" \\')
+
+        # Add headers
+        lines.append('  -H "Authorization: Bearer your_token"')
+
+        # Add content-type for POST/PUT/PATCH
+        if endpoint.method.upper() in ["POST", "PUT", "PATCH"]:
+            lines.append('  -H "Content-Type: application/json" \\')
+
+        # Add request body for POST/PUT/PATCH
+        body_params = [p for p in (endpoint.parameters or []) if p.parameter_type == "body"]
+        if body_params and endpoint.method.upper() in ["POST", "PUT", "PATCH"]:
+            lines.append('  -d \'{"TODO": "Add request body"}\'')
+
+        # Remove trailing backslash from last line
+        if lines[-1].endswith(" \\"):
+            lines[-1] = lines[-1][:-2]
 
         return "\n".join(lines)
 
@@ -402,38 +792,41 @@ class DocumentationInitializer:
         """Initialize the documentation initializer."""
         self.source_directory = source_directory
         self.output_directory = output_directory
-        self.scanner = FastAPIEndpointScanner(source_directory)
-        self.generator = MarkdownScaffoldGenerator(output_directory)
 
     def initialize(self) -> dict[str, Any]:
-        """Initialize documentation scaffolding."""
-        print(f"Scanning {self.source_directory} for FastAPI endpoints...")
+        """Initialize documentation scaffolding for the project."""
+        print("🚀 Starting FastAPI documentation initialization...")
+        print(f"📂 Source directory: {self.source_directory}")
+        print(f"📝 Output directory: {self.output_directory}")
+        print()
 
         # Scan for endpoints
-        endpoints = self.scanner.scan_directory()
+        scanner = FastAPIEndpointScanner(self.source_directory)
+        endpoints = scanner.scan_directory()
+
+        print(f"\n🎯 Found {len(endpoints)} endpoints total")
 
         if not endpoints:
-            print("No FastAPI endpoints found.")
-            return {"endpoints_found": 0, "files_generated": {}, "summary": "No endpoints discovered"}
-
-        print(f"Found {len(endpoints)} endpoints")
+            print("❌ No FastAPI endpoints found. Make sure your source directory contains FastAPI applications.")
+            print("💡 Tip: Check that your Python files contain @app.get(), @router.post(), etc. decorators")
+            return {"endpoints": [], "files": [], "summary": "No endpoints found"}
 
         # Generate scaffolding
-        print(f"Generating documentation scaffolding in {self.output_directory}...")
-        generated_files = self.generator.generate_scaffolding(endpoints)
+        print(f"\n📚 Generating documentation scaffolding in {self.output_directory}...")
+        generator = MarkdownScaffoldGenerator(self.output_directory)
+        generated_files = generator.generate_scaffolding(endpoints)
+
+        print(f"✅ Generated {len(generated_files)} documentation files")
 
         # Create summary
         summary = self._create_summary(endpoints, generated_files)
-
-        print(f"Generated {len(generated_files)} documentation files")
-        print("\nSummary:")
+        print("\n" + "=" * 60)
         print(summary)
 
         return {
-            "endpoints_found": len(endpoints),
-            "files_generated": generated_files,
-            "summary": summary,
             "endpoints": endpoints,
+            "files": list(generated_files.keys()),
+            "summary": summary,
         }
 
     def _create_summary(self, endpoints: list[EndpointInfo], generated_files: dict[str, str]) -> str:
@@ -445,7 +838,7 @@ class DocumentationInitializer:
         lines.append(f"- **Files generated:** {len(generated_files)}")
         lines.append("")
 
-        # Group by HTTP method
+        # Method breakdown
         method_counts: dict[str, int] = {}
         for endpoint in endpoints:
             method_counts[endpoint.method] = method_counts.get(endpoint.method, 0) + 1
@@ -455,16 +848,38 @@ class DocumentationInitializer:
             lines.append(f"- {method}: {count}")
         lines.append("")
 
-        # List generated files
+        # Generated files
         lines.append("**Generated files:**")
         for file_path in sorted(generated_files.keys()):
             lines.append(f"- {file_path}")
         lines.append("")
 
+        # Check for untagged endpoints
+        untagged_endpoints = [ep for ep in endpoints if not ep.tags]
+        if untagged_endpoints:
+            lines.append("⚠️  **Endpoints without tags (will be grouped in api.md):**")
+            for endpoint in sorted(untagged_endpoints, key=lambda e: (e.file_path, e.line_number)):
+                lines.append(f"- {endpoint.method} {endpoint.path} → `{endpoint.file_path}:{endpoint.line_number}`")
+            lines.append("")
+            lines.append("💡 **Tip:** Add tags to these endpoints for better organization:")
+            lines.append("   ```python")
+            lines.append("   # For individual endpoints:")
+            lines.append("   @app.get('/path', tags=['tag_name'])")
+            lines.append("   ")
+            lines.append("   # For router-level tagging:")
+            lines.append("   router = APIRouter(prefix='/prefix', tags=['tag_name'])")
+            lines.append("   ```")
+            lines.append("")
+
+        # Next steps
         lines.append("**Next steps:**")
         lines.append("1. Review the generated documentation files")
         lines.append("2. Fill in TODO sections with detailed information")
         lines.append("3. Add parameter documentation and response examples")
-        lines.append("4. Run `fmd-lint` to check documentation completeness")
+        if untagged_endpoints:
+            lines.append("4. Consider adding tags to untagged endpoints for better organization")
+            lines.append("5. Run `fmd-lint` to check documentation completeness")
+        else:
+            lines.append("4. Run `fmd-lint` to check documentation completeness")
 
         return "\n".join(lines)
