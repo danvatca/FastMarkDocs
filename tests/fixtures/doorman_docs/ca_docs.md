@@ -149,6 +149,20 @@ print(f"Certificate: {cert_name}")
 }
 ```
 
+**Certificate Not Found (404 Not Found):**
+```json
+{
+  "detail": "Certificate 'my-certificate' not found"
+}
+```
+
+**Insufficient Permissions (403 Forbidden):**
+```json
+{
+  "detail": "User has no rights to do this action"
+}
+```
+
 ---
 
 ### POST /ca/certs/{name}
@@ -266,6 +280,64 @@ if response.status_code == 204:
 #### Response
 
 **Success (200 OK):** Certificate deleted successfully
+
+## Unsupported HTTP Methods
+
+### 🚫 **Certificate Modification Not Supported**
+
+The Certificate Authority API **does not support certificate modification** after creation. Certificates are **immutable** once generated to maintain security and integrity.
+
+#### **Unsupported Methods on `/ca/certs/{name}`:**
+
+- **PUT /ca/certs/{name}** - ❌ Not Supported
+- **PATCH /ca/certs/{name}** - ❌ Not Supported
+
+#### **405 Method Not Allowed Response**
+
+When PUT or PATCH methods are attempted on any certificate endpoint, the server returns a **405 Method Not Allowed** response:
+
+```json
+{
+  "error": "Method not allowed",
+  "message": "Certificate 'certificate-name' cannot be modified. Certificates are immutable once created.",
+  "certificate_name": "certificate-name",
+  "allowed_methods": ["GET", "DELETE"],
+  "alternatives": [
+    "GET /ca/certs/certificate-name - Get certificate details",
+    "DELETE /ca/certs/certificate-name - Delete certificate", 
+    "POST /ca/certs/{new_name} - Create new certificate with different name"
+  ],
+  "hint": "To update a certificate, delete the old one and create a new one with the desired parameters"
+}
+```
+
+#### **Certificate Update Workflow**
+
+To update certificate parameters, follow this workflow:
+
+1. **Create New Certificate**: Generate a new certificate with updated parameters using a different name
+2. **Update Applications**: Configure applications to use the new certificate
+3. **Delete Old Certificate**: Remove the old certificate once it's no longer needed
+
+**Example:**
+```bash
+# Step 1: Create new certificate with updated parameters
+curl -X POST "{base_url}/ca/certs/web-server-v2" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your_jwt_token" \
+  -d '{
+    "commonName": "web-server-v2",
+    "dnsNames": ["example.com", "www.example.com", "api.example.com"],
+    "ipAddresses": ["192.168.1.100", "192.168.1.101"]
+  }'
+
+# Step 2: Update application configuration to use new certificate
+# (Application-specific configuration changes)
+
+# Step 3: Delete old certificate
+curl -X DELETE "{base_url}/ca/certs/web-server-v1" \
+  -H "Authorization: Bearer your_jwt_token"
+```
 
 ## Certificate Types and Use Cases
 

@@ -263,6 +263,15 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
             header_match = re.match(r"^(#{1,})\s+", line)
             if header_match:
                 current_header_level = len(header_match.group(1))
+                header_text = line.strip()
+
+                # Stop collection for code examples, response examples, etc. regardless of header level
+                # This prevents code samples from being included in the description
+                if re.search(r"code\s+examples?|response\s+examples?|examples?", header_text, re.IGNORECASE):
+                    in_description = False
+                    # Don't add this line to description since it's the start of a code/response examples section
+                    continue
+
                 # Stop if we encounter a header at the same level or higher (fewer #'s)
                 # This ensures we stop at the next endpoint (same level) or section (higher level)
                 if current_header_level <= endpoint_header_level:
