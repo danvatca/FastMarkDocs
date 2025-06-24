@@ -1134,8 +1134,6 @@ class DocumentationInitializer:
 
         # Create summary
         summary = self._create_summary(endpoints, generated_files)
-        print("\n" + "=" * 60)
-        print(summary)
 
         return {
             "endpoints": endpoints,
