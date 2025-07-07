@@ -1103,10 +1103,11 @@ class MarkdownScaffoldGenerator:
 class DocumentationInitializer:
     """Main class for initializing documentation scaffolding."""
 
-    def __init__(self, source_directory: str, output_directory: str = "docs"):
+    def __init__(self, source_directory: str, output_directory: str = "docs", generate_config: bool = True):
         """Initialize the documentation initializer."""
         self.source_directory = source_directory
         self.output_directory = output_directory
+        self.generate_config = generate_config
 
     def initialize(self) -> dict[str, Any]:
         """Initialize documentation scaffolding for the project."""
@@ -1132,8 +1133,15 @@ class DocumentationInitializer:
             print("ℹ️  No FastAPI endpoints found, but general_docs.md was created with API documentation structure.")
             print("💡 Tip: Check that your Python files contain @app.get(), @router.post(), etc. decorators")
 
+        # Generate linter configuration file if requested
+        config_file_path = None
+        if self.generate_config:
+            config_file_path = self._generate_linter_config(endpoints)
+            if config_file_path:
+                print(f"📋 Generated linter configuration: {config_file_path}")
+
         # Create summary
-        summary = self._create_summary(endpoints, generated_files)
+        summary = self._create_summary(endpoints, generated_files, config_file_path)
 
         return {
             "endpoints": endpoints,
@@ -1141,7 +1149,145 @@ class DocumentationInitializer:
             "summary": summary,
         }
 
-    def _create_summary(self, endpoints: list[EndpointInfo], generated_files: dict[str, str]) -> str:
+    def _generate_linter_config(self, endpoints: list[EndpointInfo]) -> Optional[str]:
+        """Generate a .fmd-lint.yaml configuration file."""
+        from pathlib import Path
+
+        # Check if config file already exists
+        config_path = Path(".fmd-lint.yaml")
+        if config_path.exists():
+            print("ℹ️  .fmd-lint.yaml already exists, skipping config generation")
+            return None
+
+        # Generate configuration content
+        config_content = self._create_linter_config_content(endpoints)
+
+        try:
+            config_path.write_text(config_content, encoding="utf-8")
+            return str(config_path)
+        except Exception as e:
+            print(f"⚠️  Failed to generate linter config: {e}")
+            return None
+
+    def _create_linter_config_content(self, endpoints: list[EndpointInfo]) -> str:
+        """Create the content for the linter configuration file."""
+        lines = []
+
+        # Header comment
+        lines.append("# FastMarkDocs Linter Configuration")
+        lines.append("# Generated automatically by fmd-init")
+        lines.append("# Customize this file according to your project's needs")
+        lines.append("")
+
+        # Common exclusions based on discovered endpoints
+        exclusions = self._suggest_exclusions(endpoints)
+        if exclusions:
+            lines.append("# Exclude specific endpoints from documentation linting")
+            lines.append("exclude:")
+            lines.append("  endpoints:")
+            for exclusion in exclusions:
+                lines.append(f"    - path: \"{exclusion['path']}\"")
+                lines.append("      methods:")
+                for method in exclusion["methods"]:
+                    lines.append(f'        - "{method}"')
+            lines.append("")
+        else:
+            lines.append("# Exclude specific endpoints from documentation linting")
+            lines.append("# exclude:")
+            lines.append("#   endpoints:")
+            lines.append("#     # Example: Exclude health check endpoints")
+            lines.append('#     - path: "^/health"')
+            lines.append("#       methods:")
+            lines.append('#         - ".*"')
+            lines.append("#     # Example: Exclude static file endpoints")
+            lines.append('#     - path: "^/static/.*"')
+            lines.append("#       methods:")
+            lines.append('#         - "GET"')
+            lines.append("")
+
+        # OpenAPI schema configuration
+        lines.append("# OpenAPI schema file path")
+        lines.append("# Option 1: Direct path to existing OpenAPI file")
+        lines.append('openapi: "./openapi.json"')
+        lines.append("")
+        lines.append("# Option 2: Commands to generate OpenAPI schema (alternative to openapi)")
+        lines.append("# Uncomment and remove 'openapi' above if you want to generate the schema")
+        lines.append("# spec_generator:")
+        lines.append("#   commands:")
+        lines.append(
+            "#     - \"python -c \\\"from main import app; import json; json.dump(app.openapi(), open('openapi.json', 'w'))\\\"\""
+        )
+        lines.append('#   output_file: "./openapi.json"')
+        lines.append("")
+
+        # Documentation directories
+        lines.append("# Documentation directories to scan")
+        lines.append("docs:")
+
+        # Handle path conversion safely
+        output_path = Path(self.output_directory)
+        if output_path.is_absolute():
+            try:
+                relative_docs_path = output_path.relative_to(Path.cwd())
+                lines.append(f'  - "./{relative_docs_path}"')
+            except ValueError:
+                # Path is outside current working directory, use absolute path
+                lines.append(f'  - "{output_path}"')
+        else:
+            lines.append(f'  - "./{output_path}"')
+        lines.append("")
+
+        # Linter settings
+        lines.append("# Linter settings")
+        lines.append("recursive: true                           # Scan directories recursively")
+        lines.append('base_url: "https://api.example.com"      # Base URL for API examples')
+        lines.append('format: "text"                           # Output format: "text" or "json"')
+        lines.append('# output: "documentation-report.txt"     # Optional: save output to file')
+        lines.append("")
+
+        # Project-specific suggestions
+        lines.append("# Common patterns you might want to exclude:")
+        lines.append("# - Health checks: ^/(health|ready|live)")
+        lines.append("# - Metrics: ^/metrics")
+        lines.append("# - Static files: ^/static/.*")
+        lines.append("# - Admin interfaces: ^/admin/.*")
+        lines.append("# - Debug endpoints: ^/debug/.*")
+
+        return "\n".join(lines)
+
+    def _suggest_exclusions(self, endpoints: list[EndpointInfo]) -> list[dict[str, Any]]:
+        """Suggest common exclusions based on discovered endpoints."""
+        exclusions = []
+
+        # Check for common patterns that should be excluded
+        health_endpoints = [
+            ep
+            for ep in endpoints
+            if any(pattern in ep.path.lower() for pattern in ["/health", "/ready", "/live", "/ping"])
+        ]
+        if health_endpoints:
+            exclusions.append({"path": "^/(health|ready|live|ping)", "methods": [".*"]})
+
+        # Check for metrics endpoints
+        metrics_endpoints = [ep for ep in endpoints if "/metrics" in ep.path.lower()]
+        if metrics_endpoints:
+            exclusions.append({"path": "^/metrics", "methods": ["GET"]})
+
+        # Check for static file endpoints
+        static_endpoints = [ep for ep in endpoints if "/static" in ep.path.lower()]
+        if static_endpoints:
+            exclusions.append({"path": "^/static/.*", "methods": ["GET"]})
+
+        # Check for admin endpoints
+        admin_endpoints = [ep for ep in endpoints if "/admin" in ep.path.lower()]
+        if admin_endpoints:
+            exclusions.append({"path": "^/admin/.*", "methods": [".*"]})
+
+        return exclusions
+
+    def _create_summary(
+        self, endpoints: list[EndpointInfo], generated_files: dict[str, str], config_file_path: Optional[str] = None
+    ) -> str:
         """Create a summary of the initialization process."""
         lines = []
 
@@ -1172,6 +1318,10 @@ class DocumentationInitializer:
         # Then show endpoint-specific files
         for file_path in sorted(endpoint_files):
             lines.append(f"- {file_path}")
+
+        # Show config file if generated
+        if config_file_path:
+            lines.append(f"- {config_file_path} (linter configuration)")
         lines.append("")
 
         # Check for untagged endpoints

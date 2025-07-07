@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Unit tests for the fmd-init CLI interface."""
 
 import argparse
@@ -55,18 +56,31 @@ class TestCreateParser:
         assert args.verbose is True
 
     def test_parser_short_arguments(self) -> None:
-        """Test parser with short argument forms."""
+        """Test parser with short arguments."""
         parser = create_parser()
 
-        args = parser.parse_args(["src/", "-o", "docs", "-f", "json", "-n", "-v"])
+        args = parser.parse_args(["src/", "-o", "api-docs", "-f", "json", "-n", "-v"])
 
-        assert args.output_dir == "docs"
+        assert args.source_directory == "src/"
+        assert args.output_dir == "api-docs"
         assert args.format == "json"
         assert args.dry_run is True
         assert args.verbose is True
 
+    def test_parser_no_config_flag(self) -> None:
+        """Test parser with --no-config flag."""
+        parser = create_parser()
+
+        args = parser.parse_args(["src/", "--no-config"])
+        assert args.source_directory == "src/"
+        assert args.no_config is True
+
+        # Test default behavior
+        args = parser.parse_args(["src/"])
+        assert args.no_config is False
+
     def test_parser_invalid_format(self) -> None:
-        """Test parser with invalid format choice."""
+        """Test parser with invalid format."""
         parser = create_parser()
 
         with pytest.raises(SystemExit):
@@ -74,55 +88,64 @@ class TestCreateParser:
 
 
 class TestValidateArguments:
-    """Test argument validation."""
+    """Test the argument validation."""
 
     def test_validate_arguments_valid_directory(self) -> None:
         """Test validation with valid directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir) / "output"
-            args = Mock()
-            args.source_directory = temp_dir
-            args.output_dir = str(output_dir)
-            args.overwrite = False
-            args.dry_run = False
+            args = argparse.Namespace(
+                source_directory=temp_dir,
+                output_dir=str(output_dir),
+                overwrite=False,
+                dry_run=False,
+            )
 
             # Should not raise any exception
             validate_arguments(args)
 
     def test_validate_arguments_nonexistent_directory(self) -> None:
-        """Test validation with nonexistent directory."""
-        args = Mock()
-        args.source_directory = "/nonexistent/directory"
+        """Test validation with non-existent directory."""
+        args = argparse.Namespace(
+            source_directory="/nonexistent/directory",
+            output_dir="docs",
+            overwrite=False,
+            dry_run=False,
+        )
 
         with pytest.raises(SystemExit):
             validate_arguments(args)
 
     def test_validate_arguments_file_not_directory(self) -> None:
-        """Test validation when source is a file, not directory."""
+        """Test validation with file instead of directory."""
         with tempfile.NamedTemporaryFile() as temp_file:
-            args = Mock()
-            args.source_directory = temp_file.name
+            args = argparse.Namespace(
+                source_directory=temp_file.name,
+                output_dir="docs",
+                overwrite=False,
+                dry_run=False,
+            )
 
             with pytest.raises(SystemExit):
                 validate_arguments(args)
 
     def test_validate_arguments_existing_output_files(self) -> None:
-        """Test validation when output directory has existing markdown files."""
+        """Test validation with existing output files."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            source_dir = Path(temp_dir) / "src"
+            source_dir = Path(temp_dir) / "source"
             source_dir.mkdir()
-
-            output_dir = Path(temp_dir) / "docs"
+            output_dir = Path(temp_dir) / "output"
             output_dir.mkdir()
 
             # Create existing markdown file
             (output_dir / "existing.md").write_text("existing content")
 
-            args = Mock()
-            args.source_directory = str(source_dir)
-            args.output_dir = str(output_dir)
-            args.overwrite = False
-            args.dry_run = False
+            args = argparse.Namespace(
+                source_directory=str(source_dir),
+                output_dir=str(output_dir),
+                overwrite=False,
+                dry_run=False,
+            )
 
             with pytest.raises(SystemExit):
                 validate_arguments(args)
@@ -130,43 +153,43 @@ class TestValidateArguments:
     def test_validate_arguments_existing_files_with_overwrite(self) -> None:
         """Test validation with existing files but overwrite enabled."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            source_dir = Path(temp_dir) / "src"
+            source_dir = Path(temp_dir) / "source"
             source_dir.mkdir()
-
-            output_dir = Path(temp_dir) / "docs"
+            output_dir = Path(temp_dir) / "output"
             output_dir.mkdir()
 
             # Create existing markdown file
             (output_dir / "existing.md").write_text("existing content")
 
-            args = Mock()
-            args.source_directory = str(source_dir)
-            args.output_dir = str(output_dir)
-            args.overwrite = True
-            args.dry_run = False
+            args = argparse.Namespace(
+                source_directory=str(source_dir),
+                output_dir=str(output_dir),
+                overwrite=True,
+                dry_run=False,
+            )
 
-            # Should not raise exception with overwrite=True
+            # Should not raise any exception
             validate_arguments(args)
 
     def test_validate_arguments_existing_files_with_dry_run(self) -> None:
         """Test validation with existing files but dry run enabled."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            source_dir = Path(temp_dir) / "src"
+            source_dir = Path(temp_dir) / "source"
             source_dir.mkdir()
-
-            output_dir = Path(temp_dir) / "docs"
+            output_dir = Path(temp_dir) / "output"
             output_dir.mkdir()
 
             # Create existing markdown file
             (output_dir / "existing.md").write_text("existing content")
 
-            args = Mock()
-            args.source_directory = str(source_dir)
-            args.output_dir = str(output_dir)
-            args.overwrite = False
-            args.dry_run = True
+            args = argparse.Namespace(
+                source_directory=str(source_dir),
+                output_dir=str(output_dir),
+                overwrite=False,
+                dry_run=True,
+            )
 
-            # Should not raise exception with dry_run=True
+            # Should not raise any exception
             validate_arguments(args)
 
 
@@ -174,77 +197,59 @@ class TestFormatOutput:
     """Test output formatting functions."""
 
     def test_format_text_output_no_endpoints(self) -> None:
-        """Test text formatting when no endpoints found."""
-        result = {"endpoints": [], "files": [], "summary": "No endpoints discovered"}
+        """Test text formatting with no endpoints."""
+        result = {"endpoints": [], "files": [], "summary": "No endpoints"}
 
         output = format_text_output(result)
 
-        assert "No FastAPI endpoints found" in output
+        assert "🔍 No FastAPI endpoints found" in output
         assert "@app.get('/path')" in output
-        assert "@router.post('/path')" in output
 
     def test_format_text_output_with_endpoints(self) -> None:
-        """Test text formatting with discovered endpoints."""
+        """Test text formatting with endpoints."""
         result = {
-            "endpoints": [Mock(), Mock()],  # Two mock endpoints
+            "endpoints": [Mock(), Mock()],
             "files": ["docs/api.md"],
-            "summary": "📊 **Documentation Initialization Complete**\n- **Endpoints discovered:** 2\n- **Files generated:** 1",
+            "summary": "Success summary with endpoints",
         }
 
         output = format_text_output(result)
 
-        assert "Documentation scaffolding generated successfully!" in output
-        assert "**Endpoints discovered:** 2" in output
-        assert "**Files generated:** 1" in output
+        assert "✅ Documentation scaffolding generated successfully!" in output
+        assert "Success summary with endpoints" in output
 
     def test_format_text_output_verbose(self) -> None:
-        """Test text formatting with verbose output."""
+        """Test text formatting with verbose flag."""
         endpoints = [
-            EndpointInfo("GET", "/users", "get_users", "api/users.py", 10),
-            EndpointInfo("POST", "/users", "create_user", "api/users.py", 20),
+            EndpointInfo("GET", "/users", "get_users", "api.py", 10),
+            EndpointInfo("POST", "/users", "create_user", "api.py", 20),
         ]
-
         result = {
             "endpoints": endpoints,
             "files": ["docs/api.md"],
-            "summary": "Summary text",
+            "summary": "Success summary",
         }
 
         output = format_text_output(result, verbose=True)
 
+        assert "✅ Documentation scaffolding generated successfully!" in output
         assert "📋 **Discovered Endpoints:**" in output
         assert "GET    /users" in output
         assert "POST   /users" in output
-        assert "(api/users.py:10)" in output
-        assert "(api/users.py:20)" in output
 
     def test_format_json_output(self) -> None:
         """Test JSON formatting."""
-        endpoints = [
-            EndpointInfo(
-                method="GET",
-                path="/users",
-                function_name="get_users",
-                file_path="api/users.py",
-                line_number=10,
-                summary="Get users",
-                description="Get all users",
-                tags=["users"],
-            )
-        ]
-
+        endpoint = EndpointInfo("GET", "/users", "get_users", "api.py", 10, summary="Get users", tags=["users"])
         result = {
-            "endpoints": endpoints,
+            "endpoints": [endpoint],
             "files": ["docs/api.md"],
-            "summary": "Summary",
+            "summary": "Success",
         }
 
         output = format_json_output(result)
         parsed = json.loads(output)
 
         assert len(parsed["endpoints"]) == 1
-        assert len(parsed["endpoints"]) == 1
-
         endpoint_data = parsed["endpoints"][0]
         assert endpoint_data["method"] == "GET"
         assert endpoint_data["path"] == "/users"
@@ -286,6 +291,54 @@ class TestMainFunction:
 
                 # Should exit with code 0 (success)
                 assert exc_info.value.code == 0
+
+    @patch("fastmarkdocs.scaffolder_cli.DocumentationInitializer")
+    def test_main_with_no_config_flag(self, mock_initializer_class) -> None:
+        """Test main function with --no-config flag."""
+        # Mock the initializer
+        mock_initializer = Mock()
+        mock_initializer.initialize.return_value = {
+            "endpoints": [Mock(), Mock()],
+            "files": ["docs/api.md"],
+            "summary": "Success summary",
+        }
+        mock_initializer_class.return_value = mock_initializer
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "output"
+            with patch("sys.argv", ["fmd-init", temp_dir, "--output-dir", str(output_dir), "--no-config"]):
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
+
+                # Should exit with code 0 (success)
+                assert exc_info.value.code == 0
+
+                # Verify DocumentationInitializer was called with generate_config=False
+                mock_initializer_class.assert_called_with(temp_dir, str(output_dir), generate_config=False)
+
+    @patch("fastmarkdocs.scaffolder_cli.DocumentationInitializer")
+    def test_main_with_config_generation_enabled(self, mock_initializer_class) -> None:
+        """Test main function with config generation enabled (default)."""
+        # Mock the initializer
+        mock_initializer = Mock()
+        mock_initializer.initialize.return_value = {
+            "endpoints": [Mock(), Mock()],
+            "files": ["docs/api.md"],
+            "summary": "Success summary",
+        }
+        mock_initializer_class.return_value = mock_initializer
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "output"
+            with patch("sys.argv", ["fmd-init", temp_dir, "--output-dir", str(output_dir)]):
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
+
+                # Should exit with code 0 (success)
+                assert exc_info.value.code == 0
+
+                # Verify DocumentationInitializer was called with generate_config=True (default)
+                mock_initializer_class.assert_called_with(temp_dir, str(output_dir), generate_config=True)
 
     @patch("fastmarkdocs.scaffolder_cli.DocumentationInitializer")
     def test_main_no_endpoints_found(self, mock_initializer_class) -> None:

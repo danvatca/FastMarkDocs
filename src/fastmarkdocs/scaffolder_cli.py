@@ -28,6 +28,7 @@ Examples:
   fmd-init . --format json              # Output results as JSON
   fmd-init src/ --dry-run               # Preview what would be generated
   fmd-init src/ --overwrite             # Overwrite existing files
+  fmd-init src/ --no-config             # Skip generating .fmd-lint.yaml config
 
 The tool will:
 1. Recursively scan the source directory for Python files
@@ -35,6 +36,7 @@ The tool will:
 3. Extract endpoint information and docstrings
 4. Generate markdown documentation scaffolding
 5. Group endpoints by tags or create general API documentation
+6. Generate .fmd-lint.yaml configuration file for the linter
 
 Generated files will contain TODO sections that you should fill in with:
 - Detailed descriptions
@@ -67,6 +69,8 @@ Generated files will contain TODO sections that you should fill in with:
     parser.add_argument(
         "--exclude", action="append", help="Exclude files/directories matching pattern (can be used multiple times)"
     )
+
+    parser.add_argument("--no-config", action="store_true", help="Skip generating .fmd-lint.yaml configuration file")
 
     return parser
 
@@ -189,7 +193,9 @@ def main() -> None:
                 # Create the result manually
                 from fastmarkdocs.scaffolder import DocumentationInitializer as DI
 
-                summary = DI(args.source_directory, temp_dir)._create_summary(endpoints, generated_files)
+                summary = DI(args.source_directory, temp_dir, generate_config=not args.no_config)._create_summary(
+                    endpoints, generated_files
+                )
 
                 result = {
                     "endpoints": endpoints,
@@ -197,7 +203,9 @@ def main() -> None:
                     "summary": summary,
                 }
         else:
-            initializer = DocumentationInitializer(args.source_directory, args.output_dir)
+            initializer = DocumentationInitializer(
+                args.source_directory, args.output_dir, generate_config=not args.no_config
+            )
             # Run the initialization
             result = initializer.initialize()
 

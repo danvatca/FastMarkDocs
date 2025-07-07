@@ -307,12 +307,16 @@ fmd-init src/ --format json
 
 # Overwrite existing files
 fmd-init src/ --overwrite
+
+# Skip generating .fmd-lint.yaml configuration file
+fmd-init src/ --no-config
 ```
 
 **Features:**
 - 🔍 **Automatic Discovery**: Scans Python files for FastAPI decorators (`@app.get`, `@router.post`, etc.)
 - 📝 **Markdown Generation**: Creates structured documentation files grouped by tags
 - 🏗️ **Scaffolding**: Generates TODO sections for parameters, responses, and examples
+- 📋 **Linter Configuration**: Automatically generates `.fmd-lint.yaml` config file tailored to your project
 - 🔧 **Flexible Output**: Supports text and JSON formats, dry-run mode, custom directories
 - 📊 **Detailed Reporting**: Shows endpoint breakdown by HTTP method and file locations
 
@@ -335,15 +339,44 @@ fmd-init src/ --overwrite
 - docs/orders.md
 - docs/admin.md
 - docs/root.md
+- .fmd-lint.yaml (linter configuration)
 ```
 
 **Workflow Integration:**
 1. 🏗️ Develop FastAPI endpoints in your project
-2. 🔍 Run `fmd-init src/` to generate documentation scaffolding
+2. 🔍 Run `fmd-init src/` to generate documentation scaffolding and linter config
 3. ✏️ Review and enhance the generated documentation
 4. 🔧 Use fastmarkdocs to enhance your OpenAPI schema
-5. 🧪 Run `fmd-lint` to check documentation quality
+5. 🧪 Run `fmd-lint` to check documentation quality (uses generated config)
 6. 🚀 Deploy with enhanced documentation!
+
+**Automatic Linter Configuration:**
+
+`fmd-init` automatically generates a `.fmd-lint.yaml` configuration file tailored to your project:
+
+- **Smart Exclusions**: Detects common patterns (health checks, metrics, static files, admin endpoints) and suggests appropriate exclusions
+- **Project-Specific Paths**: Configures documentation and OpenAPI paths based on your setup
+- **Ready to Use**: The generated config works immediately with `fmd-lint`
+- **Customizable**: Easily modify the generated config to match your specific needs
+
+Example generated configuration:
+```yaml
+# FastMarkDocs Linter Configuration
+# Generated automatically by fmd-init
+
+exclude:
+  endpoints:
+    - path: "^/(health|ready|live|ping)"
+      methods: [".*"]
+    - path: "^/metrics"
+      methods: ["GET"]
+
+openapi: "./openapi.json"
+docs:
+  - "./docs"
+recursive: true
+base_url: "https://api.example.com"
+```
 
 ### Documentation Linting with fmd-lint
 
