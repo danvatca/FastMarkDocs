@@ -9,6 +9,7 @@ from typing import Any, Union
 from unittest.mock import Mock, patch
 
 import pytest
+
 from fastmarkdocs.exceptions import OpenAPIEnhancementError
 from fastmarkdocs.openapi_enhancer import OpenAPIEnhancer, enhance_openapi_with_docs
 from fastmarkdocs.types import (

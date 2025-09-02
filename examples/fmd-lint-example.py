@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
+
 from fastmarkdocs.linter import DocumentationLinter
 from fastmarkdocs.linter_cli import format_results
 
