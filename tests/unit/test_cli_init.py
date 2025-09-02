@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-
 from fastmarkdocs.scaffolder import EndpointInfo
 from fastmarkdocs.scaffolder_cli import (
     create_parser,

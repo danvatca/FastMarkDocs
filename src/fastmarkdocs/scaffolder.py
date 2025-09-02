@@ -258,13 +258,19 @@ class FastAPIEndpointScanner:
 
                     # Extract path from first argument
                     if decorator.args and isinstance(decorator.args[0], ast.Constant):
-                        path = decorator.args[0].value
+                        # Ensure the path is a string
+                        path_value = decorator.args[0].value
+                        if isinstance(path_value, str):
+                            path = path_value
 
                     # Check for include_in_schema parameter
                     for keyword in decorator.keywords:
                         if keyword.arg == "include_in_schema":
                             if isinstance(keyword.value, ast.Constant):
-                                include_in_schema = keyword.value.value
+                                # Ensure the value is a boolean
+                                value = keyword.value.value
+                                if isinstance(value, bool):
+                                    include_in_schema = value
 
                     # Skip endpoints excluded from schema (error handlers)
                     if not include_in_schema:
@@ -297,7 +303,7 @@ class FastAPIEndpointScanner:
             if method_name in self.http_method_decorators:
                 method = self.http_method_decorators[method_name]
 
-        if method and path is not None:
+        if method and path is not None and isinstance(path, str):
             # Extract additional information
             docstring = ast.get_docstring(func_node)
             summary, description = self._parse_docstring(docstring)

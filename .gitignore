@@ -20,6 +20,9 @@ dfsync-doorman.log
 # automatically generated on demand by ./generate_openapi.py
 openapi_spec.json
 
+# FastMarkDocs auto-generated configuration
+.fmd-lint.yaml
+
 # Ignore any sonarqube runs locally
 .scannerwork
 
@@ -245,3 +248,6 @@ src/docs/_site/
 # The docs/ directory contains only generated HTML/CSS/JS files
 # Source files are in src/docs/
 /docs/
+
+safety-report.json
+bandit-report.json

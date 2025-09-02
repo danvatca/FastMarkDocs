@@ -16,7 +16,6 @@ from .documentation_loader import MarkdownDocumentationLoader
 from .endpoint_analyzer import UnifiedEndpointAnalyzer
 from .exceptions import DocumentationLoadError, OpenAPIEnhancementError
 from .types import (
-    APILink,
     CodeLanguage,
     CodeSample,
     DocumentationData,
@@ -28,20 +27,18 @@ from .types import (
 )
 
 
-def _build_description_with_api_links(
+def _build_description_with_general_docs(
     app_title: Optional[str] = None,
     app_description: Optional[str] = None,
-    api_links: Optional[list[APILink]] = None,
     original_description: Optional[str] = None,
     general_docs_content: Optional[str] = None,
 ) -> str:
     """
-    Build a description with API links and general docs in a standardized format.
+    Build a description with general docs in a standardized format.
 
     Args:
         app_title: Application title
         app_description: Application description
-        api_links: List of API links to include
         original_description: Original description from the schema
         general_docs_content: General documentation content to include
 
@@ -49,21 +46,6 @@ def _build_description_with_api_links(
         Formatted description string
     """
     description_parts = []
-
-    # Add API links section if provided
-    if api_links:
-        api_link_strings = []
-        for api_link in api_links:
-            api_link_strings.append(f"[{api_link.description}]({api_link.url})")
-        api_links_line = " | ".join(api_link_strings)
-        description_parts.extend(
-            [
-                f"APIs: {api_links_line}",
-                "",
-                "* * *",
-                "",
-            ]
-        )
 
     # Add app title and description if provided
     if app_title and app_description:
@@ -95,7 +77,6 @@ def enhance_openapi_with_docs(
     custom_headers: Optional[dict[str, str]] = None,
     app_title: Optional[str] = None,
     app_description: Optional[str] = None,
-    api_links: Optional[list[APILink]] = None,
     general_docs_file: Optional[str] = None,
 ) -> dict[str, Any]:
     """
@@ -111,7 +92,6 @@ def enhance_openapi_with_docs(
         custom_headers: Custom headers to include in code samples
         app_title: Application title
         app_description: Application description
-        api_links: List of API links to include
         general_docs_file: Path to general documentation file (defaults to "general_docs.md" if found)
 
     Returns:
@@ -147,18 +127,17 @@ def enhance_openapi_with_docs(
 
         # Override title and description if provided, or if general docs exist
         general_docs_content = getattr(docs_loader, "_general_docs_content", None)
-        if app_title or app_description or api_links or general_docs_content:
+        if app_title or app_description or general_docs_content:
             original_description = enhanced_schema.get("info", {}).get("description", "")
 
             # Update title if provided
             if app_title:
                 enhanced_schema.setdefault("info", {})["title"] = app_title
 
-            # Build new description with API links and general docs
-            new_description = _build_description_with_api_links(
+            # Build new description with general docs
+            new_description = _build_description_with_general_docs(
                 app_title=app_title,
                 app_description=app_description,
-                api_links=api_links,
                 original_description=original_description,
                 general_docs_content=general_docs_content,
             )

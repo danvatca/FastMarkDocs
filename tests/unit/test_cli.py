@@ -10,7 +10,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from fastmarkdocs.linter import DocumentationLinter
 from fastmarkdocs.linter_cli import LinterConfig, find_config_file, format_results, main, run_spec_generator
 from fastmarkdocs.types import DocumentationData, EndpointDocumentation, HTTPMethod

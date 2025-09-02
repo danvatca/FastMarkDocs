@@ -6,7 +6,6 @@ the FastMarkDocs library.
 """
 
 import pytest
-
 from fastmarkdocs.types import (
     APILink,
     CodeLanguage,
