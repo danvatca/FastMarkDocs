@@ -754,10 +754,10 @@ class TestFormatResults:
                     "message": "Endpoint GET /users is documented 2 times",
                     "occurrences": [
                         {"method": "GET", "path": "/users", "file": "users1.md"},
-                        {"method": "GET", "path": "/users", "file": "users2.md"}
+                        {"method": "GET", "path": "/users", "file": "users2.md"},
                     ],
                     "suggestion": "Remove duplicate documentation. Each endpoint should be documented exactly once.",
-                    "files": ["users1.md", "users2.md"]
+                    "files": ["users1.md", "users2.md"],
                 }
             ],
             "orphaned_documentation": [{"method": "GET", "path": "/orphaned", "message": "Orphaned endpoint"}],
