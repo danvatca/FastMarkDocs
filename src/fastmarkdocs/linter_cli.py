@@ -255,6 +255,8 @@ def format_results(results: dict[str, Any], format_type: str = "text", show_all:
             output.append(f"   • Incomplete documentation: {issues['incomplete_documentation']}")
         if issues["common_mistakes"] > 0:
             output.append(f"   • Common mistakes: {issues['common_mistakes']}")
+        if issues.get("duplicate_endpoints", 0) > 0:
+            output.append(f"   • Duplicate endpoints: {issues['duplicate_endpoints']}")
         if issues["orphaned_documentation"] > 0:
             output.append(f"   • Orphaned documentation: {issues['orphaned_documentation']}")
         if issues["enhancement_failures"] > 0:
@@ -300,6 +302,19 @@ def format_results(results: dict[str, Any], format_type: str = "text", show_all:
                 output.append(f"     💡 {item['suggestion']}")
         if not show_all and len(results["common_mistakes"]) > 5:
             output.append(f"   ... and {len(results['common_mistakes']) - 5} more")
+        output.append("")
+
+    if results.get("duplicate_endpoints"):
+        output.append("🔄 Duplicate Endpoints:")
+        output.append("   📁 These endpoints are documented multiple times:")
+        items_to_show = results["duplicate_endpoints"] if show_all else results["duplicate_endpoints"][:5]
+        for item in items_to_show:
+            output.append(f"   • {item['method']} {item['path']} ({len(item['occurrences'])} times)")
+            output.append(f"     📄 Files: {', '.join(item['files'])}")
+            if item.get("suggestion"):
+                output.append(f"     💡 {item['suggestion']}")
+        if not show_all and len(results["duplicate_endpoints"]) > 5:
+            output.append(f"   ... and {len(results['duplicate_endpoints']) - 5} more")
         output.append("")
 
     if results["orphaned_documentation"]:

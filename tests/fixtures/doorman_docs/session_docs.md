@@ -90,7 +90,7 @@ print(response.cookies.get('session'))
 
 #### Request Examples
 
-**Username/Password Authentication:**
+**Login with username and password:**
 ```json
 {
   "username": "admin",
@@ -98,7 +98,7 @@ print(response.cookies.get('session'))
 }
 ```
 
-**PIN Authentication (Support Access):**
+**Login with PIN (support access):**
 ```json
 {
   "pin": "123456"

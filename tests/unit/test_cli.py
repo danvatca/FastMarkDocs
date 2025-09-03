@@ -549,6 +549,7 @@ curl -X GET "/users"
             assert "missing_documentation" in results
             assert "incomplete_documentation" in results
             assert "common_mistakes" in results
+            assert "duplicate_endpoints" in results
             assert "orphaned_documentation" in results
             assert "enhancement_failures" in results
             assert "recommendations" in results
@@ -561,6 +562,87 @@ curl -X GET "/users"
             assert "total_openapi_endpoints" in stats
             assert "total_documented_endpoints" in stats
             assert "documentation_coverage_percentage" in stats
+
+    def test_duplicate_endpoint_detection(self) -> None:
+        """Test detection of duplicate endpoint documentation."""
+        openapi_schema = {"paths": {"/users": {"get": {"summary": "List users"}}}}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            docs_dir = Path(temp_dir) / "docs"
+            docs_dir.mkdir()
+
+            # Create first documentation file
+            (docs_dir / "users1.md").write_text(
+                """
+## GET /users
+
+List all users from file 1.
+
+### Description
+Get all users from the system.
+
+### Code Examples
+
+```bash
+curl -X GET "/users"
+```
+
+### Response Examples
+
+```json
+{"users": []}
+```
+"""
+            )
+
+            # Create second documentation file with duplicate endpoint
+            (docs_dir / "users2.md").write_text(
+                """
+## GET /users
+
+List all users from file 2.
+
+### Description
+This is a duplicate documentation for the same endpoint.
+
+### Code Examples
+
+```bash
+curl -X GET "/users"
+```
+
+### Response Examples
+
+```json
+{"users": []}
+```
+"""
+            )
+
+            linter = DocumentationLinter(openapi_schema=openapi_schema, docs_directory=str(docs_dir))
+            results = linter.lint()
+
+            # Should detect duplicate endpoint
+            duplicates = results["duplicate_endpoints"]
+            assert len(duplicates) == 1
+
+            duplicate = duplicates[0]
+            assert duplicate["type"] == "duplicate_endpoint_documentation"
+            assert duplicate["severity"] == "error"
+            assert duplicate["method"] == "GET"
+            assert duplicate["path"] == "/users"
+            assert len(duplicate["occurrences"]) == 2
+            assert "Remove duplicate documentation" in duplicate["suggestion"]
+
+            # Should have both files listed
+            assert len(duplicate["files"]) == 2
+            assert any("users1.md" in file for file in duplicate["files"])
+            assert any("users2.md" in file for file in duplicate["files"])
+
+            # Should be counted in statistics
+            stats = results["statistics"]
+            assert stats["issues"]["duplicate_endpoints"] == 1
+            assert stats["issues"]["total_issues"] >= 1
 
 
 class TestFormatResults:
@@ -617,17 +699,18 @@ class TestFormatResults:
     def test_format_text_with_all_issue_types(self) -> None:
         """Test text formatting with comprehensive results including all issue types."""
         results = {
-            "summary": {"message": "Issues found", "coverage": "60.0%", "completeness": "45.0%", "total_issues": 15},
+            "summary": {"message": "Issues found", "coverage": "60.0%", "completeness": "45.0%", "total_issues": 16},
             "statistics": {
                 "total_openapi_endpoints": 20,
                 "total_documented_endpoints": 12,
                 "documentation_coverage_percentage": 60.0,
                 "average_completeness_score": 45.0,
                 "issues": {
-                    "total_issues": 15,
+                    "total_issues": 16,
                     "missing_documentation": 8,
                     "incomplete_documentation": 4,
                     "common_mistakes": 2,
+                    "duplicate_endpoints": 1,
                     "orphaned_documentation": 1,
                     "enhancement_failures": 0,
                 },
@@ -663,6 +746,19 @@ class TestFormatResults:
                 {"type": "another_mistake", "message": "Another mistake"},
                 {"type": "yet_another", "message": "Yet another mistake"},
                 {"type": "sixth_mistake", "message": "Sixth mistake"},  # More than 5 to test truncation
+            ],
+            "duplicate_endpoints": [
+                {
+                    "method": "GET",
+                    "path": "/users",
+                    "message": "Endpoint GET /users is documented 2 times",
+                    "occurrences": [
+                        {"method": "GET", "path": "/users", "file": "users1.md"},
+                        {"method": "GET", "path": "/users", "file": "users2.md"}
+                    ],
+                    "suggestion": "Remove duplicate documentation. Each endpoint should be documented exactly once.",
+                    "files": ["users1.md", "users2.md"]
+                }
             ],
             "orphaned_documentation": [{"method": "GET", "path": "/orphaned", "message": "Orphaned endpoint"}],
             "enhancement_failures": [

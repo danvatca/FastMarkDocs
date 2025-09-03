@@ -89,28 +89,4 @@ Sensitive operations require re-authentication regardless of session status:
 
 ## Request Examples
 
-### POST /v1/session
-
-**Login with username and password:**
-```json
-{
-  "username": "admin",
-  "password": "your_password"
-}
-```
-
-**Login with PIN (support access):**
-```json
-{
-  "pin": "123456"
-}
-```
-
-### POST /v1/session:verifyOtp
-
-**Verify OTP code:**
-```json
-{
-  "otp_code": "123456"
-}
-```
+For specific endpoint documentation and examples, please refer to the individual endpoint sections in the API documentation.

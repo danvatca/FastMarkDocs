@@ -101,6 +101,7 @@ class DocumentationLinter:
             "missing_documentation": [],
             "incomplete_documentation": [],
             "common_mistakes": [],
+            "duplicate_endpoints": [],
             "orphaned_documentation": [],
             "enhancement_failures": [],
             "todo_entries": [],
@@ -120,6 +121,9 @@ class DocumentationLinter:
 
         # Find common mistakes
         results["common_mistakes"] = self._find_common_mistakes(openapi_endpoints, markdown_endpoints)
+
+        # Find duplicate endpoints
+        results["duplicate_endpoints"] = self._find_duplicate_endpoints()
 
         # Find orphaned documentation
         results["orphaned_documentation"] = self._find_orphaned_documentation(openapi_endpoints, markdown_endpoints)
@@ -353,6 +357,71 @@ class DocumentationLinter:
                 )
 
         return mistakes
+
+    def _find_duplicate_endpoints(self) -> list[dict[str, Any]]:
+        """Find endpoints that are documented multiple times."""
+        duplicates = []
+        endpoint_counts: dict[tuple[str, str], list[dict[str, Any]]] = {}
+
+        # Build detailed file mapping for all endpoints
+        from .utils import find_markdown_files
+
+        markdown_files = find_markdown_files(str(self.docs_directory), recursive=self.recursive)
+        endpoint_to_files: dict[tuple[str, str], list[str]] = {}
+
+        for file_path in markdown_files:
+            try:
+                # Parse each file to get its endpoints
+                endpoints = self.loader._parse_markdown_file(Path(file_path))
+                for endpoint in endpoints:
+                    key = (endpoint.method.value, endpoint.path)
+                    if key not in endpoint_to_files:
+                        endpoint_to_files[key] = []
+                    # Store relative path for cleaner display
+                    relative_path = Path(file_path).relative_to(self.docs_directory)
+                    endpoint_to_files[key].append(str(relative_path))
+            except (FileNotFoundError, PermissionError, UnicodeDecodeError, ValueError, KeyError, AttributeError):
+                # If we can't read or parse a file, continue with others
+                continue
+
+        # Count occurrences of each endpoint
+        for endpoint in self.documentation.endpoints:
+            key = (endpoint.method.value, endpoint.path)
+            if key not in endpoint_counts:
+                endpoint_counts[key] = []
+
+            # Get file information for this endpoint
+            files_for_endpoint = endpoint_to_files.get(key, ["Unknown file"])
+            endpoint_info = {
+                "method": endpoint.method.value,
+                "path": endpoint.path,
+                "summary": endpoint.summary or "No summary",
+                "description_length": len(endpoint.description or ""),
+                "file": files_for_endpoint[0] if files_for_endpoint else "Unknown file",
+                "has_code_samples": len(endpoint.code_samples) > 0,
+                "has_response_examples": len(endpoint.response_examples) > 0,
+            }
+            endpoint_counts[key].append(endpoint_info)
+
+        # Find duplicates
+        for (method, path), occurrences in endpoint_counts.items():
+            if len(occurrences) > 1:
+                # Get all files that document this endpoint
+                files_for_endpoint = endpoint_to_files.get((method, path), [])
+                duplicates.append(
+                    {
+                        "type": "duplicate_endpoint_documentation",
+                        "severity": "error",
+                        "method": method,
+                        "path": path,
+                        "message": f"Endpoint {method} {path} is documented {len(occurrences)} times",
+                        "occurrences": occurrences,
+                        "suggestion": "Remove duplicate documentation. Each endpoint should be documented exactly once.",
+                        "files": files_for_endpoint,
+                    }
+                )
+
+        return duplicates
 
     def _find_orphaned_documentation(
         self, openapi_endpoints: set[tuple[str, str]], markdown_endpoints: set[tuple[str, str]]
@@ -633,6 +702,7 @@ class DocumentationLinter:
         total_missing = len(results["missing_documentation"])
         total_incomplete = len(results["incomplete_documentation"])
         total_mistakes = len(results["common_mistakes"])
+        total_duplicates = len(results.get("duplicate_endpoints", []))
         total_orphaned = len(results["orphaned_documentation"])
         total_enhancement_failures = len(results["enhancement_failures"])
         total_todos = len(results.get("todo_entries", []))
@@ -655,12 +725,14 @@ class DocumentationLinter:
                 "missing_documentation": total_missing,
                 "incomplete_documentation": total_incomplete,
                 "common_mistakes": total_mistakes,
+                "duplicate_endpoints": total_duplicates,
                 "orphaned_documentation": total_orphaned,
                 "enhancement_failures": total_enhancement_failures,
                 "todo_entries": total_todos,
                 "total_issues": total_missing
                 + total_incomplete
                 + total_mistakes
+                + total_duplicates
                 + total_orphaned
                 + total_enhancement_failures
                 + total_todos,
