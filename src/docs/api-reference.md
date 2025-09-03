@@ -13,6 +13,8 @@ Complete reference documentation for all FastMarkDocs classes, functions, and ty
 
 ### enhance_openapi_with_docs()
 
+> **New in v0.4.0**: Enhanced support for multi-format response examples including Prometheus metrics, XML, YAML, CSV, and plain text.
+
 The main function for enhancing OpenAPI schemas with markdown documentation.
 
 ```python
@@ -357,22 +359,47 @@ class ParameterDocumentation:
 
 ### ResponseExample
 
-Represents a response example from documentation.
+> **Enhanced in v0.4.0**: Now supports multiple content types with automatic detection.
+
+Represents a response example from documentation with support for various content types including JSON, Prometheus metrics, XML, YAML, CSV, and plain text.
 
 ```python
 @dataclass
 class ResponseExample:
     status_code: int
     description: str
-    content: Optional[Dict[str, Any]] = None
+    content: Optional[Union[Dict[str, Any], str, bytes]] = None
+    content_type: str = "application/json"
     headers: Optional[Dict[str, str]] = None
+    raw_content: Optional[str] = None
 ```
 
 **Attributes:**
-- `status_code`: HTTP status code
+- `status_code`: HTTP status code (100-599)
 - `description`: Description of the response
-- `content`: Response body content
+- `content`: Response body content (parsed or raw based on content type)
+- `content_type`: MIME type of the response content (auto-detected from raw_content)
 - `headers`: Response headers
+- `raw_content`: Original raw content before parsing
+
+**Supported Content Types:**
+- `application/json` - JSON responses (default)
+- `text/plain; version=0.0.4` - Prometheus metrics (auto-detected from `# HELP`/`# TYPE`)
+- `application/xml` - XML responses (auto-detected from XML declarations)
+- `application/yaml` - YAML responses (auto-detected from YAML structure)
+- `text/html` - HTML responses (auto-detected from HTML tags)
+- `text/csv` - CSV responses (auto-detected from comma-separated patterns)
+- `text/plain` - Plain text (fallback for unrecognized formats)
+
+**Content Type Detection:**
+The `content_type` is automatically detected from `raw_content` using pattern matching:
+- Prometheus metrics: Detected from `# HELP` and `# TYPE` comments
+- XML: Detected from `<?xml` declarations or tag structure
+- YAML: Detected from key-value patterns
+- JSON: Detected by attempting to parse as JSON
+- CSV: Detected from comma-separated value patterns
+- HTML: Detected from DOCTYPE or HTML tags
+- Plain text: Used as fallback for unrecognized content
 
 ## Enums
 

@@ -201,12 +201,35 @@ class UnifiedEndpointAnalyzer:
             missing_elements.append("code_samples")
             enhancement_opportunities.append("Auto-generate code samples")
 
-        # Analyze response examples
+        # Analyze response examples with enhanced multi-format support
         if not endpoint_doc.response_examples:
             missing_elements.append("response_examples")
             quality_issues.append("No response examples provided")
-        elif len(endpoint_doc.response_examples) < 2:
-            enhancement_opportunities.append("Add more response examples (success and error cases)")
+        else:
+            # Check for valid content in any format
+            valid_examples = []
+            for example in endpoint_doc.response_examples:
+                if example.content is not None or example.raw_content or hasattr(example, "content_type"):
+                    valid_examples.append(example)
+
+            if not valid_examples:
+                quality_issues.append("Response examples found but no valid content detected")
+            elif len(valid_examples) < 2:
+                enhancement_opportunities.append("Add more response examples (success and error cases)")
+
+            # Check for success response (2xx)
+            success_examples = [ex for ex in valid_examples if 200 <= ex.status_code < 300]
+            if not success_examples:
+                quality_issues.append("No success response examples (2xx status codes)")
+
+            # Check for different content types representation
+            content_types = set()
+            for example in valid_examples:
+                if hasattr(example, "content_type"):
+                    content_types.add(example.content_type)
+
+            if len(content_types) > 1:
+                enhancement_opportunities.append(f"Multiple content types documented: {', '.join(content_types)}")
 
         # Analyze parameters
         if "{" in endpoint_doc.path and "}" in endpoint_doc.path:

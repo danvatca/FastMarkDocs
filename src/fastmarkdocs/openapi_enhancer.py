@@ -9,7 +9,7 @@ for enhancing OpenAPI schemas with documentation loaded from markdown files.
 
 import copy
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from .code_samples import CodeSampleGenerator
 from .documentation_loader import MarkdownDocumentationLoader
@@ -414,7 +414,7 @@ class OpenAPIEnhancer:
         stats: Optional[dict[str, int]] = None,
     ) -> None:
         """
-        Add response examples to an OpenAPI operation.
+        Enhanced method to add response examples supporting multiple content types to an OpenAPI operation.
 
         Args:
             operation: OpenAPI operation object
@@ -432,11 +432,13 @@ class OpenAPIEnhancer:
 
             response_obj = operation["responses"][status_str]
 
-            if example.content:
+            if example.content is not None or example.raw_content:
                 if "content" not in response_obj:
                     response_obj["content"] = {}
 
-                content_type = "application/json"
+                # Use the detected content type from the example
+                content_type = getattr(example, "content_type", "application/json")
+
                 if content_type not in response_obj["content"]:
                     response_obj["content"][content_type] = {}
 
@@ -444,10 +446,37 @@ class OpenAPIEnhancer:
                     response_obj["content"][content_type]["examples"] = {}
 
                 example_key = f"example_{example.status_code}"
+
+                # Choose the appropriate content to use in the example
+                example_value: Union[str, dict[str, Any], list[Any]]
+                if content_type == "application/json" and isinstance(example.content, (dict, list)):
+                    example_value = example.content
+                else:
+                    # For non-JSON content types, use raw_content if available, otherwise content
+                    if example.raw_content:
+                        example_value = example.raw_content
+                    elif isinstance(example.content, str):
+                        example_value = example.content
+                    else:
+                        example_value = ""
+
                 response_obj["content"][content_type]["examples"][example_key] = {
                     "summary": example.description,
-                    "value": example.content,
+                    "value": example_value,
                 }
+
+                # Set appropriate schema for different content types
+                if "schema" not in response_obj["content"][content_type]:
+                    if content_type == "application/json":
+                        response_obj["content"][content_type]["schema"] = {"type": "object"}
+                    elif content_type.startswith("text/"):
+                        response_obj["content"][content_type]["schema"] = {"type": "string"}
+                    elif content_type == "application/xml":
+                        response_obj["content"][content_type]["schema"] = {"type": "string", "format": "xml"}
+                    elif content_type == "application/yaml":
+                        response_obj["content"][content_type]["schema"] = {"type": "string", "format": "yaml"}
+                    else:
+                        response_obj["content"][content_type]["schema"] = {"type": "string"}
 
                 if stats:
                     stats["examples_added"] += 1

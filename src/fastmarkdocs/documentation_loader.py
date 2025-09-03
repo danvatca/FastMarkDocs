@@ -499,39 +499,45 @@ class MarkdownDocumentationLoader:
         sections: list[str] = []
         current_section: list[str] = []
         current_endpoint_level = 0
+        in_code_block = False
 
         for line in lines:
-            # Check if this line is an endpoint header
-            endpoint_match = re.match(r"^(#{2,4})\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line)
-            if endpoint_match:
-                # If we have a current section, save it
-                if current_section:
-                    sections.append("\n".join(current_section))
-                    current_section = []
+            # Track code block state
+            if line.strip().startswith("```"):
+                in_code_block = not in_code_block
 
-                # Track the level of this endpoint header
-                current_endpoint_level = len(endpoint_match.group(1))
-                current_section.append(line)
-                continue
+            # Check if this line is an endpoint header (only if not in code block)
+            if not in_code_block:
+                endpoint_match = re.match(r"^(#{2,4})\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line)
+                if endpoint_match:
+                    # If we have a current section, save it
+                    if current_section:
+                        sections.append("\n".join(current_section))
+                        current_section = []
 
-            # Check if this line is a header that would end the current endpoint section
-            if current_section and current_endpoint_level > 0:
-                header_match = re.match(r"^(#{1,})\s+", line)
-                if header_match:
-                    header_level = len(header_match.group(1))
-                    # Only end the section if we encounter a header at the same level or higher (fewer #'s)
-                    # that is NOT a sub-section of the current endpoint (like #### Code Examples)
-                    if header_level <= current_endpoint_level:
-                        # Check if this is another endpoint header
-                        if not re.match(r"^#{2,4}\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line):
-                            # This is a non-endpoint header at same/higher level
-                            # But we should NOT split on sub-headers like "#### Code Examples"
-                            # Only split on major section headers (# or ## level)
-                            if header_level <= 2:
-                                sections.append("\n".join(current_section))
-                                current_section = [line]
-                                current_endpoint_level = 0
-                                continue
+                    # Track the level of this endpoint header
+                    current_endpoint_level = len(endpoint_match.group(1))
+                    current_section.append(line)
+                    continue
+
+                # Check if this line is a header that would end the current endpoint section
+                if current_section and current_endpoint_level > 0:
+                    header_match = re.match(r"^(#{1,})\s+", line)
+                    if header_match:
+                        header_level = len(header_match.group(1))
+                        # Only end the section if we encounter a header at the same level or higher (fewer #'s)
+                        # that is NOT a sub-section of the current endpoint (like #### Code Examples)
+                        if header_level <= current_endpoint_level:
+                            # Check if this is another endpoint header
+                            if not re.match(r"^#{2,4}\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line):
+                                # This is a non-endpoint header at same/higher level
+                                # But we should NOT split on sub-headers like "#### Code Examples"
+                                # Only split on major section headers (# or ## level)
+                                if header_level <= 2:
+                                    sections.append("\n".join(current_section))
+                                    current_section = [line]
+                                    current_endpoint_level = 0
+                                    continue
 
             current_section.append(line)
 
@@ -583,7 +589,11 @@ class MarkdownDocumentationLoader:
                     # Check for response description lines with status codes
                     # Enhanced pattern to handle more variations
                     status_match = re.search(r".*\((\d+).*\).*:", line)
-                    if status_match and line.strip().startswith("**") and line.strip().endswith(":**"):
+                    if (
+                        status_match
+                        and line.strip().startswith("**")
+                        and (line.strip().endswith(":") or line.strip().endswith(":**"))
+                    ):
                         # Before starting new response, finalize any pending code block
                         if in_code_block and current_code:
                             self._finalize_response_example(
@@ -659,7 +669,7 @@ class MarkdownDocumentationLoader:
         current_description: str,
     ) -> None:
         """
-        Helper method to finalize and add a response example.
+        Enhanced helper method to finalize and add a response example supporting multiple content types.
 
         Args:
             response_examples: List to append the example to
@@ -673,22 +683,51 @@ class MarkdownDocumentationLoader:
                 # Skip empty code blocks
                 return
 
-            # Try to parse JSON content
-            try:
-                import json
-
-                content_dict = json.loads(content_str)
-            except (json.JSONDecodeError, ValueError):
-                # If not valid JSON, store as string in a wrapper
-                content_dict = {"raw_content": content_str}
-
-            response_examples.append(
-                ResponseExample(
-                    status_code=current_status,
-                    description=current_description or f"Response example with status {current_status}",
-                    content=content_dict,
-                )
+            # Create enhanced response example with content type detection
+            response_example = ResponseExample(
+                status_code=current_status,
+                description=current_description or f"Response example with status {current_status}",
+                raw_content=content_str,
             )
+
+            # Process content based on detected type
+            if response_example.content_type == "application/json":
+                try:
+                    import json
+
+                    response_example.content = json.loads(content_str)
+                except (json.JSONDecodeError, ValueError):
+                    # If JSON parsing fails, treat as plain text
+                    response_example.content = content_str
+                    response_example.content_type = "text/plain"
+
+            elif response_example.content_type.startswith("text/plain"):
+                # Handle Prometheus metrics and other plain text
+                response_example.content = content_str
+
+            elif response_example.content_type == "application/xml":
+                # Handle XML content
+                response_example.content = content_str
+
+            elif response_example.content_type == "application/yaml":
+                # Handle YAML content - try to parse if PyYAML is available
+                try:
+                    import yaml
+
+                    response_example.content = yaml.safe_load(content_str)
+                except ImportError:
+                    # If PyYAML not available, store as string
+                    response_example.content = content_str
+                except yaml.YAMLError:
+                    # If YAML parsing fails, store as string
+                    response_example.content = content_str
+
+            else:
+                # Fallback for unknown types - store as string
+                response_example.content = content_str
+
+            response_examples.append(response_example)
+
         except Exception as e:
             # Log but don't fail on individual example processing errors
             import warnings

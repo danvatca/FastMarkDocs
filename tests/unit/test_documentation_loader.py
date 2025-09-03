@@ -919,10 +919,11 @@ Get specific user
         examples = loader._extract_response_examples(content_with_invalid_json)
         assert len(examples) == 1
 
-        # Should wrap invalid JSON in raw_content
+        # Should detect invalid JSON as plain text and store directly in content
         example = examples[0]
-        assert "raw_content" in example.content
-        assert "invalid" in example.content["raw_content"]
+        assert example.content_type == "text/plain"
+        assert isinstance(example.content, str)
+        assert "invalid" in example.content
 
     def test_cache_invalidation_on_file_access_errors(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test cache invalidation when file access fails."""

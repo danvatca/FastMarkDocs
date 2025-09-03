@@ -1201,3 +1201,36 @@ Custom general documentation content.
         # Should include endpoint-specific content
         assert "Retrieve a list of users" in endpoint_description_no_general
         assert "Parameters" in endpoint_description_no_general
+
+    def test_enhance_openapi_with_docs_app_title_and_description(
+        self, sample_openapi_schema: Any, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
+    ) -> None:
+        """Test the app_title and app_description parameters."""
+        # Create test documentation
+        test_utils.create_markdown_file(temp_docs_dir, "api.md", sample_markdown_content)
+
+        # Test with both app_title and app_description
+        enhanced_schema = enhance_openapi_with_docs(
+            openapi_schema=sample_openapi_schema,
+            docs_directory=str(temp_docs_dir),
+            app_title="Custom API Title",
+            app_description="Custom API Description",
+        )
+
+        assert enhanced_schema["info"]["title"] == "Custom API Title"
+        assert "Custom API Title - Custom API Description" in enhanced_schema["info"]["description"]
+
+        # Test with only app_title
+        enhanced_schema_title_only = enhance_openapi_with_docs(
+            openapi_schema=sample_openapi_schema, docs_directory=str(temp_docs_dir), app_title="Title Only"
+        )
+
+        assert enhanced_schema_title_only["info"]["title"] == "Title Only"
+        assert "Title Only" in enhanced_schema_title_only["info"]["description"]
+
+        # Test with only app_description
+        enhanced_schema_desc_only = enhance_openapi_with_docs(
+            openapi_schema=sample_openapi_schema, docs_directory=str(temp_docs_dir), app_description="Description Only"
+        )
+
+        assert "Description Only" in enhanced_schema_desc_only["info"]["description"]

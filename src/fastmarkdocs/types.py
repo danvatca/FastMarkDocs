@@ -74,16 +74,98 @@ class APILink:
 
 @dataclass
 class ResponseExample:
-    """Represents a response example from documentation."""
+    """Enhanced response example supporting multiple content types."""
 
     status_code: int
     description: str
-    content: Optional[dict[str, Any]] = None
+    content: Optional[Union[dict[str, Any], str, bytes]] = None
+    content_type: str = "application/json"
     headers: Optional[dict[str, str]] = None
+    raw_content: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.status_code, int) or self.status_code < 100 or self.status_code >= 600:
             raise ValueError("Status code must be a valid HTTP status code (100-599)")
+
+        # Auto-detect content type if not specified and raw content is available
+        if self.content_type == "application/json" and self.raw_content:
+            self.content_type = self._detect_content_type(self.raw_content)
+
+        # Set content based on detected content type if not already set
+        if self.content is None and self.raw_content:
+            self._set_content_from_raw()
+
+    def _detect_content_type(self, content: str) -> str:
+        """Auto-detect content type from raw content."""
+        import json
+        import re
+
+        content = content.strip()
+
+        # Prometheus metrics detection
+        if (
+            content.startswith("# HELP")
+            or content.startswith("# TYPE")
+            or re.search(r"^# (HELP|TYPE)", content, re.MULTILINE)
+        ):
+            return "text/plain; version=0.0.4"
+
+        # HTML detection (check before XML to avoid false positives)
+        if content.startswith("<!DOCTYPE html") or content.startswith("<html"):
+            return "text/html"
+
+        # XML detection
+        if content.startswith("<?xml") or (content.startswith("<") and content.endswith(">")):
+            return "application/xml"
+
+        # YAML detection (basic heuristic)
+        if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*:\s", content, re.MULTILINE):
+            return "application/yaml"
+
+        # CSV detection (basic heuristic)
+        lines = content.split("\n")
+        if len(lines) > 1 and all("," in line for line in lines[:3]):
+            return "text/csv"
+
+        # JSON detection
+        try:
+            json.loads(content)
+            return "application/json"
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Default to plain text
+        return "text/plain"
+
+    def _set_content_from_raw(self) -> None:
+        """Set content field based on detected content type and raw content."""
+        if not self.raw_content:
+            return
+
+        if self.content_type == "application/json":
+            try:
+                import json
+
+                self.content = json.loads(self.raw_content)
+            except (json.JSONDecodeError, ValueError):
+                # If JSON parsing fails, treat as plain text
+                self.content = self.raw_content
+                self.content_type = "text/plain"
+        elif self.content_type == "application/yaml":
+            # Handle YAML content - try to parse if PyYAML is available
+            try:
+                import yaml
+
+                self.content = yaml.safe_load(self.raw_content)
+            except ImportError:
+                # If PyYAML not available, store as string
+                self.content = self.raw_content
+            except Exception:  # yaml.YAMLError or other parsing errors
+                # If YAML parsing fails, store as string
+                self.content = self.raw_content
+        else:
+            # For all other content types (text/plain, XML, HTML, CSV, etc.), store as string
+            self.content = self.raw_content
 
 
 @dataclass
@@ -175,7 +257,7 @@ class MarkdownDocumentationConfig:
 
 @dataclass
 class OpenAPIEnhancementConfig:
-    """Configuration for OpenAPI schema enhancement."""
+    """Enhanced configuration for OpenAPI schema enhancement supporting multiple content types."""
 
     include_code_samples: bool = True
     include_response_examples: bool = True
@@ -187,6 +269,20 @@ class OpenAPIEnhancementConfig:
     server_urls: list[str] = field(default_factory=lambda: ["https://api.example.com"])
     custom_headers: dict[str, str] = field(default_factory=dict)
     authentication_schemes: list[str] = field(default_factory=list)
+    supported_content_types: list[str] = field(
+        default_factory=lambda: [
+            "application/json",
+            "text/plain",
+            "text/plain; version=0.0.4",  # Prometheus metrics
+            "application/xml",
+            "application/yaml",
+            "text/html",
+            "text/csv",
+        ]
+    )
+    content_type_detection: bool = True
+    preserve_raw_content: bool = True
+    validate_content_format: bool = True
 
 
 @dataclass

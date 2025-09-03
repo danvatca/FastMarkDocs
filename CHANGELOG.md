@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-01-27
+
 ### Added
+- **Multi-Format Response Examples**: Comprehensive support for non-JSON response examples
+  - **Automatic Content Type Detection**: Intelligently detects Prometheus metrics, XML, YAML, HTML, CSV, and plain text
+  - **Prometheus Metrics Support**: Native support for `text/plain; version=0.0.4` Prometheus exposition format
+  - **Enhanced ResponseExample Type**: New `content_type` and `raw_content` fields with auto-detection capabilities
+  - **Flexible Content Parsing**: Handles malformed JSON gracefully with fallback to plain text
+  - **OpenAPI Integration**: Generates appropriate schemas for different content types in OpenAPI spec
+  - **Comprehensive Testing**: 25+ new unit tests and 8 integration tests covering all content types
+  - **Backward Compatibility**: Existing JSON examples continue to work unchanged
+  - **Documentation**: Complete documentation with examples for all supported formats
+- **Enhanced Documentation Loader**: Improved markdown parsing with better code block handling
+  - **Smart Section Splitting**: Prevents premature splitting of markdown sections within code blocks
+  - **Flexible Status Code Detection**: More robust parsing of response status codes from markdown
+  - **Multi-Format Processing**: Unified processing pipeline for all response content types
+- **Sample Prometheus Metrics Documentation**: Added comprehensive `/metrics` endpoint example to doorman docs fixtures
+  - **Realistic Prometheus Metrics**: Authentication, API usage, system performance, and security metrics
+  - **Advanced Metrics Support**: Garbage collection, thread pools, disk I/O, network traffic examples
+  - **Error Response Examples**: Complete 401, 403, and 503 error responses in JSON format
+  - **Integration Testing**: Validates end-to-end multi-format response example processing
+
+### Enhanced
 - **Smart Tag Descriptions**: Automatically extract rich tag descriptions from markdown Overview sections
   - Parses `## Overview` sections from markdown files with full formatting support
   - Associates overview content with all tags used in the same file
