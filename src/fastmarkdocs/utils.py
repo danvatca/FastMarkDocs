@@ -267,7 +267,7 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
 
                 # Stop collection for code examples sections, but allow request examples and response examples
                 # This prevents code samples from being included in the description while keeping request/response examples
-                if re.search(r"^#{4,}\s+code\s+examples?", header_text, re.IGNORECASE):
+                if re.match(r"^#{4,}\s+code\s+examples?", header_text, re.IGNORECASE):
                     in_description = False
                     # Don't add this line to description since it's the start of a code examples section
                     continue
