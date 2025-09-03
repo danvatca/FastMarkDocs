@@ -165,8 +165,8 @@ clean_build() {
     fi
     
     # Clean Jekyll cache and build files in source directory
-    if [ -d "$DOCS_SRC_DIR/$BUILD_DIR" ]; then
-        rm -rf "$DOCS_SRC_DIR/$BUILD_DIR"
+    if [ -d "$DOCS_SRC_DIR/${BUILD_DIR:?}" ]; then
+        rm -rf "$DOCS_SRC_DIR/${BUILD_DIR:?}"
         print_status "Removed source build directory"
     fi
     
