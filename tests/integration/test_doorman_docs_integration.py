@@ -355,6 +355,97 @@ class TestDoormanDocsIntegration:
 
     def test_doorman_docs_with_general_docs(self, temp_docs_dir: Any) -> None:
         """Test that general docs are properly loaded and available in the loader."""
+        import os
+        import sys
+        import platform
+        import hashlib
+        from pathlib import Path
+        
+        print("\n🔍 DEBUG: Environment and Filesystem Analysis")
+        print(f"   Python version: {sys.version}")
+        print(f"   Platform: {platform.platform()}")
+        print(f"   OS: {os.name}")
+        print(f"   Current working directory: {os.getcwd()}")
+        print(f"   Temp docs dir: {temp_docs_dir}")
+        print(f"   Temp docs dir exists: {Path(temp_docs_dir).exists()}")
+        
+        # Check filesystem case sensitivity
+        test_file = Path(temp_docs_dir) / "TEST_case_sensitivity.tmp"
+        test_file_lower = Path(temp_docs_dir) / "test_case_sensitivity.tmp"
+        try:
+            test_file.write_text("test")
+            case_sensitive = not test_file_lower.exists()
+            print(f"   Filesystem is case-sensitive: {case_sensitive}")
+            test_file.unlink(missing_ok=True)
+            test_file_lower.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"   Could not determine case sensitivity: {e}")
+        
+        # Detailed file analysis
+        temp_path = Path(temp_docs_dir)
+        if temp_path.exists():
+            files = list(temp_path.glob("*.md"))
+            print(f"   Files in temp dir: {[f.name for f in files]}")
+            
+            # Check original fixture directory for comparison
+            fixture_path = Path("tests/fixtures/doorman_docs")
+            if fixture_path.exists():
+                fixture_files = list(fixture_path.glob("*.md"))
+                print(f"   Original fixture files: {[f.name for f in fixture_files]}")
+                
+                # Compare file counts
+                print(f"   Fixture files count: {len(fixture_files)}, Temp files count: {len(files)}")
+                
+                # Detailed file comparison
+                for fixture_file in fixture_files:
+                    temp_file = temp_path / fixture_file.name
+                    print(f"\n   📄 File: {fixture_file.name}")
+                    print(f"      Original size: {fixture_file.stat().st_size} bytes")
+                    
+                    if temp_file.exists():
+                        temp_size = temp_file.stat().st_size
+                        print(f"      Temp copy size: {temp_size} bytes")
+                        print(f"      Size match: {fixture_file.stat().st_size == temp_size}")
+                        
+                        # MD5 comparison
+                        with open(fixture_file, 'rb') as f:
+                            original_md5 = hashlib.md5(f.read()).hexdigest()
+                        with open(temp_file, 'rb') as f:
+                            temp_md5 = hashlib.md5(f.read()).hexdigest()
+                        
+                        print(f"      Original MD5: {original_md5}")
+                        print(f"      Temp MD5: {temp_md5}")
+                        print(f"      MD5 match: {original_md5 == temp_md5}")
+                        
+                        # Check line endings
+                        with open(fixture_file, 'rb') as f:
+                            original_content = f.read()
+                        with open(temp_file, 'rb') as f:
+                            temp_content = f.read()
+                        
+                        original_crlf = original_content.count(b'\r\n')
+                        original_lf = original_content.count(b'\n') - original_crlf
+                        temp_crlf = temp_content.count(b'\r\n')
+                        temp_lf = temp_content.count(b'\n') - temp_crlf
+                        
+                        print(f"      Original line endings: {original_lf} LF, {original_crlf} CRLF")
+                        print(f"      Temp line endings: {temp_lf} LF, {temp_crlf} CRLF")
+                    else:
+                        print(f"      ❌ File missing in temp directory!")
+            
+            # Focus on general_docs.md specifically
+            general_docs_file = temp_path / "general_docs.md"
+            if general_docs_file.exists():
+                print(f"\n   🎯 general_docs.md analysis:")
+                print(f"      Size: {general_docs_file.stat().st_size} bytes")
+                with open(general_docs_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                print(f"      Content length: {len(content)} characters")
+                print(f"      First 200 chars: {repr(content[:200])}")
+                print(f"      Last 200 chars: {repr(content[-200:])}")
+            else:
+                print(f"\n   ❌ general_docs.md not found in temp directory!")
+        
         # The temp_docs_dir should already include general_docs.md from the fixture
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), recursive=True, cache_enabled=False)
 
@@ -435,7 +526,6 @@ class TestDoormanDocsIntegration:
                 if indicator in description:
                     general_docs_in_endpoint.append(indicator)
 
-            print(f"   General docs indicators in endpoint: {len(general_docs_in_endpoint)} (should be 0)")
             assert len(general_docs_in_endpoint) == 0, "Endpoint descriptions should NOT include general docs content"
 
             print("   ✅ General docs loading working correctly!")

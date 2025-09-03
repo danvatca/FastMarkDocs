@@ -200,6 +200,12 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
     Returns:
         Dictionary containing endpoint information including endpoint-specific description
     """
+    import os
+    import hashlib
+    
+    # Enable debug mode for CI debugging
+    debug_mode = os.environ.get('FASTMARKDOCS_DEBUG', '').lower() in ('1', 'true', 'yes') or os.environ.get('CI', '').lower() in ('1', 'true', 'yes')
+    
     endpoint_info: dict[str, Any] = {"path": None, "method": None, "summary": None, "description": None, "tags": []}
 
     lines = markdown_content.split("\n")
@@ -209,6 +215,15 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
     endpoint_header_level = 0
     overview_lines: list[str] = []
     in_overview = False
+    
+    if debug_mode:
+        content_md5 = hashlib.md5(markdown_content.encode('utf-8')).hexdigest()
+        print(f"DEBUG: extract_endpoint_info called with content MD5: {content_md5}")
+        print(f"DEBUG: Content length: {len(markdown_content)} characters")
+        print(f"DEBUG: Total lines: {len(lines)}")
+        print(f"DEBUG: First 3 lines: {lines[:3]}")
+        if len(lines) > 3:
+            print(f"DEBUG: Last 3 lines: {lines[-3:]}")
 
     for line in lines:
         # Check for Overview section
@@ -255,6 +270,8 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
             endpoint_info["path"] = endpoint_match.group(3).strip()
             found_endpoint = True
             in_description = True  # Start collecting description after endpoint header
+            if debug_mode:
+                print(f"DEBUG: Found endpoint {endpoint_info['method']} {endpoint_info['path']} at level {endpoint_header_level}")
             continue
 
         # Collect description content (everything between endpoint header and next section)
@@ -268,6 +285,8 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
                 # Stop collection for code examples sections, but allow request examples and response examples
                 # This prevents code samples from being included in the description while keeping request/response examples
                 if re.match(r"^#{4,}\s+code\s+examples?", header_text, re.IGNORECASE):
+                    if debug_mode:
+                        print(f"DEBUG: Stopping description collection at Code Examples header: {repr(header_text)}")
                     in_description = False
                     # Don't add this line to description since it's the start of a code examples section
                     continue
@@ -275,6 +294,8 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
                 # Stop if we encounter a header at the same level or higher (fewer #'s)
                 # This ensures we stop at the next endpoint (same level) or section (higher level)
                 if current_header_level <= endpoint_header_level:
+                    if debug_mode:
+                        print(f"DEBUG: Stopping description collection at same/higher level header: {repr(header_text)} (level {current_header_level} <= {endpoint_header_level})")
                     in_description = False
                     # Don't add this line to description since it's the start of a new section
                     continue
@@ -285,6 +306,8 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
 
             # Add line to description
             description_lines.append(line)
+            if debug_mode and len(description_lines) <= 10:
+                print(f"DEBUG: Added line {len(description_lines)}: {repr(line[:100])}")
 
             # Extract summary from first meaningful line (often bold text)
             if not endpoint_info["summary"] and line.strip() and not line.startswith("#"):
@@ -324,6 +347,16 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
 
         if full_description_lines:
             endpoint_info["description"] = "\n".join(full_description_lines).strip()
+
+    if debug_mode and endpoint_info["method"] and endpoint_info["path"]:
+        print(f"DEBUG: Final endpoint info for {endpoint_info['method']} {endpoint_info['path']}:")
+        print(f"  - Description length: {len(endpoint_info.get('description', '') or '')}")
+        print(f"  - Overview lines: {len(overview_lines)}")
+        print(f"  - Description lines: {len(description_lines)}")
+        print(f"  - Full description lines: {len(full_description_lines)}")
+        if endpoint_info.get('description'):
+            desc_md5 = hashlib.md5(endpoint_info['description'].encode('utf-8')).hexdigest()
+            print(f"  - Description MD5: {desc_md5}")
 
     return endpoint_info
 

@@ -45,7 +45,14 @@ jobs:
       run: poetry install --no-interaction
 
     - name: Run tests with pytest
+      env:
+        FASTMARKDOCS_DEBUG: "1"
       run: |
+        # First run just the failing test with debug output
+        echo "🔍 Running failing test with comprehensive debug output..."
+        poetry run python -m pytest tests/integration/test_doorman_docs_integration.py::TestDoormanDocsIntegration::test_doorman_docs_with_general_docs -v -s || true
+        
+        echo "🧪 Running full test suite..."
         poetry run python -m pytest tests/ -v --cov=fastmarkdocs --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy --cov-fail-under=90
 
     - name: Upload coverage to Codecov
