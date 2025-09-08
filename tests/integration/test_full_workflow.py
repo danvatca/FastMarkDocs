@@ -7,7 +7,6 @@ Tests the end-to-end functionality from markdown files to enhanced OpenAPI schem
 from typing import Any
 
 from fastapi import FastAPI
-
 from fastmarkdocs import enhance_openapi_with_docs
 from fastmarkdocs.types import CodeLanguage
 

@@ -10,7 +10,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from fastmarkdocs.documentation_loader import MarkdownDocumentationLoader
 from fastmarkdocs.openapi_enhancer import OpenAPIEnhancer
 from fastmarkdocs.types import OpenAPIEnhancementConfig

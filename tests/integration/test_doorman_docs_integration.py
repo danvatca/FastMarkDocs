@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from fastmarkdocs import CodeSampleGenerator, MarkdownDocumentationLoader, enhance_openapi_with_docs
 from fastmarkdocs.exceptions import DocumentationLoadError
 from fastmarkdocs.types import CodeLanguage, DocumentationData, HTTPMethod

@@ -14,7 +14,6 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-
 from fastmarkdocs import APILink, CodeLanguage, enhance_openapi_with_docs
 
 

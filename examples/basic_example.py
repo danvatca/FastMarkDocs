@@ -13,12 +13,11 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.openapi.utils import get_openapi
-from pydantic import BaseModel
-
 from fastmarkdocs import (
     CodeLanguage,
     enhance_openapi_with_docs,
 )
+from pydantic import BaseModel
 
 # Add the src directory to the path so we can import the library
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

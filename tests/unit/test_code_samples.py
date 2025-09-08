@@ -8,7 +8,6 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
-
 from fastmarkdocs.code_samples import CodeSampleGenerator
 from fastmarkdocs.exceptions import CodeSampleGenerationError
 from fastmarkdocs.types import CodeLanguage, EndpointDocumentation, HTTPMethod

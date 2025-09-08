@@ -47,8 +47,11 @@ def _build_description_with_general_docs(
     """
     description_parts = []
 
-    # Add app title and description if provided
-    if app_title and app_description:
+    # Use general docs content as the primary description if available
+    if general_docs_content and general_docs_content.strip():
+        description_parts.append(general_docs_content.strip())
+    # Fallback to app title and description only if no general docs
+    elif app_title and app_description:
         description_parts.append(f"{app_title} - {app_description}")
     elif app_title:
         description_parts.append(app_title)
@@ -56,13 +59,6 @@ def _build_description_with_general_docs(
         description_parts.append(app_description)
     elif original_description:
         description_parts.append(original_description)
-
-    # Add general docs content if provided
-    if general_docs_content and general_docs_content.strip():
-        # Add separator if we already have content
-        if description_parts:
-            description_parts.extend(["", "---", ""])
-        description_parts.append(general_docs_content.strip())
 
     return "\n".join(description_parts)
 
@@ -130,8 +126,10 @@ def enhance_openapi_with_docs(
         if app_title or app_description or general_docs_content:
             original_description = enhanced_schema.get("info", {}).get("description", "")
 
-            # Update title if provided
-            if app_title:
+            # Update title if provided and not already set properly
+            # Don't override a well-formed title that already includes the app name
+            current_title = enhanced_schema.get("info", {}).get("title", "")
+            if app_title and not current_title.startswith(app_title):
                 enhanced_schema.setdefault("info", {})["title"] = app_title
 
             # Build new description with general docs
