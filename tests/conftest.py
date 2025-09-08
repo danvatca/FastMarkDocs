@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
+
 from fastmarkdocs import CodeLanguage, HTTPMethod
 
 # Add src to path for imports

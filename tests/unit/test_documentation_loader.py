@@ -11,6 +11,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+
 from fastmarkdocs.documentation_loader import MarkdownDocumentationLoader
 from fastmarkdocs.exceptions import DocumentationLoadError
 from fastmarkdocs.types import CodeLanguage, HTTPMethod

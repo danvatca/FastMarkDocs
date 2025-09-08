@@ -8,6 +8,7 @@ that supports multiple content types including JSON, Prometheus metrics, XML, YA
 from unittest.mock import patch
 
 import pytest
+
 from fastmarkdocs.documentation_loader import MarkdownDocumentationLoader
 from fastmarkdocs.openapi_enhancer import OpenAPIEnhancer
 from fastmarkdocs.types import OpenAPIEnhancementConfig, ResponseExample

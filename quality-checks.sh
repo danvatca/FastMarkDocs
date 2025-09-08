@@ -165,7 +165,7 @@ else
 fi
 
 # Linting check
-if run_check "ruff check ./src/" "🔍 Linting"; then
+if run_check "ruff check ." "🔍 Linting"; then
     RESULTS+=("Linting")
 else
     FAILED_CHECKS+=("Linting")
