@@ -27,15 +27,28 @@ class TestInitModule:
     def test_all_exports(self):
         """Test that all expected exports are available."""
         expected_exports = [
-            "__version__", "__author__", "__email__", "__license__",
-            "MarkdownDocumentationLoader", "OpenAPIEnhancer", "CodeSampleGenerator",
+            "__version__",
+            "__author__",
+            "__email__",
+            "__license__",
+            "MarkdownDocumentationLoader",
+            "OpenAPIEnhancer",
+            "CodeSampleGenerator",
             "enhance_openapi_with_docs",
-            "FastAPIMarkdownDocsError", "DocumentationLoadError",
-            "CodeSampleGenerationError", "OpenAPIEnhancementError",
-            "normalize_path", "extract_code_samples", "validate_markdown_structure",
-            "DocumentationData", "CodeSample", "EndpointDocumentation",
-            "OpenAPIEnhancementConfig", "MarkdownDocumentationConfig",
-            "CodeLanguage", "HTTPMethod",
+            "FastAPIMarkdownDocsError",
+            "DocumentationLoadError",
+            "CodeSampleGenerationError",
+            "OpenAPIEnhancementError",
+            "normalize_path",
+            "extract_code_samples",
+            "validate_markdown_structure",
+            "DocumentationData",
+            "CodeSample",
+            "EndpointDocumentation",
+            "OpenAPIEnhancementConfig",
+            "MarkdownDocumentationConfig",
+            "CodeLanguage",
+            "HTTPMethod",
         ]
 
         for export in expected_exports:
@@ -45,26 +58,28 @@ class TestInitModule:
         """Test successful version extraction from pyproject.toml."""
         from fastmarkdocs import _get_version_from_pyproject
 
-        pyproject_content = '''
+        pyproject_content = """
 [tool.poetry]
 name = "fastmarkdocs"
 version = "1.2.3"
 description = "Test"
-'''
+"""
 
         with tempfile.TemporaryDirectory() as temp_dir:
             pyproject_path = Path(temp_dir) / "pyproject.toml"
             pyproject_path.write_text(pyproject_content)
 
             # Mock __file__ to point to our temp directory
-            with patch('fastmarkdocs.os.path.dirname') as mock_dirname:
+            with patch("fastmarkdocs.os.path.dirname") as mock_dirname:
                 mock_dirname.return_value = temp_dir
-                with patch('fastmarkdocs.os.path.exists') as mock_exists:
+                with patch("fastmarkdocs.os.path.exists") as mock_exists:
+
                     def exists_side_effect(path):
                         return str(pyproject_path) in path
+
                     mock_exists.side_effect = exists_side_effect
 
-                    with patch('fastmarkdocs.open', mock_open(read_data=pyproject_content)):
+                    with patch("fastmarkdocs.open", mock_open(read_data=pyproject_content)):
                         version = _get_version_from_pyproject()
                         assert version == "1.2.3"
 
@@ -72,8 +87,8 @@ description = "Test"
         """Test version extraction when pyproject.toml is not found."""
         from fastmarkdocs import _get_version_from_pyproject
 
-        with patch('fastmarkdocs.os.path.exists', return_value=False):
-            with patch('fastmarkdocs.open', side_effect=OSError("File not found")):
+        with patch("fastmarkdocs.os.path.exists", return_value=False):
+            with patch("fastmarkdocs.open", side_effect=OSError("File not found")):
                 version = _get_version_from_pyproject()
                 assert version == "unknown"
 
@@ -81,8 +96,8 @@ description = "Test"
         """Test version extraction with unicode decode error."""
         from fastmarkdocs import _get_version_from_pyproject
 
-        with patch('fastmarkdocs.os.path.exists', return_value=True):
-            with patch('fastmarkdocs.open', side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "error")):
+        with patch("fastmarkdocs.os.path.exists", return_value=True):
+            with patch("fastmarkdocs.open", side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "error")):
                 version = _get_version_from_pyproject()
                 assert version == "unknown"
 
@@ -90,14 +105,14 @@ description = "Test"
         """Test version extraction when no version line is found."""
         from fastmarkdocs import _get_version_from_pyproject
 
-        pyproject_content = '''
+        pyproject_content = """
 [tool.poetry]
 name = "fastmarkdocs"
 description = "Test without version"
-'''
+"""
 
-        with patch('fastmarkdocs.os.path.exists', return_value=True):
-            with patch('fastmarkdocs.open', mock_open(read_data=pyproject_content)):
+        with patch("fastmarkdocs.os.path.exists", return_value=True):
+            with patch("fastmarkdocs.open", mock_open(read_data=pyproject_content)):
                 version = _get_version_from_pyproject()
                 assert version == "unknown"
 
