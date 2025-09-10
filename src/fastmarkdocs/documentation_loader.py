@@ -500,11 +500,25 @@ class MarkdownDocumentationLoader:
         current_section: list[str] = []
         current_endpoint_level = 0
         in_code_block = False
+        code_block_language = ""  # Track the language of current code block
 
-        for line in lines:
-            # Track code block state
-            if line.strip().startswith("```"):
-                in_code_block = not in_code_block
+        for _line_num, line in enumerate(lines, 1):
+            # Track code block state with better parsing
+            stripped_line = line.strip()
+
+            # Handle code block markers
+            if stripped_line.startswith("```"):
+                if not in_code_block:
+                    # Starting a code block
+                    in_code_block = True
+                    # Extract language if present
+                    code_block_language = stripped_line[3:].strip()
+                else:
+                    # Ending a code block - only if it's a closing marker
+                    if stripped_line == "```" or (code_block_language and stripped_line == f"```{code_block_language}"):
+                        in_code_block = False
+                        code_block_language = ""
+                    # If it's not a proper closing marker, treat as content within the block
 
             # Check if this line is an endpoint header (only if not in code block)
             if not in_code_block:
@@ -544,6 +558,14 @@ class MarkdownDocumentationLoader:
         # Add the last section if it exists
         if current_section:
             sections.append("\n".join(current_section))
+
+        # Validate that we don't have unclosed code blocks
+        for i, section in enumerate(sections):
+            if self._has_unclosed_code_blocks(section):
+                # Log warning but don't fail - this helps with debugging
+                import logging
+
+                logging.warning(f"Section {i} has unclosed code blocks, this may cause parsing issues")
 
         return sections
 
@@ -1004,3 +1026,26 @@ class MarkdownDocumentationLoader:
             "supported_languages": [lang.value for lang in self.supported_languages],
             "file_patterns": self.file_patterns,
         }
+
+    def _has_unclosed_code_blocks(self, content: str) -> bool:
+        """
+        Check if content has unclosed code blocks.
+
+        Args:
+            content: Content to check
+
+        Returns:
+            True if there are unclosed code blocks
+        """
+        lines = content.split("\n")
+        in_code_block = False
+        code_block_count = 0
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                code_block_count += 1
+                in_code_block = not in_code_block
+
+        # Should have even number of ``` markers
+        return code_block_count % 2 != 0

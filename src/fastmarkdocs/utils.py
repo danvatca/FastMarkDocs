@@ -395,9 +395,22 @@ def _validate_code_block(lines: list[str], start_index: int) -> bool:
     if start_index >= len(lines):
         return False
 
+    opening_line = lines[start_index].strip()
+    if not opening_line.startswith("```"):
+        return False
+
+    # Extract language if present
+    language = opening_line[3:].strip()
+
     # Find closing ```
     for i in range(start_index + 1, len(lines)):
-        if lines[i].strip() == "```":
-            return True
+        closing_line = lines[i].strip()
+        if closing_line.startswith("```"):
+            # Check if it's a proper closing marker
+            if closing_line == "```" or (language and closing_line == f"```{language}"):
+                return True
+            # If it has a different language, it might be a new code block
+            elif not language and closing_line == "```":
+                return True
 
     return False

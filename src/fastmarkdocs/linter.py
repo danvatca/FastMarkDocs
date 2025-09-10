@@ -193,8 +193,29 @@ class DocumentationLinter:
 
     def _extract_markdown_endpoints(self) -> set[tuple[str, str]]:
         """Extract all endpoints from markdown documentation, excluding configured exclusions."""
-        # Get all endpoints from documentation
-        all_endpoints = self.analyzer.extract_documentation_endpoints(self.documentation.endpoints)
+        # Extract endpoints directly from the loaded documentation to avoid analyzer issues
+        all_endpoints = set()
+
+        for endpoint in self.documentation.endpoints:
+            try:
+                # Handle both enum and string method types
+                method = endpoint.method.value if hasattr(endpoint.method, "value") else str(endpoint.method)
+                method = method.upper()  # Ensure consistent case
+
+                # Ensure path is properly formatted
+                path = endpoint.path.strip()
+                if not path.startswith("/"):
+                    path = "/" + path
+
+                all_endpoints.add((method, path))
+
+            except (AttributeError, TypeError) as e:
+                # Log the error but continue processing other endpoints
+                # This prevents one malformed endpoint from breaking the entire analysis
+                import logging
+
+                logging.warning(f"Failed to extract endpoint info from {endpoint}: {e}")
+                continue
 
         # Apply exclusions if config is available
         if self.config:

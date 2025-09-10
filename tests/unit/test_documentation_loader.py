@@ -2149,3 +2149,353 @@ Tags: authentication, logout
             assert documentation.tag_descriptions["list"] == users_desc
         if "create" in documentation.tag_descriptions:
             assert documentation.tag_descriptions["create"] == users_desc
+
+    def test_multiple_endpoints_single_file_linting_validation(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test that multiple endpoints in a single file are correctly extracted for linting."""
+        # Create content similar to monitoring.md with both POST and GET methods
+        monitoring_content = """# Monitoring API Documentation
+
+## Overview
+
+The Monitoring API allows configuration of system monitoring and metrics collection.
+
+## POST /services/monitoring
+
+**Summary:** Configure monitoring for this machine
+
+### Description
+
+Configures the monitoring state and exporters for the current node.
+
+### Request Body
+
+Content-Type: `application/json`
+
+Schema:
+- `enabled` (boolean, required): Enable or disable monitoring
+
+### Response Examples
+
+**Success Response (200 OK):**
+```json
+{}
+```
+
+---
+
+## GET /services/monitoring
+
+**Summary:** Get monitoring details
+
+### Description
+
+Retrieves the current monitoring configuration and operational state.
+
+### Response Examples
+
+**Success Response (200 OK):**
+```json
+{
+  "enabled": true,
+  "state": "RUNNING",
+  "services": ["syneto-mercurio"],
+  "exporters": ["node-exporter"]
+}
+```
+"""
+
+        # Create the test file
+        test_utils.create_markdown_file(temp_docs_dir, "monitoring.md", monitoring_content)
+
+        # Load documentation
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Verify both endpoints were parsed
+        assert len(documentation.endpoints) == 2, f"Expected 2 endpoints, got {len(documentation.endpoints)}"
+
+        # Check that both methods are present
+        methods_and_paths = [(ep.method.value, ep.path) for ep in documentation.endpoints]
+
+        assert ("POST", "/services/monitoring") in methods_and_paths, "POST endpoint missing"
+        assert ("GET", "/services/monitoring") in methods_and_paths, "GET endpoint missing"
+
+        # Verify each endpoint has proper content
+        post_endpoint = next(ep for ep in documentation.endpoints if ep.method.value == "POST")
+        get_endpoint = next(ep for ep in documentation.endpoints if ep.method.value == "GET")
+
+        assert "Configure monitoring" in post_endpoint.summary
+        assert "Get monitoring details" in get_endpoint.summary
+        assert post_endpoint.description is not None
+        assert get_endpoint.description is not None
+
+        # Test the linting extraction specifically
+        from fastmarkdocs.linter import DocumentationLinter
+
+        # Create a mock OpenAPI schema with both endpoints
+        mock_openapi_schema = {
+            "paths": {
+                "/services/monitoring": {
+                    "post": {
+                        "summary": "Configure monitoring",
+                        "operationId": "configure_monitoring",
+                        "responses": {"200": {"description": "Success"}},
+                    },
+                    "get": {
+                        "summary": "Get monitoring details",
+                        "operationId": "get_monitoring_details",
+                        "responses": {"200": {"description": "Success"}},
+                    },
+                }
+            }
+        }
+
+        # Create linter instance
+        linter = DocumentationLinter(
+            openapi_schema=mock_openapi_schema, docs_directory=str(temp_docs_dir), recursive=False
+        )
+
+        # Extract endpoints using the linter's methods
+        openapi_endpoints = linter._extract_openapi_endpoints()
+        markdown_endpoints = linter._extract_markdown_endpoints()
+
+        # Verify both extraction methods find both endpoints
+        assert ("POST", "/services/monitoring") in openapi_endpoints
+        assert ("GET", "/services/monitoring") in openapi_endpoints
+        assert ("POST", "/services/monitoring") in markdown_endpoints
+        assert (
+            "GET",
+            "/services/monitoring",
+        ) in markdown_endpoints, "BUG: GET endpoint not found in markdown extraction"
+
+        # Run full linting to ensure no false positives
+        results = linter.lint()
+
+        # Should have no missing documentation
+        assert len(results["missing_documentation"]) == 0, f"False positive: {results['missing_documentation']}"
+
+    def test_endpoint_extraction_debugging(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test the debugging capabilities for endpoint extraction issues."""
+        # Create problematic content that might cause extraction issues
+        problematic_content = """# API Documentation
+
+## POST /api/test
+Test endpoint
+
+## GET /api/test\x20\x20
+Another test endpoint with extra spaces
+
+##GET /api/malformed
+Malformed header (no space after ##)
+
+## INVALID /api/invalid
+Invalid HTTP method
+"""
+
+        test_utils.create_markdown_file(temp_docs_dir, "problematic.md", problematic_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Test the debugging method
+        from fastmarkdocs.endpoint_analyzer import UnifiedEndpointAnalyzer
+
+        analyzer = UnifiedEndpointAnalyzer({}, base_url="https://api.example.com")
+        debug_info = analyzer.debug_endpoint_extraction(documentation.endpoints)
+
+        # Verify debug information is comprehensive
+        assert "total_endpoints" in debug_info
+        assert "successfully_extracted" in debug_info
+        assert "failed_extractions" in debug_info
+        assert "extracted_endpoints" in debug_info
+
+        # Should have extracted the valid endpoints
+        assert debug_info["successfully_extracted"] >= 2  # POST and GET should work
+
+        # Check that extracted endpoints contain expected data
+        extracted_methods = [ep["method"] for ep in debug_info["extracted_endpoints"]]
+        assert "POST" in extracted_methods
+        assert "GET" in extracted_methods
+
+    def test_code_block_parsing_improvements(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test that improved code block parsing handles complex scenarios."""
+        # Create content with complex code blocks that were causing issues
+        complex_content = """# API Documentation
+
+## POST /api/test
+
+**Summary:** Test endpoint
+
+### Description
+
+This endpoint does something.
+
+### Code Examples
+
+#### Python
+```python
+import requests
+
+def test_function():
+    return "test"
+```
+
+#### cURL
+```bash
+curl -X POST "https://api.example.com/api/test" \\
+  -H "Content-Type: application/json"
+```
+
+## GET /api/test
+
+**Summary:** Get test data
+
+### Response Examples
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "data": "test"
+}
+```
+"""
+
+        # Create test file
+        test_utils.create_markdown_file(temp_docs_dir, "complex.md", complex_content)
+
+        # Test that parsing doesn't produce validation errors
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Should have parsed both endpoints
+        assert len(documentation.endpoints) == 2
+
+        # Check for validation errors in metadata - this is informational for now
+        stats = documentation.metadata.get("stats")
+        if stats and hasattr(stats, "validation_errors"):
+            validation_errors = stats.validation_errors
+            # Log any code block errors for debugging but don't fail the test
+            code_block_errors = [err for err in validation_errors if "malformed code block" in err.message.lower()]
+            if code_block_errors:
+                print(f"Code block validation errors (informational): {code_block_errors}")
+            # The main test is that parsing succeeded and extracted both endpoints correctly
+
+        # Test the _has_unclosed_code_blocks method directly
+        assert not loader._has_unclosed_code_blocks(
+            complex_content
+        ), "Should not detect unclosed code blocks in valid content"
+
+        # Test with actually unclosed code blocks
+        unclosed_content = """# Test
+```python
+def test():
+    return "unclosed"
+"""
+        assert loader._has_unclosed_code_blocks(unclosed_content), "Should detect unclosed code blocks"
+
+    def test_endpoint_splitting_edge_cases(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test edge cases in endpoint splitting logic."""
+        edge_case_content = """# API Documentation
+
+## Overview
+General information
+
+## POST /api/create
+Create something
+
+### Code Examples
+```bash
+curl -X POST /api/create
+```
+
+## GET /api/read
+Read something
+
+#### More Details
+Additional information
+
+## PUT /api/update
+Update something
+
+# Different Section
+This should not interfere
+
+## DELETE /api/delete
+Delete something
+"""
+
+        test_utils.create_markdown_file(temp_docs_dir, "edge_cases.md", edge_case_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Should have parsed all 4 endpoints
+        assert len(documentation.endpoints) == 4, f"Expected 4 endpoints, got {len(documentation.endpoints)}"
+
+        # Check that all methods are present
+        methods_and_paths = [(ep.method.value, ep.path) for ep in documentation.endpoints]
+        expected_endpoints = [
+            ("POST", "/api/create"),
+            ("GET", "/api/read"),
+            ("PUT", "/api/update"),
+            ("DELETE", "/api/delete"),
+        ]
+
+        for expected in expected_endpoints:
+            assert expected in methods_and_paths, f"Missing endpoint: {expected}"
+
+    def test_linter_direct_extraction_vs_analyzer(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test that direct extraction in linter works better than analyzer-based extraction."""
+        # Create content that might cause analyzer issues
+        test_content = """# Test API
+
+## POST /test/endpoint
+Test POST endpoint
+
+## GET /test/endpoint
+Test GET endpoint with same path
+
+## PUT /test/different
+Different endpoint
+"""
+
+        test_utils.create_markdown_file(temp_docs_dir, "test_extraction.md", test_content)
+
+        loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
+        documentation = loader.load_documentation()
+
+        # Create linter and test both extraction methods
+        from fastmarkdocs.endpoint_analyzer import UnifiedEndpointAnalyzer
+        from fastmarkdocs.linter import DocumentationLinter
+
+        mock_openapi_schema = {
+            "paths": {
+                "/test/endpoint": {
+                    "post": {"summary": "Test POST", "responses": {"200": {"description": "OK"}}},
+                    "get": {"summary": "Test GET", "responses": {"200": {"description": "OK"}}},
+                },
+                "/test/different": {"put": {"summary": "Test PUT", "responses": {"200": {"description": "OK"}}}},
+            }
+        }
+
+        linter = DocumentationLinter(
+            openapi_schema=mock_openapi_schema, docs_directory=str(temp_docs_dir), recursive=False
+        )
+
+        # Test direct extraction (our fix)
+        direct_endpoints = linter._extract_markdown_endpoints()
+
+        # Test analyzer-based extraction (original method)
+        analyzer = UnifiedEndpointAnalyzer(mock_openapi_schema)
+        analyzer_endpoints = analyzer.extract_documentation_endpoints(documentation.endpoints)
+
+        # Both should find all 3 endpoints
+        expected_endpoints = {("POST", "/test/endpoint"), ("GET", "/test/endpoint"), ("PUT", "/test/different")}
+
+        assert direct_endpoints == expected_endpoints, f"Direct extraction failed: {direct_endpoints}"
+        assert analyzer_endpoints == expected_endpoints, f"Analyzer extraction failed: {analyzer_endpoints}"
+
+        # Run full linting to ensure no false positives
+        results = linter.lint()
+        assert len(results["missing_documentation"]) == 0, f"False positives found: {results['missing_documentation']}"

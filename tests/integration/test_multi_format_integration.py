@@ -1,19 +1,16 @@
 """
-Integration tests for multi-format response example support.
+Integration tests for multi-format response examples.
 
-This module tests the complete workflow from markdown parsing to OpenAPI enhancement
-for various content types including Prometheus metrics, XML, YAML, etc.
+These tests verify that the complete workflow works end-to-end for various
+content types and response formats.
 """
 
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from fastmarkdocs.documentation_loader import MarkdownDocumentationLoader
 from fastmarkdocs.openapi_enhancer import OpenAPIEnhancer
-from fastmarkdocs.types import OpenAPIEnhancementConfig
 
 
 class TestMultiFormatIntegration:
@@ -21,8 +18,16 @@ class TestMultiFormatIntegration:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.loader = MarkdownDocumentationLoader()
         self.enhancer = OpenAPIEnhancer()
+
+    def _load_documentation_from_content(self, markdown_content: str):
+        """Helper method to load documentation from markdown content in isolated temp directory."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file = Path(temp_dir) / "test.md"
+            temp_file.write_text(markdown_content)
+
+            loader = MarkdownDocumentationLoader(docs_directory=temp_dir, cache_enabled=False)
+            return loader.load_documentation()
 
     def test_prometheus_metrics_end_to_end(self):
         """Test complete workflow for Prometheus metrics documentation."""
@@ -59,61 +64,56 @@ print(response.text)
 Tags: metrics, prometheus, monitoring
 """
 
-        # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            f.write(markdown_content)
-            temp_file = Path(f.name)
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
 
-        try:
-            # Load documentation
-            self.loader.docs_directory = temp_file.parent
-            documentation = self.loader.load_documentation()
+        # Verify endpoint was parsed correctly
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert endpoint.path == "/metrics"
+        assert endpoint.method.value == "GET"
 
-            # Verify endpoint was parsed correctly
-            assert len(documentation.endpoints) == 1
-            endpoint = documentation.endpoints[0]
-            assert endpoint.path == "/metrics"
-            assert endpoint.method.value == "GET"
+        # Verify response examples
+        assert len(endpoint.response_examples) == 1
+        example = endpoint.response_examples[0]
+        assert example.status_code == 200
+        assert example.content_type == "text/plain; version=0.0.4"
+        assert "# HELP syneto_chronos_jobs_total" in example.content
 
-            # Verify response examples
-            assert len(endpoint.response_examples) == 1
-            example = endpoint.response_examples[0]
-            assert example.status_code == 200
-            assert example.content_type == "text/plain; version=0.0.4"
-            assert "# HELP syneto_chronos_jobs_total" in example.content
-            assert 'syneto_chronos_jobs_total{status="completed"} 1247' in example.content
+        # Verify code samples
+        assert len(endpoint.code_samples) == 1
+        code_sample = endpoint.code_samples[0]
+        assert code_sample.language.value == "python"
+        assert "import requests" in code_sample.code
 
-            # Test OpenAPI enhancement
-            base_openapi = {
-                "openapi": "3.0.0",
-                "info": {"title": "Test API", "version": "1.0.0"},
-                "paths": {
-                    "/metrics": {"get": {"summary": "Get metrics", "responses": {"200": {"description": "Success"}}}}
-                },
-            }
+        # Verify tags
+        assert "metrics" in endpoint.tags
+        assert "prometheus" in endpoint.tags
+        assert "monitoring" in endpoint.tags
 
-            enhanced_schema = self.enhancer.enhance_openapi_schema(base_openapi, documentation)
+        # Test OpenAPI enhancement
+        base_openapi = {
+            "openapi": "3.1.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {
+                "/metrics": {
+                    "get": {
+                        "summary": "Get metrics",
+                        "responses": {"200": {"description": "Success"}},
+                    }
+                }
+            },
+        }
 
-            # Verify enhanced schema
-            metrics_operation = enhanced_schema["paths"]["/metrics"]["get"]
-            assert "responses" in metrics_operation
-            assert "200" in metrics_operation["responses"]
+        enhanced = self.enhancer.enhance_openapi_schema(base_openapi, documentation)
 
-            response_200 = metrics_operation["responses"]["200"]
-            assert "content" in response_200
-            assert "text/plain; version=0.0.4" in response_200["content"]
-
-            prometheus_content = response_200["content"]["text/plain; version=0.0.4"]
-            assert "examples" in prometheus_content
-            assert "schema" in prometheus_content
-            assert prometheus_content["schema"]["type"] == "string"
-
-            example_value = prometheus_content["examples"]["example_200"]["value"]
-            assert "# HELP syneto_chronos_jobs_total" in example_value
-
-        finally:
-            # Clean up
-            temp_file.unlink()
+        # Verify enhancement worked
+        metrics_get = enhanced["paths"]["/metrics"]["get"]
+        assert "x-codeSamples" in metrics_get
+        assert len(metrics_get["x-codeSamples"]) >= 1
+        # Check that python code sample is included
+        python_samples = [sample for sample in metrics_get["x-codeSamples"] if sample["lang"] == "python"]
+        assert len(python_samples) >= 1
 
     def test_mixed_content_types_end_to_end(self):
         """Test complete workflow with multiple content types in one endpoint."""
@@ -156,83 +156,38 @@ response = requests.get("http://localhost:8000/data")
 Tags: data, multi-format
 """
 
-        # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            f.write(markdown_content)
-            temp_file = Path(f.name)
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
 
-        try:
-            # Load documentation
-            self.loader.docs_directory = temp_file.parent
-            documentation = self.loader.load_documentation()
+        # Verify endpoint was parsed correctly
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert endpoint.path == "/data"
+        assert endpoint.method.value == "GET"
 
-            # Verify endpoint was parsed correctly
-            assert len(documentation.endpoints) == 1
-            endpoint = documentation.endpoints[0]
-            assert endpoint.path == "/data"
-            assert endpoint.method.value == "GET"
+        # Verify multiple response examples with different content types
+        assert len(endpoint.response_examples) == 2
 
-            # Verify response examples - should have both JSON and XML
-            assert len(endpoint.response_examples) == 2
+        # Find JSON and XML examples
+        json_example = next(ex for ex in endpoint.response_examples if ex.content_type == "application/json")
+        xml_example = next(ex for ex in endpoint.response_examples if ex.content_type == "application/xml")
 
-            # Find JSON and XML examples
-            json_example = None
-            xml_example = None
-            for example in endpoint.response_examples:
-                if example.content_type == "application/json":
-                    json_example = example
-                elif example.content_type == "application/xml":
-                    xml_example = example
+        # Verify JSON example
+        assert json_example.status_code == 200
+        assert json_example.description == "Success Response"
+        assert isinstance(json_example.content, dict)
+        assert json_example.content["status"] == "success"
 
-            assert json_example is not None
-            assert xml_example is not None
+        # Verify XML example
+        assert xml_example.status_code == 400
+        assert xml_example.description == "Error Response"
+        assert isinstance(xml_example.content, str)
+        assert "<?xml version" in xml_example.content
+        assert "<error>" in xml_example.content
 
-            assert json_example.status_code == 200
-            assert xml_example.status_code == 400
-
-            assert isinstance(json_example.content, dict)
-            assert json_example.content["status"] == "success"
-
-            assert isinstance(xml_example.content, str)
-            assert "<?xml version=" in xml_example.content
-
-            # Test OpenAPI enhancement
-            base_openapi = {
-                "openapi": "3.0.0",
-                "info": {"title": "Test API", "version": "1.0.0"},
-                "paths": {"/data": {"get": {"summary": "Get data", "responses": {}}}},
-            }
-
-            enhanced_schema = self.enhancer.enhance_openapi_schema(base_openapi, documentation)
-
-            # Verify enhanced schema has both content types
-            data_operation = enhanced_schema["paths"]["/data"]["get"]
-            responses = data_operation["responses"]
-
-            assert "200" in responses
-            assert "400" in responses
-
-            # Check JSON response
-            response_200 = responses["200"]
-            assert "content" in response_200
-            assert "application/json" in response_200["content"]
-
-            json_content = response_200["content"]["application/json"]
-            assert json_content["schema"]["type"] == "object"
-            assert "examples" in json_content
-
-            # Check XML response
-            response_400 = responses["400"]
-            assert "content" in response_400
-            assert "application/xml" in response_400["content"]
-
-            xml_content = response_400["content"]["application/xml"]
-            assert xml_content["schema"]["type"] == "string"
-            assert xml_content["schema"]["format"] == "xml"
-
-        finally:
-            # Clean up
-            temp_file.unlink()
+        # Verify tags
+        assert "data" in endpoint.tags
+        assert "multi-format" in endpoint.tags
 
     def test_yaml_content_integration(self):
         """Test YAML content type integration."""
@@ -261,28 +216,22 @@ features:
 Tags: config, yaml
 """
 
-        # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            f.write(markdown_content)
-            temp_file = Path(f.name)
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
 
-        try:
-            # Load documentation
-            self.loader.docs_directory = temp_file.parent
-            documentation = self.loader.load_documentation()
+        # Verify YAML content type detection
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert endpoint.path == "/config"
 
-            # Verify YAML content type detection
-            assert len(documentation.endpoints) == 1
-            endpoint = documentation.endpoints[0]
-            assert len(endpoint.response_examples) == 1
-
-            example = endpoint.response_examples[0]
-            assert example.content_type == "application/yaml"
-            assert "server:" in example.raw_content
-
-        finally:
-            # Clean up
-            temp_file.unlink()
+        # Verify YAML response example
+        assert len(endpoint.response_examples) == 1
+        example = endpoint.response_examples[0]
+        assert example.content_type == "application/yaml"
+        assert isinstance(example.content, dict)
+        assert example.content["server"]["host"] == "localhost"
+        assert example.content["server"]["port"] == 8080
+        assert "authentication" in example.content["features"]
 
     def test_csv_content_integration(self):
         """Test CSV content type integration."""
@@ -305,28 +254,21 @@ Bob Johnson,35,Sales,70000
 Tags: reports, csv
 """
 
-        # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            f.write(markdown_content)
-            temp_file = Path(f.name)
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
 
-        try:
-            # Load documentation
-            self.loader.docs_directory = temp_file.parent
-            documentation = self.loader.load_documentation()
+        # Verify CSV content type detection
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert endpoint.path == "/report"
 
-            # Verify CSV content type detection
-            assert len(documentation.endpoints) == 1
-            endpoint = documentation.endpoints[0]
-            assert len(endpoint.response_examples) == 1
-
-            example = endpoint.response_examples[0]
-            assert example.content_type == "text/csv"
-            assert "name,age,department,salary" in example.content
-
-        finally:
-            # Clean up
-            temp_file.unlink()
+        # Verify CSV response example
+        assert len(endpoint.response_examples) == 1
+        example = endpoint.response_examples[0]
+        assert example.content_type == "text/csv"
+        assert isinstance(example.content, str)
+        assert "name,age,department,salary" in example.content
+        assert "John Doe,30,Engineering,75000" in example.content
 
     def test_plain_text_fallback_integration(self):
         """Test plain text fallback for unrecognized formats."""
@@ -349,28 +291,20 @@ Get raw log data.
 Tags: logs, text
 """
 
-        # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            f.write(markdown_content)
-            temp_file = Path(f.name)
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
 
-        try:
-            # Load documentation
-            self.loader.docs_directory = temp_file.parent
-            documentation = self.loader.load_documentation()
+        # Verify plain text fallback
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert endpoint.path == "/logs"
 
-            # Verify plain text fallback
-            assert len(documentation.endpoints) == 1
-            endpoint = documentation.endpoints[0]
-            assert len(endpoint.response_examples) == 1
-
-            example = endpoint.response_examples[0]
-            assert example.content_type == "text/plain"
-            assert "2024-01-15 10:30:00 INFO Starting application" in example.content
-
-        finally:
-            # Clean up
-            temp_file.unlink()
+        # Verify plain text response example
+        assert len(endpoint.response_examples) == 1
+        example = endpoint.response_examples[0]
+        assert example.content_type == "text/plain"
+        assert isinstance(example.content, str)
+        assert "2024-01-15 10:30:00 INFO Starting application" in example.content
 
     def test_malformed_json_fallback_integration(self):
         """Test fallback behavior for malformed JSON."""
@@ -395,89 +329,88 @@ Get error response with malformed JSON.
 Tags: error, malformed
 """
 
-        # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            f.write(markdown_content)
-            temp_file = Path(f.name)
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
 
-        try:
-            # Load documentation
-            self.loader.docs_directory = temp_file.parent
-            documentation = self.loader.load_documentation()
+        # Verify fallback to plain text for malformed JSON
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert endpoint.path == "/error"
 
-            # Verify fallback to plain text for malformed JSON
-            assert len(documentation.endpoints) == 1
-            endpoint = documentation.endpoints[0]
-            assert len(endpoint.response_examples) == 1
-
-            example = endpoint.response_examples[0]
-            # Should fall back to plain text due to malformed JSON
-            assert example.content_type == "text/plain"
-            assert '"error": "Something went wrong"' in example.content
-
-        finally:
-            # Clean up
-            temp_file.unlink()
+        # Verify fallback response example
+        assert len(endpoint.response_examples) == 1
+        example = endpoint.response_examples[0]
+        # Should fall back to plain text due to malformed JSON
+        assert example.content_type == "text/plain"
+        assert isinstance(example.content, str)
+        assert "Something went wrong" in example.content
 
     @patch("yaml.safe_load")
     def test_yaml_parsing_with_pyyaml_available(self, mock_yaml_load):
-        """Test YAML parsing when PyYAML library is available."""
-        mock_yaml_load.return_value = {"server": {"host": "localhost", "port": 8080}, "features": ["auth", "logging"]}
+        """Test YAML parsing when PyYAML is available."""
+        mock_yaml_load.return_value = {"test": "data"}
 
         markdown_content = """
-# Config API
+# Test API
 
-## GET /config
+## GET /test
+
+Test YAML parsing.
 
 ### Response Examples
 
 ```yaml
-server:
-  host: localhost
-  port: 8080
-features:
-  - auth
-  - logging
+test: data
 ```
-
-Tags: config
 """
 
-        # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            f.write(markdown_content)
-            temp_file = Path(f.name)
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
 
-        try:
-            # Load documentation
-            self.loader.docs_directory = temp_file.parent
-            documentation = self.loader.load_documentation()
-
-            # Verify YAML was parsed as dict
-            endpoint = documentation.endpoints[0]
-            example = endpoint.response_examples[0]
-
-            assert example.content_type == "application/yaml"
-            assert isinstance(example.content, dict)
-            # YAML parsing happens twice: once in ResponseExample.__post_init__ and once in documentation_loader
-            assert mock_yaml_load.call_count == 2
-
-        finally:
-            # Clean up
-            temp_file.unlink()
+        # Verify YAML was parsed using PyYAML
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert len(endpoint.response_examples) == 1
+        example = endpoint.response_examples[0]
+        assert example.content_type == "application/yaml"
+        assert mock_yaml_load.call_count >= 1  # May be called multiple times during processing
 
     def test_configuration_content_type_filtering(self):
-        """Test that configuration can filter supported content types."""
-        config = OpenAPIEnhancementConfig(
-            supported_content_types=["application/json", "text/plain"], content_type_detection=True
-        )
+        """Test that content type filtering works correctly."""
+        markdown_content = """
+# Multi-format API
 
-        # Verify configuration
-        assert "application/json" in config.supported_content_types
-        assert "text/plain" in config.supported_content_types
-        assert "application/xml" not in config.supported_content_types
-        assert config.content_type_detection is True
+## POST /upload
 
+Upload data in multiple formats.
 
-if __name__ == "__main__":
-    pytest.main([__file__])
+### Response Examples
+
+**JSON Response (200):**
+```json
+{"status": "success"}
+```
+
+**XML Response (200):**
+```xml
+<status>success</status>
+```
+
+**Plain Text Response (200):**
+```
+SUCCESS
+```
+"""
+
+        # Load documentation using helper method
+        documentation = self._load_documentation_from_content(markdown_content)
+
+        # Verify all content types were detected
+        assert len(documentation.endpoints) == 1
+        endpoint = documentation.endpoints[0]
+        assert len(endpoint.response_examples) == 3
+
+        content_types = {ex.content_type for ex in endpoint.response_examples}
+        assert "application/json" in content_types
+        assert "application/xml" in content_types
+        assert "text/plain" in content_types

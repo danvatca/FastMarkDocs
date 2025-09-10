@@ -100,7 +100,32 @@ class UnifiedEndpointAnalyzer:
         Returns:
             Set of (method, path) tuples from documentation
         """
-        return {(endpoint.method.value, endpoint.path) for endpoint in endpoints}
+        extracted_endpoints = set()
+
+        for endpoint in endpoints:
+            try:
+                # Handle both enum and string method types
+                if hasattr(endpoint.method, "value"):
+                    method = endpoint.method.value
+                else:
+                    method = str(endpoint.method).upper()
+
+                # Ensure path is properly formatted
+                path = endpoint.path.strip()
+                if not path.startswith("/"):
+                    path = "/" + path
+
+                extracted_endpoints.add((method, path))
+
+            except (AttributeError, TypeError) as e:
+                # Log the error but continue processing other endpoints
+                # This prevents one malformed endpoint from breaking the entire analysis
+                import logging
+
+                logging.warning(f"Failed to extract endpoint info from {endpoint}: {e}")
+                continue
+
+        return extracted_endpoints
 
     def match_endpoints(
         self, openapi_endpoints: set[tuple[str, str]], doc_endpoints: list[EndpointDocumentation]
@@ -421,3 +446,41 @@ class UnifiedEndpointAnalyzer:
             score += 10
 
         return round(score, 1)
+
+    def debug_endpoint_extraction(self, endpoints: list[EndpointDocumentation]) -> dict[str, Any]:
+        """
+        Debug method to analyze endpoint extraction issues.
+
+        Args:
+            endpoints: List of endpoint documentation objects
+
+        Returns:
+            Detailed information about endpoint processing
+        """
+        debug_info: dict[str, Any] = {
+            "total_endpoints": len(endpoints),
+            "successfully_extracted": 0,
+            "failed_extractions": [],
+            "extracted_endpoints": [],
+        }
+
+        for i, endpoint in enumerate(endpoints):
+            try:
+                method = endpoint.method.value if hasattr(endpoint.method, "value") else str(endpoint.method)
+                path = endpoint.path
+
+                debug_info["extracted_endpoints"].append(
+                    {
+                        "index": i,
+                        "method": method,
+                        "path": path,
+                        "summary": getattr(endpoint, "summary", None),
+                        "has_description": bool(getattr(endpoint, "description", None)),
+                    }
+                )
+                debug_info["successfully_extracted"] += 1
+
+            except Exception as e:
+                debug_info["failed_extractions"].append({"index": i, "error": str(e), "endpoint_repr": repr(endpoint)})
+
+        return debug_info
