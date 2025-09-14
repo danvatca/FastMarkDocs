@@ -38,7 +38,7 @@ curl -X GET "https://api.example.com/api/users" \\
   -H "Accept: application/json"
 ```
 
-Tags: users, list
+Section: users, list
 
 ## POST /api/users
 
@@ -52,7 +52,7 @@ user_data = {"name": "John", "email": "john@example.com"}
 response = requests.post("https://api.example.com/api/users", json=user_data)
 ```
 
-Tags: users, create
+Section: users, create
 """
 
         # Create the documentation file
@@ -100,7 +100,7 @@ import requests
 response = requests.get("/api/users")
 ```
 
-Tags: users
+Section: users
 """
 
         auth_docs = """
@@ -115,7 +115,7 @@ import requests
 response = requests.post("/api/auth/login", json={"username": "user", "password": "pass"})
 ```
 
-Tags: auth
+Section: auth
 """
 
         test_utils.create_markdown_file(temp_docs_dir, "users.md", users_docs)
@@ -362,13 +362,13 @@ curl -X GET "/api/users"
 [{"id": 1, "name": "John"}]
 ```
 
-Tags: users, list
+Section: users, list
 
 ### POST /api/auth/login
 
 Authenticate a user.
 
-Tags: auth, login
+Section: auth, login
 """
 
         test_utils.create_markdown_file(temp_docs_dir, "api.md", content)
@@ -448,19 +448,19 @@ The **User Management API** provides comprehensive user account administration f
 
 List all users in the system.
 
-Tags: users, list
+Section: users, list
 
 ### POST /users
 
 Create a new user account.
 
-Tags: users, create
+Section: users, create
 
 ### DELETE /users/{id}
 
 Delete a user account.
 
-Tags: users, delete
+Section: users, delete
 """
 
         auth_content = """
@@ -488,19 +488,19 @@ The **Authentication API** handles user login, session management, and security 
 
 Authenticate a user and create a session.
 
-Tags: authentication, login
+Section: authentication, login
 
 ### POST /auth/logout
 
 Logout a user and invalidate the session.
 
-Tags: authentication, logout
+Section: authentication, logout
 
 ### GET /auth/session
 
 Get current session information.
 
-Tags: authentication, session
+Section: authentication, session
 """
 
         # Create markdown files

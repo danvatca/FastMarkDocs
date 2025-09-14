@@ -61,7 +61,7 @@ response = requests.get("http://localhost:8000/metrics")
 print(response.text)
 ```
 
-Tags: metrics, prometheus, monitoring
+Section: metrics, prometheus, monitoring
 """
 
         # Load documentation using helper method
@@ -86,10 +86,10 @@ Tags: metrics, prometheus, monitoring
         assert code_sample.language.value == "python"
         assert "import requests" in code_sample.code
 
-        # Verify tags
-        assert "metrics" in endpoint.tags
-        assert "prometheus" in endpoint.tags
-        assert "monitoring" in endpoint.tags
+        # Verify sections
+        assert "metrics" in endpoint.sections
+        assert "prometheus" in endpoint.sections
+        assert "monitoring" in endpoint.sections
 
         # Test OpenAPI enhancement
         base_openapi = {
@@ -153,7 +153,7 @@ import requests
 response = requests.get("http://localhost:8000/data")
 ```
 
-Tags: data, multi-format
+Section: data, multi-format
 """
 
         # Load documentation using helper method
@@ -185,9 +185,9 @@ Tags: data, multi-format
         assert "<?xml version" in xml_example.content
         assert "<error>" in xml_example.content
 
-        # Verify tags
-        assert "data" in endpoint.tags
-        assert "multi-format" in endpoint.tags
+        # Verify sections
+        assert "data" in endpoint.sections
+        assert "multi-format" in endpoint.sections
 
     def test_yaml_content_integration(self):
         """Test YAML content type integration."""
@@ -213,7 +213,7 @@ features:
   - metrics
 ```
 
-Tags: config, yaml
+Section: config, yaml
 """
 
         # Load documentation using helper method
@@ -251,7 +251,7 @@ Jane Smith,28,Marketing,65000
 Bob Johnson,35,Sales,70000
 ```
 
-Tags: reports, csv
+Section: reports, csv
 """
 
         # Load documentation using helper method
@@ -288,7 +288,7 @@ Get raw log data.
 2024-01-15 10:30:03 INFO Server listening on port 8080
 ```
 
-Tags: logs, text
+Section: logs, text
 """
 
         # Load documentation using helper method
@@ -326,7 +326,7 @@ Get error response with malformed JSON.
     // Missing closing brace - malformed JSON
 ```
 
-Tags: error, malformed
+Section: error, malformed
 """
 
         # Load documentation using helper method

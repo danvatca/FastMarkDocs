@@ -1220,10 +1220,12 @@ class TestCLIMain:
             docs_dir = Path(temp_dir) / "docs"
             docs_dir.mkdir()
             (docs_dir / "users.md").write_text(
-                """
+                    """
 ## GET /users
 
 List all users in the system.
+
+Section: User Management
 
 ### Description
 This endpoint returns a comprehensive list of all users with detailed information including their profiles, permissions, and activity status.
@@ -1847,7 +1849,7 @@ format: "json"
 
             # Create complete documentation
             (Path(temp_dir) / "users.md").write_text(
-                """
+                    """
 ## GET /users
 
 List all users in the system.
@@ -1866,6 +1868,8 @@ curl -X GET "/users"
 ```json
 {"users": []}
 ```
+
+Section: User Management
 """
             )
 
@@ -1925,8 +1929,10 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
-            )
+                )
 
             original_cwd = Path.cwd()
             try:
@@ -1990,8 +1996,10 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
-            )
+                )
 
             original_cwd = Path.cwd()
             try:
@@ -2048,8 +2056,10 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
-            )
+                )
 
             original_cwd = Path.cwd()
             try:
@@ -2116,8 +2126,10 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
-            )
+                )
 
             with patch(
                 "sys.argv",

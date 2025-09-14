@@ -284,7 +284,7 @@ Get a list of all users from the system.
 
 This endpoint provides access to user data.
 
-Tags: users, api
+Section: User Management, API
 """
 
         info = extract_endpoint_info(markdown)
@@ -292,8 +292,8 @@ Tags: users, api
         assert info["method"] == "GET"
         assert info["path"] == "/api/users"
         assert info["summary"] == "Get a list of all users from the system."
-        assert "users" in info["tags"]
-        assert "api" in info["tags"]
+        assert "User Management" in info["sections"]
+        assert "API" in info["sections"]
 
     def test_extract_endpoint_info_multiple_headers(self) -> None:
         """Test endpoint extraction with multiple headers (should take first)."""
@@ -508,14 +508,14 @@ print('non-empty')
 
 Get comments for a specific post by a user.
 
-Tags: comments, posts, users
+Section: Comments, Posts, Users
 """
 
         info = extract_endpoint_info(markdown)
 
         assert info["method"] == "GET"
         assert info["path"] == "/api/v1/users/{user_id}/posts/{post_id}/comments"
-        assert "comments" in info["tags"]
+        assert "Comments" in info["sections"]
 
     def test_find_markdown_files_with_symlinks(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test markdown file finding with symbolic links."""
@@ -693,12 +693,12 @@ This endpoint returns a list of all users.
 ## POST /api/users
 Create a new user in the system.
 
-Tags: users, creation
+Section: User Management, Creation
 
 ## GET /api/users/{id}
 Get a specific user by ID.
 
-Tags: users, retrieval
+Section: User Management, Retrieval
 """
 
         # Should extract info from the first endpoint only
@@ -707,8 +707,8 @@ Tags: users, retrieval
         assert info["method"] == "GET"
         assert info["path"] == "/api/users"
         assert info["summary"] == "Get all users from the system."
-        # Tags should be extracted from anywhere in the document
-        assert "users" in info["tags"]
+        # Sections should be extracted from anywhere in the document
+        assert "User Management" in info["sections"]
 
     def test_extract_endpoint_info_with_various_header_levels(self) -> None:
         """Test endpoint info extraction with different header levels."""

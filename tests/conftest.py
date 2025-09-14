@@ -83,7 +83,7 @@ fetch('https://api.example.com/api/users')
   .catch(error => console.error('Error:', error));
 ```
 
-Tags: users, list
+Section: users, list
 
 ## POST /api/users
 
@@ -140,7 +140,7 @@ curl -X POST "https://api.example.com/api/users" \\
   }'
 ```
 
-Tags: users, create
+Section: users, create
 
 ## GET /api/users/{user_id}
 
@@ -182,7 +182,7 @@ curl -X GET "https://api.example.com/api/users/1" \\
   -H "Accept: application/json"
 ```
 
-Tags: users, details
+Section: users, details
 """
 
 
@@ -310,7 +310,7 @@ fetch('https://api.example.com/api/auth/login', {
 .catch(error => console.error('Login failed:', error));
 ```
 
-Tags: authentication, security
+Section: authentication, security
 
 ## DELETE /api/users/{user_id}
 
@@ -356,7 +356,7 @@ curl -X DELETE "https://api.example.com/api/users/123" \\
   -H "Accept: application/json"
 ```
 
-Tags: users, delete, admin
+Section: users, delete, admin
 """
 
 

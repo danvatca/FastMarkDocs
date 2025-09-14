@@ -142,7 +142,7 @@ def format_json_output(result: dict[str, Any]) -> str:
                     "line_number": endpoint.line_number,
                     "summary": endpoint.summary,
                     "description": endpoint.description,
-                    "tags": endpoint.tags,
+                    "sections": endpoint.sections,
                     "docstring": endpoint.docstring,
                 }
             )

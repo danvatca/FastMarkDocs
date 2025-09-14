@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-09-15
+
+### Breaking Changes
+- **Section-Based Documentation**: Complete transition from `Tags:` to `Section:` approach
+  - **Deprecated**: `Tags:` lines in markdown documentation (still supported but deprecated)
+  - **New**: `Section:` lines for organizing endpoints into documentation sections
+  - **Router Tags**: Now serve as "scaffolding hints" only, ignored at runtime
+  - **Single Source of Truth**: Only `Section:` lines in markdown control documentation organization
+
+### Added
+- **Intelligent Section Inference**: Automatic section assignment for endpoints during scaffolding
+  - **6-Step Fallback Chain**: Endpoint tags → Router tags → Path patterns → File names → Function names → "API" default
+  - **Smart Pattern Recognition**: Recognizes common patterns like `/health`, `/metrics`, `/auth`, etc.
+  - **File-Based Inference**: Infers sections from file names like `health.py`, `users.py`, `metrics.py`
+  - **Function-Based Inference**: Analyzes function names for patterns like `health_check`, `get_users`, etc.
+- **Enhanced Linting**: New validation rules for Section-based approach
+  - **Section Validation**: Ensures all documented endpoints have `Section:` defined
+  - **Missing Section Detection**: Reports endpoints without proper section assignment
+  - **Helpful Suggestions**: Provides recommendations for missing sections based on inference
+- **Comprehensive Migration Support**
+  - **Migration Guide**: Detailed documentation for transitioning from Tags to Sections
+  - **Automated Scripts**: sed and Python scripts for bulk migration
+  - **Backward Compatibility**: Existing `Tags:` continue to work during transition period
+- **Smart Section Descriptions**: Enhanced OpenAPI schema generation
+  - **Section Mapping**: Maps markdown sections to OpenAPI tags with descriptions
+  - **Intelligent Grouping**: Groups related endpoints under descriptive section headers
+  - **Improved Organization**: Better RapiDoc section organization and ordering
+
+### Enhanced
+- **Scaffolding (`fmd-init`)**: Dramatically improved initial documentation generation
+  - **Intelligent Defaults**: Automatically suggests appropriate sections for new endpoints
+  - **Context-Aware**: Uses multiple hints (path, file, function) to determine best sections
+  - **Reduced Manual Work**: Minimizes need for manual section assignment
+- **Documentation Loader**: Updated to process Section-based markdown
+  - **Dual Support**: Handles both `Tags:` (deprecated) and `Section:` formats
+  - **Enhanced Parsing**: Improved regex patterns and content processing
+  - **Better Error Handling**: More robust parsing with helpful error messages
+- **Testing & Quality**: Comprehensive test coverage improvements
+  - **91% Test Coverage**: Significantly improved from 88.55% baseline
+  - **459 Tests**: All tests passing with comprehensive behavior coverage
+  - **Robust File Processing**: Tests for various file types, encoding issues, and error conditions
+  - **Section Assignment Testing**: Comprehensive tests for intelligent section inference
+
+### Technical Improvements
+- **Type System**: Updated data structures for Section-based approach
+  - **DocumentationData**: `tag_descriptions` → `section_descriptions`
+  - **EndpointDocumentation**: `tags` → `sections` field
+  - **Enhanced Type Safety**: Better type hints and validation
+- **OpenAPI Enhancement**: Improved schema generation and organization
+  - **Section Descriptions**: Maps sections to OpenAPI tag descriptions
+  - **Better Grouping**: More logical endpoint organization in generated docs
+  - **Maintained Compatibility**: OpenAPI spec still uses standard "tags" format
+- **Configuration**: Prepared for `tag_order` → `sections_order` transition
+  - **Future-Ready**: Infrastructure ready for configuration parameter rename
+  - **Backward Compatible**: Current `tag_order` continues to work
+
+### Documentation
+- **Updated Examples**: All documentation examples now use Section-based approach
+- **Migration Guide**: Comprehensive guide for transitioning existing projects
+- **Enhanced README**: Updated feature descriptions and examples
+- **User Guide**: Refreshed documentation with Section-focused explanations
+
+### Benefits
+- **Eliminated Duplication**: No more conflicts between router tags and documentation tags
+- **Cleaner Architecture**: Clear separation between operational tags and documentation sections
+- **Better Maintainability**: Single source of truth for documentation organization
+- **Improved Developer Experience**: Intelligent defaults reduce manual configuration
+- **Enhanced Flexibility**: Multiple fallback strategies for section determination
+
+### Migration Path
+1. Update to fastmarkdocs 0.5.0
+2. Run migration scripts to convert `Tags:` to `Section:`
+3. Update project configuration to use `sections_order` (when available)
+4. Leverage intelligent section inference for new endpoints
+5. Remove router tags used solely for documentation purposes
+
 ## [0.4.0] - 2025-01-27
 
 ### Added

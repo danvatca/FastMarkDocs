@@ -208,7 +208,7 @@ class MarkdownDocumentationLoader:
             total_code_samples = 0
             languages_found = set()
             collected_metadata = {}
-            collected_tag_descriptions = {}
+            collected_section_descriptions = {}
 
             for file_path in markdown_files:
                 try:
@@ -221,9 +221,9 @@ class MarkdownDocumentationLoader:
                     # Collect global code samples
                     global_examples.extend(file_data["code_samples"])
 
-                    # Extract tag descriptions from this file
-                    file_tag_descriptions = self._extract_tag_descriptions_from_content(file_data["content"])
-                    collected_tag_descriptions.update(file_tag_descriptions)
+                    # Extract section descriptions from this file
+                    file_section_descriptions = self._extract_section_descriptions_from_content(file_data["content"])
+                    collected_section_descriptions.update(file_section_descriptions)
 
                     # Update statistics
                     total_code_samples += len(file_data["code_samples"])
@@ -265,7 +265,7 @@ class MarkdownDocumentationLoader:
                     "docs_directory": docs_path,
                     **collected_metadata,  # Include collected frontmatter metadata
                 },
-                tag_descriptions=collected_tag_descriptions,
+                section_descriptions=collected_section_descriptions,
             )
 
             # Cache the documentation result if caching is enabled (thread-safe)
@@ -477,7 +477,7 @@ class MarkdownDocumentationLoader:
                     code_samples=code_samples,
                     response_examples=response_examples,
                     parameters=parameters,
-                    tags=endpoint_info.get("tags", []),
+                    sections=endpoint_info.get("sections", []),
                     deprecated=endpoint_info.get("deprecated", False),
                 )
 
@@ -799,44 +799,44 @@ class MarkdownDocumentationLoader:
 
         return parameters
 
-    def _extract_tag_descriptions_from_content(self, content: str) -> dict[str, str]:
+    def _extract_section_descriptions_from_content(self, content: str) -> dict[str, str]:
         """
-        Extract tag descriptions from markdown content by finding Overview sections
-        and associating them with tags used in the same file.
+        Extract section descriptions from markdown content by finding Overview sections
+        and associating them with sections used in the same file.
 
         Args:
             content: Markdown content
 
         Returns:
-            Dictionary mapping tag names to their descriptions from Overview sections
+            Dictionary mapping section names to their descriptions from Overview sections
         """
-        tag_descriptions: dict[str, str] = {}
+        section_descriptions: dict[str, str] = {}
 
-        # First, extract all tags used in this file
-        file_tags = set()
+        # First, extract all sections used in this file
+        file_sections = set()
         lines = content.split("\n")
 
         for line in lines:
-            # Extract tags from "Tags:" lines
-            tag_match = re.match(r"^Tags?:\s*(.+)", line, re.IGNORECASE)
-            if tag_match:
-                tags = [tag.strip() for tag in tag_match.group(1).split(",")]
-                file_tags.update(tags)
+            # Extract sections from "Section:" lines
+            section_match = re.match(r"^Section:\s*(.+)", line, re.IGNORECASE)
+            if section_match:
+                sections = [section.strip() for section in section_match.group(1).split(",")]
+                file_sections.update(sections)
 
-        # If no tags found, return empty dict
-        if not file_tags:
-            return tag_descriptions
+        # If no sections found, return empty dict
+        if not file_sections:
+            return section_descriptions
 
         # Extract Overview section content
         overview_content = self._extract_overview_section(content)
         if overview_content:
-            # Associate the overview content with all tags in this file
+            # Associate the overview content with all sections in this file
             # This assumes that the Overview section describes the API group
             # that all endpoints in this file belong to
-            for tag in file_tags:
-                tag_descriptions[tag] = overview_content.strip()
+            for section in file_sections:
+                section_descriptions[section] = overview_content.strip()
 
-        return tag_descriptions
+        return section_descriptions
 
     def _extract_overview_section(self, content: str) -> Optional[str]:
         """
@@ -955,7 +955,7 @@ class MarkdownDocumentationLoader:
             code_samples=code_samples,
             response_examples=[],
             parameters=[],
-            tags=endpoint_info.get("tags", []),
+            sections=endpoint_info.get("sections", []),
             deprecated=endpoint_info.get("deprecated", False),
         )
 

@@ -27,7 +27,7 @@ class TestEndpointInfo:
             line_number=42,
             summary="Get all users",
             description="Retrieve a list of all users in the system",
-            tags=["users"],
+            sections=["users"],
         )
 
         assert endpoint.method == "GET"
@@ -37,7 +37,7 @@ class TestEndpointInfo:
         assert endpoint.line_number == 42
         assert endpoint.summary == "Get all users"
         assert endpoint.description == "Retrieve a list of all users in the system"
-        assert endpoint.tags == ["users"]
+        assert endpoint.sections == ["users"]
 
     def test_endpoint_info_defaults(self) -> None:
         """Test EndpointInfo with default values."""
@@ -50,15 +50,15 @@ class TestEndpointInfo:
         assert endpoint.docstring is None
         assert endpoint.summary is None
         assert endpoint.description is None
-        assert endpoint.tags == []  # Should be initialized to empty list
+        assert endpoint.sections == []  # Should be initialized to empty list
 
     def test_endpoint_info_post_init(self) -> None:
-        """Test that __post_init__ initializes tags to empty list when None."""
+        """Test that __post_init__ initializes sections to empty list when None."""
         endpoint = EndpointInfo(
-            method="GET", path="/test", function_name="test_func", file_path="test.py", line_number=1, tags=None
+            method="GET", path="/test", function_name="test_func", file_path="test.py", line_number=1, sections=None
         )
 
-        assert endpoint.tags == []
+        assert endpoint.sections == []
 
 
 class TestRouterInfo:
@@ -128,7 +128,7 @@ def get_users():
             assert endpoint.path == "/users"
             assert endpoint.function_name == "get_users"
             assert endpoint.summary == "Get all users."
-            assert endpoint.tags == []  # No tags specified
+            assert endpoint.sections == ["User Management"]  # Inferred from path
 
     def test_scan_directory_with_multiple_endpoints(self) -> None:
         """Test scanning directory with multiple endpoints."""
@@ -174,7 +174,7 @@ def get_orders():
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "api.py"
             api_file.write_text(
-                '''
+                    '''
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -199,15 +199,15 @@ def create_order():
             users_endpoint = next(ep for ep in endpoints if ep.path == "/users")
             orders_endpoint = next(ep for ep in endpoints if ep.path == "/orders")
 
-            assert users_endpoint.tags == ["users", "admin"]
-            assert orders_endpoint.tags == ["orders"]
+            assert users_endpoint.sections == ["users"]  # First tag used as section
+            assert orders_endpoint.sections == ["orders"]  # Tag used as section
 
     def test_scan_with_router_level_tags(self) -> None:
         """Test scanning endpoints with router-level tags."""
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "users.py"
             api_file.write_text(
-                '''
+                    '''
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -234,9 +234,9 @@ def get_user(user_id: int):
 
             assert len(endpoints) == 3
 
-            # All endpoints should have router-level tags
+            # All endpoints should have router-level tags as section
             for endpoint in endpoints:
-                assert "users" in endpoint.tags
+                assert endpoint.sections == ["users"]
 
             # Check path prefixes are applied
             paths = [ep.path for ep in endpoints]
@@ -279,17 +279,17 @@ def health_check():
             orders_endpoint = next(ep for ep in endpoints if "orders" in ep.path)
             health_endpoint = next(ep for ep in endpoints if "health" in ep.path)
 
-            # Router tags should be combined with endpoint tags
-            assert users_endpoint.tags == ["api", "users"]
-            assert orders_endpoint.tags == ["api", "orders", "admin"]
-            assert health_endpoint.tags == ["api"]  # Only router tags
+            # Router tags are used as scaffolding hints, endpoint tags take precedence
+            assert users_endpoint.sections == ["users"]  # endpoint tag takes precedence
+            assert orders_endpoint.sections == ["orders"]  # first endpoint tag used
+            assert health_endpoint.sections == ["api"]  # router tag used as fallback
 
     def test_scan_with_multiple_routers(self) -> None:
         """Test scanning file with multiple routers."""
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "multi_router.py"
             api_file.write_text(
-                """
+                    """
 from fastapi import APIRouter
 
 users_router = APIRouter(prefix="/users", tags=["users"])
@@ -318,17 +318,17 @@ def create_order():
 
             assert len(endpoints) == 4
 
-            user_endpoints = [ep for ep in endpoints if ep.path.startswith("/users")]
-            order_endpoints = [ep for ep in endpoints if ep.path.startswith("/orders")]
+            user_endpoints = [ep for ep in endpoints if "users" in ep.sections]
+            order_endpoints = [ep for ep in endpoints if "orders" in ep.sections]
 
             assert len(user_endpoints) == 2
             assert len(order_endpoints) == 2
 
             for ep in user_endpoints:
-                assert "users" in ep.tags
+                assert ep.sections == ["users"]
 
             for ep in order_endpoints:
-                assert "orders" in ep.tags
+                assert ep.sections == ["orders"]
 
     def test_scan_with_complex_docstring(self) -> None:
         """Test scanning endpoint with complex docstring."""
@@ -474,9 +474,9 @@ def login():
             users_ep = next(ep for ep in endpoints if ep.path == "/users")
             orders_ep = next(ep for ep in endpoints if ep.path == "/v1/orders")
 
-            assert "health" in health_ep.tags
-            assert "users" in users_ep.tags
-            assert "orders" in orders_ep.tags and "v1" in orders_ep.tags
+            assert health_ep.sections == ["health"]  # From endpoint tag
+            assert users_ep.sections == ["users"]
+            assert orders_ep.sections == ["orders"]  # First tag from ["orders", "v1"]
 
     def test_scan_excludes_common_directories(self) -> None:
         """Test that scanner excludes common non-source directories."""
@@ -563,7 +563,7 @@ class TestMarkdownScaffoldGenerator:
                 line_number=10,
                 summary="Get all users",
                 description="Retrieve all users from the database",
-                tags=["users"],
+                sections=["users"],
             )
 
             result = generator.generate_scaffolding([endpoint])
@@ -595,7 +595,7 @@ class TestMarkdownScaffoldGenerator:
                     function_name="get_users",
                     file_path="api/users.py",
                     line_number=10,
-                    tags=["users"],
+                    sections=["users"],
                 ),
                 EndpointInfo(
                     method="POST",
@@ -603,7 +603,7 @@ class TestMarkdownScaffoldGenerator:
                     function_name="create_user",
                     file_path="api/users.py",
                     line_number=20,
-                    tags=["users"],
+                    sections=["users"],
                 ),
             ]
 
@@ -630,7 +630,7 @@ class TestMarkdownScaffoldGenerator:
                     function_name="get_users",
                     file_path="api/users.py",
                     line_number=10,
-                    tags=["users"],
+                    sections=["users"],
                 ),
                 EndpointInfo(
                     method="GET",
@@ -638,7 +638,7 @@ class TestMarkdownScaffoldGenerator:
                     function_name="get_orders",
                     file_path="api/orders.py",
                     line_number=15,
-                    tags=["orders"],
+                    sections=["orders"],
                 ),
             ]
 
@@ -664,7 +664,7 @@ class TestMarkdownScaffoldGenerator:
                 function_name="health_check",
                 file_path="api/health.py",
                 line_number=5,
-                tags=[],
+                sections=[],
             )
 
             result = generator.generate_scaffolding([endpoint])
@@ -690,7 +690,7 @@ class TestMarkdownScaffoldGenerator:
                 line_number=25,
                 summary="Create order for user",
                 description="Create a new order for the specified user with validation",
-                tags=["orders", "users"],
+                sections=["orders", "users"],
             )
 
             section = generator._generate_endpoint_section(endpoint)
@@ -700,7 +700,7 @@ class TestMarkdownScaffoldGenerator:
             assert "Create a new order for the specified user with validation" in section
             assert "**Function:** `create_user_order`" in section
             assert "**File:** `api/orders.py:25`" in section
-            assert "**Tags:** orders, users" in section
+            assert "**Sections:** orders, users" in section
             assert "### Parameters" in section
             assert "### Response Examples" in section
             assert "### Code Examples" in section
@@ -791,9 +791,9 @@ def create_order():
     def test_create_summary(self) -> None:
         """Test summary creation with endpoint statistics."""
         endpoints = [
-            EndpointInfo("GET", "/users", "get_users", "api.py", 10, tags=["users"]),
-            EndpointInfo("POST", "/users", "create_user", "api.py", 20, tags=["users"]),
-            EndpointInfo("GET", "/orders", "get_orders", "orders.py", 15, tags=["orders"]),
+            EndpointInfo("GET", "/users", "get_users", "api.py", 10, sections=["users"]),
+            EndpointInfo("POST", "/users", "create_user", "api.py", 20, sections=["users"]),
+            EndpointInfo("GET", "/orders", "get_orders", "orders.py", 15, sections=["orders"]),
         ]
         generated_files = {
             "docs/general_docs.md": "general content",
@@ -811,12 +811,12 @@ def create_order():
         assert "docs/users.md" in summary
         assert "docs/orders.md" in summary
 
-    def test_create_summary_with_untagged_endpoints(self) -> None:
-        """Test summary creation includes warning about untagged endpoints."""
+    def test_create_summary_with_unsectioned_endpoints(self) -> None:
+        """Test summary creation includes warning about unsectioned endpoints."""
         endpoints = [
-            EndpointInfo("GET", "/users", "get_users", "api.py", 10, tags=["users"]),
-            EndpointInfo("POST", "/health", "health_check", "main.py", 5, tags=[]),  # No tags
-            EndpointInfo("GET", "/status", "get_status", "main.py", 15, tags=[]),  # No tags
+            EndpointInfo("GET", "/users", "get_users", "api.py", 10, sections=["users"]),
+            EndpointInfo("POST", "/health", "health_check", "main.py", 5, sections=[]),  # No tags
+            EndpointInfo("GET", "/status", "get_status", "main.py", 15, sections=[]),  # No tags
         ]
         generated_files = {
             "docs/general_docs.md": "general content",
@@ -828,7 +828,7 @@ def create_order():
         summary = initializer._create_summary(endpoints, generated_files)
 
         # Should include warning section
-        assert "⚠️  **Endpoints without tags" in summary
+        assert "⚠️  **Endpoints without sections" in summary
         assert "POST /health → `main.py:5`" in summary
         assert "GET /status → `main.py:15`" in summary
 
@@ -838,13 +838,13 @@ def create_order():
         assert "router = APIRouter(prefix='/prefix', tags=['tag_name'])" in summary
 
         # Should include additional next step
-        assert "5. Consider adding tags to untagged endpoints" in summary
+        assert "5. Consider adding sections to unsectioned endpoints" in summary
 
-    def test_create_summary_no_untagged_endpoints(self) -> None:
-        """Test summary creation when all endpoints have tags."""
+    def test_create_summary_no_unsectioned_endpoints(self) -> None:
+        """Test summary creation when all endpoints have sections."""
         endpoints = [
-            EndpointInfo("GET", "/users", "get_users", "api.py", 10, tags=["users"]),
-            EndpointInfo("POST", "/orders", "create_order", "orders.py", 20, tags=["orders"]),
+            EndpointInfo("GET", "/users", "get_users", "api.py", 10, sections=["users"]),
+            EndpointInfo("POST", "/orders", "create_order", "orders.py", 20, sections=["orders"]),
         ]
         generated_files = {
             "docs/general_docs.md": "general content",

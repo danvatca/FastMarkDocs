@@ -315,7 +315,7 @@ http_request_duration_seconds_bucket{le="0.5"} 1020
 http_request_duration_seconds_bucket{le="+Inf"} 1027
 ```
 
-Tags: metrics, prometheus, monitoring
+Section: Metrics
 ```
 
 ### Configuration Endpoint
@@ -350,7 +350,7 @@ database:
 }
 ```
 
-Tags: config, yaml, json
+Section: Configuration
 ```
 
 This multi-format support makes FastMarkDocs suitable for documenting a wide variety of APIs beyond traditional REST JSON APIs, including metrics endpoints, configuration APIs, data export endpoints, and more.

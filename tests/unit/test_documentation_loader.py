@@ -229,20 +229,20 @@ Another endpoint without proper structure.
         assert limit_param.type == "integer"
         assert limit_param.required is False
 
-    def test_extract_tags(self, sample_markdown_content: Any) -> None:
-        """Test tag extraction from markdown."""
+    def test_extract_sections(self, sample_markdown_content: Any) -> None:
+        """Test section extraction from markdown."""
         loader = MarkdownDocumentationLoader()
         endpoints = loader._extract_endpoints_from_content(sample_markdown_content)
 
-        # Check that tags were extracted
+        # Check that sections were extracted
         for endpoint in endpoints:
-            assert len(endpoint.tags) > 0
+            assert len(endpoint.sections) > 0
 
-        # Check specific tags
+        # Check specific sections
         get_users = next((ep for ep in endpoints if ep.path == "/api/users" and ep.method == HTTPMethod.GET), None)
 
-        assert "users" in get_users.tags
-        assert "list" in get_users.tags
+        assert "users" in get_users.sections
+        assert "list" in get_users.sections
 
     def test_recursive_directory_loading(
         self, temp_docs_dir: Any, sample_markdown_content: Any, test_utils: Any
@@ -1905,8 +1905,8 @@ This is general documentation content that applies to the whole API.
         # Should not have description when no endpoint is found and no overview
         assert endpoint_info["description"] is None
 
-    def test_extract_tag_descriptions_from_content(self) -> None:
-        """Test extraction of tag descriptions from markdown content with Overview sections."""
+    def test_extract_section_descriptions_from_content(self) -> None:
+        """Test extraction of section descriptions from markdown content with Overview sections."""
         loader = MarkdownDocumentationLoader()
 
         content_with_overview = """
@@ -1938,7 +1938,7 @@ The **User Management API** provides comprehensive user account administration f
 
 Retrieves a complete list of all user accounts in the system.
 
-Tags: users, list
+Section: User Management, List
 
 ### POST /users
 
@@ -1946,29 +1946,29 @@ Tags: users, list
 
 Creates a new user account with specified credentials and configuration.
 
-Tags: users, create
+Section: User Management, Create
 """
 
-        tag_descriptions = loader._extract_tag_descriptions_from_content(content_with_overview)
+        section_descriptions = loader._extract_section_descriptions_from_content(content_with_overview)
 
-        # Should extract tag descriptions for all tags in the file
-        assert "users" in tag_descriptions
-        assert "list" in tag_descriptions
-        assert "create" in tag_descriptions
+        # Should extract section descriptions for all sections in the file
+        assert "User Management" in section_descriptions
+        assert "List" in section_descriptions
+        assert "Create" in section_descriptions
 
-        # All tags should have the same overview description
-        expected_description = tag_descriptions["users"]
+        # All sections should have the same overview description
+        expected_description = section_descriptions["User Management"]
         assert "User Management API" in expected_description
         assert "comprehensive user account administration" in expected_description
         assert "👥" in expected_description  # Should include emoji sections
         assert "🛡️" in expected_description
 
-        # All tags from this file should have the same description
-        assert tag_descriptions["list"] == expected_description
-        assert tag_descriptions["create"] == expected_description
+        # All sections from this file should have the same description
+        assert section_descriptions["List"] == expected_description
+        assert section_descriptions["Create"] == expected_description
 
-    def test_extract_tag_descriptions_no_overview(self) -> None:
-        """Test tag description extraction when no Overview section exists."""
+    def test_extract_section_descriptions_no_overview(self) -> None:
+        """Test section description extraction when no Overview section exists."""
         loader = MarkdownDocumentationLoader()
 
         content_without_overview = """
@@ -1978,25 +1978,25 @@ Tags: users, create
 
 List all users.
 
-Tags: users, list
+Section: User Management, List
 
 ### POST /users
 
 Create a user.
 
-Tags: users, create
+Section: User Management, Create
 """
 
-        tag_descriptions = loader._extract_tag_descriptions_from_content(content_without_overview)
+        section_descriptions = loader._extract_section_descriptions_from_content(content_without_overview)
 
         # Should return empty dict when no Overview section exists
-        assert tag_descriptions == {}
+        assert section_descriptions == {}
 
-    def test_extract_tag_descriptions_no_tags(self) -> None:
-        """Test tag description extraction when no tags are present."""
+    def test_extract_section_descriptions_no_sections(self) -> None:
+        """Test section description extraction when no sections are present."""
         loader = MarkdownDocumentationLoader()
 
-        content_with_overview_no_tags = """
+        content_with_overview_no_sections = """
 # API Documentation
 
 ## Overview
@@ -2012,10 +2012,10 @@ List all users.
 Create a user.
 """
 
-        tag_descriptions = loader._extract_tag_descriptions_from_content(content_with_overview_no_tags)
+        section_descriptions = loader._extract_section_descriptions_from_content(content_with_overview_no_sections)
 
-        # Should return empty dict when no tags are found
-        assert tag_descriptions == {}
+        # Should return empty dict when no sections are found
+        assert section_descriptions == {}
 
     def test_extract_overview_section(self) -> None:
         """Test extraction of Overview section content."""
@@ -2074,8 +2074,8 @@ List users.
 
         assert overview_content is None
 
-    def test_load_documentation_with_tag_descriptions(self, temp_docs_dir: Any, test_utils: Any) -> None:
-        """Test that tag descriptions are properly collected during documentation loading."""
+    def test_load_documentation_with_section_descriptions(self, temp_docs_dir: Any, test_utils: Any) -> None:
+        """Test that section descriptions are properly collected during documentation loading."""
         users_content = """
 # User Management API
 
@@ -2089,13 +2089,13 @@ The **User Management API** provides comprehensive user account administration f
 
 List all users in the system.
 
-Tags: users, list
+Section: User Management, List
 
 ### POST /users
 
 Create a new user account.
 
-Tags: users, create
+Section: User Management, Create
 """
 
         auth_content = """
@@ -2111,13 +2111,13 @@ The **Authentication API** handles user login, session management, and security 
 
 Authenticate a user and create a session.
 
-Tags: authentication, login
+Section: Authentication, Login
 
 ### POST /auth/logout
 
 Logout a user and invalidate the session.
 
-Tags: authentication, logout
+Section: Authentication, Logout
 """
 
         # Create markdown files
@@ -2127,16 +2127,16 @@ Tags: authentication, logout
         loader = MarkdownDocumentationLoader(docs_directory=str(temp_docs_dir), cache_enabled=False)
         documentation = loader.load_documentation()
 
-        # Check that tag descriptions were collected
-        assert hasattr(documentation, "tag_descriptions")
-        assert len(documentation.tag_descriptions) > 0
+        # Check that section descriptions were collected
+        assert hasattr(documentation, "section_descriptions")
+        assert len(documentation.section_descriptions) > 0
 
-        # Check specific tag descriptions
-        assert "users" in documentation.tag_descriptions
-        assert "authentication" in documentation.tag_descriptions
+        # Check specific section descriptions
+        assert "User Management" in documentation.section_descriptions
+        assert "Authentication" in documentation.section_descriptions
 
-        users_desc = documentation.tag_descriptions["users"]
-        auth_desc = documentation.tag_descriptions["authentication"]
+        users_desc = documentation.section_descriptions["User Management"]
+        auth_desc = documentation.section_descriptions["Authentication"]
 
         assert "User Management API" in users_desc
         assert "comprehensive user account administration" in users_desc
@@ -2144,11 +2144,11 @@ Tags: authentication, logout
         assert "Authentication API" in auth_desc
         assert "user login, session management" in auth_desc
 
-        # All tags from the same file should have the same description
-        if "list" in documentation.tag_descriptions:
-            assert documentation.tag_descriptions["list"] == users_desc
-        if "create" in documentation.tag_descriptions:
-            assert documentation.tag_descriptions["create"] == users_desc
+        # All sections from the same file should have the same description
+        if "List" in documentation.section_descriptions:
+            assert documentation.section_descriptions["List"] == users_desc
+        if "Create" in documentation.section_descriptions:
+            assert documentation.section_descriptions["Create"] == users_desc
 
     def test_multiple_endpoints_single_file_linting_validation(self, temp_docs_dir: Any, test_utils: Any) -> None:
         """Test that multiple endpoints in a single file are correctly extracted for linting."""

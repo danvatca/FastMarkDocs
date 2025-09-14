@@ -35,12 +35,12 @@ class EndpointInfo:
     docstring: Optional[str] = None
     summary: Optional[str] = None
     description: Optional[str] = None
-    tags: Union[list[str], None] = None
+    sections: Union[list[str], None] = None
     parameters: Union[list[ParameterInfo], None] = None
 
     def __post_init__(self) -> None:
-        if self.tags is None:
-            self.tags = []
+        if self.sections is None:
+            self.sections = []
         if self.parameters is None:
             self.parameters = []
 
@@ -313,8 +313,14 @@ class FastAPIEndpointScanner:
             normalized_path = self._normalize_path_for_openapi(path)
             parameters = self._extract_parameters(func_node, normalized_path, method)
 
-            # Combine router tags with endpoint tags (endpoint tags take precedence)
-            combined_tags = router_tags + [tag for tag in endpoint_tags if tag not in router_tags]
+            # Determine section for this endpoint using intelligent inference
+            section = self._determine_section_for_endpoint(
+                path=normalized_path,
+                function_name=func_node.name,
+                file_path=file_path,
+                router_tags=router_tags,
+                endpoint_tags=endpoint_tags,
+            )
 
             return EndpointInfo(
                 method=method,
@@ -325,7 +331,7 @@ class FastAPIEndpointScanner:
                 docstring=docstring,
                 summary=summary,
                 description=description,
-                tags=combined_tags,
+                sections=[section],  # Single section determined by inference
                 parameters=parameters,
             )
 
@@ -535,6 +541,167 @@ class FastAPIEndpointScanner:
 
         return any(indicator in type_hint for indicator in body_indicators)
 
+    def _determine_section_for_endpoint(
+        self, path: str, function_name: str, file_path: Path, router_tags: list[str], endpoint_tags: list[str]
+    ) -> str:
+        """
+        Determine the appropriate section for an endpoint using intelligent inference.
+
+        Uses a fallback chain:
+        1. Endpoint tags (if present) - for scaffolding hints (most specific)
+        2. Router tags (if present) - for scaffolding hints (fallback)
+        3. Path-based inference
+        4. File-based inference
+        5. Function name inference
+        6. Ultimate fallback: "API"
+
+        Args:
+            path: The endpoint path (e.g., "/api/users")
+            function_name: The function name (e.g., "get_users")
+            file_path: The file path containing the endpoint
+            router_tags: Tags from the router (used as scaffolding hints)
+            endpoint_tags: Tags from the endpoint decorator (used as scaffolding hints)
+
+        Returns:
+            Section name for the endpoint
+        """
+        # 1. Use endpoint tags as scaffolding hints (first tag if available) - more specific
+        if endpoint_tags:
+            return endpoint_tags[0]
+
+        # 2. Use router tags as scaffolding hints (first tag if available) - fallback
+        if router_tags:
+            return router_tags[0]
+
+        # 3. Try path-based inference
+        section = self._infer_section_from_path(path)
+        if section:
+            return section
+
+        # 4. Try file-based inference
+        section = self._infer_section_from_file(file_path)
+        if section:
+            return section
+
+        # 5. Try function name inference
+        section = self._infer_section_from_function(function_name)
+        if section:
+            return section
+
+        # 6. Ultimate fallback
+        return "API"
+
+    def _infer_section_from_path(self, path: str) -> Optional[str]:
+        """Infer section name from endpoint path structure."""
+        # Path-based mappings for common patterns
+        path_to_section = {
+            "health": "Health",
+            "metrics": "Metrics",
+            "auth": "Authentication",
+            "session": "Session Management",
+            "users": "User Management",
+            "settings": "Settings",
+            "ca": "Certificate Authority",
+            "api-keys": "API Keys",
+            "apiKeys": "API Keys",
+            "remote-nodes": "Remote Nodes",
+            "remoteNodes": "Remote Nodes",
+            "system": "System",
+            "status": "Status",
+            "config": "Configuration",
+            "logs": "Logs",
+            "backup": "Backup",
+            "restore": "Restore",
+            "cluster": "Cluster Management",
+            "nodes": "Node Management",
+        }
+
+        # Clean and normalize path
+        clean_path = path.strip("/").lower()
+
+        # Split path into segments and check each
+        segments = clean_path.split("/")
+        for segment in segments:
+            # Remove path parameters (e.g., {id})
+            clean_segment = re.sub(r"\{[^}]+\}", "", segment).strip("-_")
+            if clean_segment in path_to_section:
+                return path_to_section[clean_segment]
+
+        return None
+
+    def _infer_section_from_file(self, file_path: Path) -> Optional[str]:
+        """Infer section name from file name."""
+        # File-based mappings
+        file_to_section = {
+            "health": "Health",
+            "metrics": "Metrics",
+            "session": "Session Management",
+            "users": "User Management",
+            "settings": "Settings",
+            "ca": "Certificate Authority",
+            "api_keys": "API Keys",
+            "remote_nodes": "Remote Nodes",
+            "authorization": "Authorization",
+            "system": "System",
+            "status": "Status",
+            "config": "Configuration",
+            "logs": "Logs",
+            "backup": "Backup",
+            "restore": "Restore",
+            "cluster": "Cluster Management",
+            "nodes": "Node Management",
+        }
+
+        # Get filename without extension
+        filename = file_path.stem.lower()
+
+        # Check direct mapping
+        if filename in file_to_section:
+            return file_to_section[filename]
+
+        # Check for partial matches
+        for key, section in file_to_section.items():
+            if key in filename or filename in key:
+                return section
+
+        return None
+
+    def _infer_section_from_function(self, function_name: str) -> Optional[str]:
+        """Infer section name from function name patterns."""
+        function_name = function_name.lower()
+
+        # Function name patterns
+        if any(pattern in function_name for pattern in ["health", "ping", "alive"]):
+            return "Health"
+        elif any(pattern in function_name for pattern in ["metric", "stats", "monitor"]):
+            return "Metrics"
+        elif any(pattern in function_name for pattern in ["auth", "login", "logout", "token"]):
+            return "Authentication"
+        elif any(pattern in function_name for pattern in ["session"]):
+            return "Session Management"
+        elif any(pattern in function_name for pattern in ["user", "account"]):
+            return "User Management"
+        elif any(pattern in function_name for pattern in ["setting", "config"]):
+            return "Settings"
+        elif any(pattern in function_name for pattern in ["cert", "ca", "certificate"]):
+            return "Certificate Authority"
+        elif any(pattern in function_name for pattern in ["key", "api_key"]):
+            return "API Keys"
+        elif any(pattern in function_name for pattern in ["node", "remote"]):
+            return "Node Management"
+        elif any(pattern in function_name for pattern in ["system", "status"]):
+            return "System"
+        elif any(pattern in function_name for pattern in ["log"]):
+            return "Logs"
+        elif any(pattern in function_name for pattern in ["backup"]):
+            return "Backup"
+        elif any(pattern in function_name for pattern in ["restore"]):
+            return "Restore"
+        elif any(pattern in function_name for pattern in ["cluster"]):
+            return "Cluster Management"
+
+        return None
+
 
 class MarkdownScaffoldGenerator:
     """Generator for creating markdown documentation scaffolding."""
@@ -580,8 +747,8 @@ class MarkdownScaffoldGenerator:
         groups: dict[str, list[EndpointInfo]] = {}
 
         for endpoint in endpoints:
-            # Use the first tag as the group, or 'api' as default
-            group_name = endpoint.tags[0] if endpoint.tags else "api"
+            # Use the first section as the group, or 'api' as default
+            group_name = endpoint.sections[0] if endpoint.sections else "api"
 
             # Sanitize group name for filename
             group_name = re.sub(r"[^\w\-_]", "_", group_name.lower())
@@ -641,8 +808,8 @@ class MarkdownScaffoldGenerator:
         lines.append("")
         lines.append(f"- **Function:** `{endpoint.function_name}`")
         lines.append(f"- **File:** `{endpoint.file_path}:{endpoint.line_number}`")
-        if endpoint.tags:
-            lines.append(f"- **Tags:** {', '.join(endpoint.tags)}")
+        if endpoint.sections:
+            lines.append(f"- **Sections:** {', '.join(endpoint.sections)}")
         lines.append("")
 
         # Parameters section
@@ -689,6 +856,13 @@ class MarkdownScaffoldGenerator:
         lines.append(")")
         lines.append("print(response.json())")
         lines.append("```")
+        lines.append("")
+
+        # Add section information for documentation processing
+        if endpoint.sections:
+            lines.append(f"Section: {', '.join(endpoint.sections)}")
+        else:
+            lines.append("Section: API")
         lines.append("")
 
         lines.append("---")
@@ -1192,7 +1366,7 @@ class DocumentationInitializer:
             lines.append("exclude:")
             lines.append("  endpoints:")
             for exclusion in exclusions:
-                lines.append(f"    - path: \"{exclusion['path']}\"")
+                lines.append(f'    - path: "{exclusion["path"]}"')
                 lines.append("      methods:")
                 for method in exclusion["methods"]:
                     lines.append(f'        - "{method}"')
@@ -1330,11 +1504,11 @@ class DocumentationInitializer:
             lines.append(f"- {config_file_path} (linter configuration)")
         lines.append("")
 
-        # Check for untagged endpoints
-        untagged_endpoints = [ep for ep in endpoints if not ep.tags]
-        if untagged_endpoints:
-            lines.append("⚠️  **Endpoints without tags (will be grouped in api.md):**")
-            for endpoint in sorted(untagged_endpoints, key=lambda e: (e.file_path, e.line_number)):
+        # Check for endpoints without sections
+        unsectioned_endpoints = [ep for ep in endpoints if not ep.sections]
+        if unsectioned_endpoints:
+            lines.append("⚠️  **Endpoints without sections (will be grouped in api.md):**")
+            for endpoint in sorted(unsectioned_endpoints, key=lambda e: (e.file_path, e.line_number)):
                 lines.append(f"- {endpoint.method} {endpoint.path} → `{endpoint.file_path}:{endpoint.line_number}`")
             lines.append("")
             lines.append("💡 **Tip:** Add tags to these endpoints for better organization:")
@@ -1353,8 +1527,8 @@ class DocumentationInitializer:
         lines.append("2. **Complete all TODO items** - The linter will fail until all TODOs are addressed")
         lines.append("3. Fill in general API information in `general_docs.md` (authentication, rate limiting, etc.)")
         lines.append("4. Add detailed endpoint descriptions and response examples")
-        if untagged_endpoints:
-            lines.append("5. Consider adding tags to untagged endpoints for better organization")
+        if unsectioned_endpoints:
+            lines.append("5. Consider adding sections to unsectioned endpoints for better organization")
             lines.append("6. Run `fmd-lint` to check documentation completeness and TODO status")
         else:
             lines.append("5. Run `fmd-lint` to check documentation completeness and TODO status")

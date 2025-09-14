@@ -584,7 +584,7 @@ class TestOpenAPIEnhancer:
             method=HTTPMethod.GET,
             summary="Authenticate user with JWT token",
             description="This endpoint authenticates a user using a JWT token and returns user information along with access permissions.",
-            tags=["new-tag"],
+            sections=["new-tag"],
             code_samples=[],
             response_examples=[],
             parameters=[],
@@ -614,7 +614,7 @@ class TestOpenAPIEnhancer:
             method=HTTPMethod.GET,
             summary="New summary",
             description="New description",
-            tags=["new-tag"],
+            sections=["new-tag"],
             code_samples=[],
             response_examples=[],
             parameters=[],
@@ -880,7 +880,7 @@ class TestOpenAPIEnhancer:
                     method=HTTPMethod.GET,
                     summary="Enhanced summary",
                     description="Enhanced description",
-                    tags=["test"],
+                    sections=["test"],
                 )
             ]
         )
@@ -905,12 +905,12 @@ class TestOpenAPIEnhancer:
 
         documentation = DocumentationData(
             endpoints=[
-                EndpointDocumentation(path="/users", method=HTTPMethod.GET, summary="List users", tags=["users"]),
+                EndpointDocumentation(path="/users", method=HTTPMethod.GET, summary="List users", sections=["users"]),
                 EndpointDocumentation(
-                    path="/auth/login", method=HTTPMethod.POST, summary="Login", tags=["authentication"]
+                    path="/auth/login", method=HTTPMethod.POST, summary="Login", sections=["authentication"]
                 ),
             ],
-            tag_descriptions={
+            section_descriptions={
                 "users": "The **User Management API** provides comprehensive user account administration for SynetoOS, enabling centralized user lifecycle management with role-based access control and multi-factor authentication.",
                 "authentication": "The **Authentication API** handles user login, session management, and security token operations for secure access to the system.",
             },
@@ -953,12 +953,12 @@ class TestOpenAPIEnhancer:
 
         documentation = DocumentationData(
             endpoints=[
-                EndpointDocumentation(path="/users", method=HTTPMethod.GET, summary="List users", tags=["users"]),
+                EndpointDocumentation(path="/users", method=HTTPMethod.GET, summary="List users", sections=["users"]),
                 EndpointDocumentation(
-                    path="/auth/login", method=HTTPMethod.POST, summary="Login", tags=["authentication"]
+                    path="/auth/login", method=HTTPMethod.POST, summary="Login", sections=["authentication"]
                 ),
             ],
-            tag_descriptions={"users": "Enhanced user description", "authentication": "Enhanced auth description"},
+            section_descriptions={"users": "Enhanced user description", "authentication": "Enhanced auth description"},
         )
 
         result = enhancer.enhance_openapi_schema(schema, documentation)
@@ -1005,7 +1005,7 @@ class TestOpenAPIEnhancer:
                     # No tags
                 )
             ],
-            tag_descriptions={"unused": "This tag is not used anywhere"},
+            section_descriptions={"unused": "This tag is not used anywhere"},
         )
 
         result = enhancer.enhance_openapi_schema(schema, documentation)

@@ -12,7 +12,7 @@ This page provides real-world examples and tutorials for using FastMarkDocs in d
 ## Table of Contents
 
 - [Basic FastAPI Integration](#basic-fastapi-integration)
-- [Smart Tag Descriptions](#smart-tag-descriptions)
+- [Smart Section Descriptions](#smart-section-descriptions)
 - [E-commerce API Documentation](#e-commerce-api-documentation)
 - [Authentication & Authorization](#authentication--authorization)
 - [Multi-language Code Samples](#multi-language-code-samples)
@@ -198,7 +198,7 @@ const allUsers = await allResponse.json();
 console.log(`Found ${allUsers.length} total users`);
 ```
 
-Tags: users, list
+Section: User Management
 
 ## GET /users/{user_id}
 
@@ -258,7 +258,7 @@ try {
 }
 ```
 
-Tags: users, details
+Section: User Management
 
 ## POST /users
 
@@ -324,16 +324,16 @@ if (response.ok) {
 }
 ```
 
-Tags: users, create
+Section: User Management
 ```
 
-## Smart Tag Descriptions
+## Smart Section Descriptions
 
-FastMarkDocs automatically generates rich tag descriptions from markdown Overview sections. This feature enhances your OpenAPI documentation by providing comprehensive context for each API group.
+FastMarkDocs automatically generates rich section descriptions from markdown Overview sections. This feature enhances your OpenAPI documentation by providing comprehensive context for each API group.
 
-### Complete Example with Tag Descriptions
+### Complete Example with Section Descriptions
 
-Here's a complete example showing how Overview sections create beautiful tag descriptions:
+Here's a complete example showing how Overview sections create beautiful section descriptions:
 
 **docs/api/users.md**
 ```markdown
@@ -369,27 +369,27 @@ The **User Management API** provides comprehensive user account administration f
 ### GET /users
 List all users with optional filtering and pagination.
 
-Tags: users, accounts, list
+Section: User Management
 
 ### POST /users
 Create a new user account with role assignment.
 
-Tags: users, accounts, create
+Section: User Management
 
 ### GET /users/{user_id}
 Retrieve detailed information for a specific user.
 
-Tags: users, accounts, profile
+Section: User Management
 
 ### PUT /users/{user_id}
 Update user profile information and settings.
 
-Tags: users, accounts, update
+Section: User Management
 
 ### DELETE /users/{user_id}
 Permanently delete a user account.
 
-Tags: users, accounts, delete, admin
+Section: User Management
 ```
 
 **docs/api/authentication.md**
@@ -426,27 +426,27 @@ The **Authentication API** provides secure user authentication and session manag
 ### POST /auth/login
 Authenticate user credentials and create session.
 
-Tags: auth, login, session
+Section: Authentication
 
 ### POST /auth/logout
 Terminate user session and invalidate tokens.
 
-Tags: auth, logout, session
+Section: Authentication
 
 ### POST /auth/refresh
 Refresh expired access tokens using refresh token.
 
-Tags: auth, tokens, refresh
+Section: Authentication
 
 ### POST /auth/mfa/setup
 Configure multi-factor authentication for user account.
 
-Tags: auth, mfa, security
+Section: Authentication
 
 ### POST /auth/mfa/verify
 Verify multi-factor authentication code.
 
-Tags: auth, mfa, verification
+Section: Authentication
 ```
 
 ### Generated OpenAPI Enhancement
@@ -575,7 +575,7 @@ const filteredData = await filteredResponse.json();
 const filteredProducts = filteredData.products;
 ```
 
-Tags: products, catalog, search
+Section: Product Management
 
 ## POST /products
 
@@ -634,7 +634,7 @@ if response.status_code == 201:
     print(f"Created product: {new_product['name']} (ID: {new_product['id']})")
 ```
 
-Tags: products, create, admin
+Section: Product Management
 ```
 
 ## Authentication & Authorization
@@ -740,7 +740,7 @@ if (response.ok) {
 }
 ```
 
-Tags: authentication, login, jwt
+Section: Authentication
 ```
 
 ## Multi-language Code Samples

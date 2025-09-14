@@ -94,7 +94,7 @@ fetch('http://localhost:8000/users?active_only=false')
   .catch(error => console.error('Error:', error));
 ```
 
-Tags: users, list, pagination
+Section: User Management
 
 ## GET /users/{user_id}
 
@@ -161,7 +161,7 @@ fetch(`http://localhost:8000/users/${userId}`)
   .catch(error => console.error('Error:', error));
 ```
 
-Tags: users, details, profile
+Section: User Management
 
 ## POST /users
 
@@ -241,7 +241,7 @@ fetch('http://localhost:8000/users', {
   .catch(error => console.error('Error:', error));
 ```
 
-Tags: users, create, registration
+Section: User Management
 
 ## PUT /users/{user_id}
 
@@ -328,7 +328,7 @@ fetch(`http://localhost:8000/users/${userId}`, {
   .catch(error => console.error('Error:', error));
 ```
 
-Tags: users, update, modify
+Section: User Management
 
 ## DELETE /users/{user_id}
 
@@ -382,4 +382,4 @@ fetch(`http://localhost:8000/users/${userId}`, {
   .catch(error => console.error('Error:', error));
 ```
 
-Tags: users, delete, remove 
+Section: User Management 

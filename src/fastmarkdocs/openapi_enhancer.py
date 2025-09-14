@@ -284,8 +284,8 @@ class OpenAPIEnhancer:
             # Add global information
             self._enhance_global_info(enhanced_schema, documentation, stats)
 
-            # Enhance tags with descriptions
-            self._enhance_tags_with_descriptions(enhanced_schema, documentation, stats)
+            # Enhance tags with descriptions from sections
+            self._enhance_sections_with_descriptions(enhanced_schema, documentation, stats)
 
             return enhanced_schema
 
@@ -338,9 +338,9 @@ class OpenAPIEnhancer:
                 stats["descriptions_enhanced"] += 1
 
         # Add tags
-        if endpoint_doc.tags:
+        if endpoint_doc.sections:
             existing_tags = operation.get("tags", [])
-            new_tags = [tag for tag in endpoint_doc.tags if tag not in existing_tags]
+            new_tags = [tag for tag in endpoint_doc.sections if tag not in existing_tags]
             if new_tags:
                 operation["tags"] = existing_tags + new_tags
 
@@ -638,15 +638,15 @@ class OpenAPIEnhancer:
         if endpoint_doc.description:
             operation["description"] = endpoint_doc.description
 
-    def _enhance_tags_with_descriptions(
+    def _enhance_sections_with_descriptions(
         self, schema: dict[str, Any], documentation: DocumentationData, stats: dict[str, int]
     ) -> None:
         """
-        Enhance tags in the OpenAPI schema with descriptions from the documentation.
+        Enhance tags in the OpenAPI schema with descriptions from documentation sections.
 
         Args:
             schema: OpenAPI schema
-            documentation: Documentation data
+            documentation: Documentation data with section descriptions
             stats: Enhancement statistics
         """
         # Collect all unique tags from endpoints
@@ -657,18 +657,18 @@ class OpenAPIEnhancer:
                     if isinstance(operation, dict) and "tags" in operation:
                         all_tags.update(operation["tags"])
 
-        # Create or enhance tags section only if we have tag descriptions
-        if all_tags and documentation.tag_descriptions:
+        # Create or enhance tags section only if we have section descriptions
+        if all_tags and documentation.section_descriptions:
             if "tags" not in schema:
                 schema["tags"] = []
 
             # Convert existing tags to a dict for easier lookup
             existing_tags = {tag["name"]: tag for tag in schema["tags"] if isinstance(tag, dict) and "name" in tag}
 
-            # Add or enhance tags with descriptions
+            # Add or enhance tags with descriptions from sections
             for tag_name in all_tags:
-                if tag_name in documentation.tag_descriptions:
-                    tag_description = documentation.tag_descriptions[tag_name]
+                if tag_name in documentation.section_descriptions:
+                    tag_description = documentation.section_descriptions[tag_name]
 
                     if tag_name in existing_tags:
                         # Update existing tag with description if it doesn't have one
@@ -676,6 +676,6 @@ class OpenAPIEnhancer:
                             existing_tags[tag_name]["description"] = tag_description
                             stats["descriptions_enhanced"] += 1
                     else:
-                        # Add new tag with description
+                        # Add new tag with description from section
                         schema["tags"].append({"name": tag_name, "description": tag_description})
                         stats["descriptions_enhanced"] += 1
