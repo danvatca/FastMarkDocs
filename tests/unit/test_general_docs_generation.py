@@ -31,7 +31,7 @@ class TestGeneralDocsGeneration:
                 function_name="get_users",
                 file_path="app.py",
                 line_number=10,
-                tags=["users"],
+                sections=["users"],
             )
 
             generator = MarkdownScaffoldGenerator(temp_dir)
@@ -138,7 +138,7 @@ class TestGeneralDocsGeneration:
 
             # Generate with endpoints
             endpoint = EndpointInfo(
-                method="GET", path="/test", function_name="test", file_path="app.py", line_number=1, tags=["test"]
+                method="GET", path="/test", function_name="test", file_path="app.py", line_number=1, sections=["test"]
             )
             generator2 = MarkdownScaffoldGenerator(temp_dir2)
             generator2.generate_scaffolding([endpoint])

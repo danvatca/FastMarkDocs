@@ -119,6 +119,10 @@ class DocumentationLinter:
         # Analyze incomplete documentation
         results["incomplete_documentation"] = self._find_incomplete_documentation()
 
+        # Validate section requirements
+        section_issues = self._validate_section_requirements()
+        results["incomplete_documentation"].extend(section_issues)
+
         # Find common mistakes
         results["common_mistakes"] = self._find_common_mistakes(openapi_endpoints, markdown_endpoints)
 
@@ -281,6 +285,31 @@ class DocumentationLinter:
                 )
 
         return incomplete
+
+    def _validate_section_requirements(self) -> list[dict[str, Any]]:
+        """Validate that all documented endpoints have Section: lines defined."""
+        section_issues = []
+
+        for endpoint in self.documentation.endpoints:
+            # Check if endpoint has sections defined
+            if not endpoint.sections or not any(section.strip() for section in endpoint.sections):
+                section_issues.append(
+                    {
+                        "method": endpoint.method.value,
+                        "path": endpoint.path,
+                        "severity": "error",
+                        "issues": ["missing_section"],
+                        "completeness_score": 0,
+                        "suggestions": [
+                            f"Add 'Section: <section_name>' line to the {endpoint.method.value} {endpoint.path} endpoint documentation",
+                            "Choose an appropriate section name like 'User Management', 'Authentication', 'Health', etc.",
+                            "The Section: line should be placed at the end of the endpoint documentation",
+                        ],
+                        "message": f"Endpoint {endpoint.method.value} {endpoint.path} is missing required Section: line",
+                    }
+                )
+
+        return section_issues
 
     def _auto_generate_code_samples(self, endpoint: EndpointDocumentation) -> None:
         """Auto-generate code samples for an endpoint if missing."""

@@ -1225,6 +1225,8 @@ class TestCLIMain:
 
 List all users in the system.
 
+Section: User Management
+
 ### Description
 This endpoint returns a comprehensive list of all users with detailed information including their profiles, permissions, and activity status.
 
@@ -1866,6 +1868,8 @@ curl -X GET "/users"
 ```json
 {"users": []}
 ```
+
+Section: User Management
 """
             )
 
@@ -1925,6 +1929,8 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
             )
 
@@ -1990,6 +1996,8 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
             )
 
@@ -2048,6 +2056,8 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
             )
 
@@ -2116,6 +2126,8 @@ curl -X GET "/test"
 ```json
 {"status": "ok"}
 ```
+
+Section: API
 """
             )
 

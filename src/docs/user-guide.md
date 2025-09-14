@@ -14,7 +14,7 @@ This comprehensive guide covers everything you need to know about using FastMark
 - [Quick Start](#quick-start)
 - [Markdown Structure](#markdown-structure)
 - [Documentation Organization](#documentation-organization)
-- [Smart Tag Descriptions](#smart-tag-descriptions)
+- [Smart Section Descriptions](#smart-section-descriptions)
 - [Code Samples](#code-samples)
 - [Response Examples](#response-examples)
 - [Configuration](#configuration)
@@ -146,7 +146,7 @@ curl -X GET "https://api.example.com/api/users" \
   -H "Accept: application/json"
 ```
 
-Tags: users, list
+Section: User Management
 ```
 
 ### Header Levels
@@ -215,9 +215,9 @@ Remove a user from the system.
 - Group related endpoints: `user-management.md`
 - Use hyphens for multi-word names: `order-processing.md`
 
-## Smart Tag Descriptions
+## Smart Section Descriptions
 
-FastMarkDocs automatically extracts rich tag descriptions from markdown **Overview** sections, creating comprehensive OpenAPI tag documentation that enhances your API's discoverability and usability.
+FastMarkDocs automatically extracts rich section descriptions from markdown **Overview** sections, creating comprehensive OpenAPI tag documentation that enhances your API's discoverability and usability.
 
 ### Overview Sections
 
@@ -253,12 +253,12 @@ The **User Management API** provides comprehensive user account administration f
 ### GET /users
 List all users in the system.
 
-Tags: users, list
+Section: User Management
 
 ### POST /users
 Create a new user account.
 
-Tags: users, create
+Section: User Management
 ```
 
 ### How Tag Association Works
@@ -267,8 +267,8 @@ FastMarkDocs automatically:
 
 1. **Scans** each markdown file for `## Overview` sections
 2. **Extracts** the complete overview content (including subsections, formatting, emojis)
-3. **Identifies** all tags used in the same file (from `Tags:` lines)
-4. **Associates** the overview description with all discovered tags
+3. **Identifies** all sections used in the same file (from `Section:` lines)
+4. **Associates** the overview description with all discovered sections
 5. **Generates** OpenAPI tag definitions in your schema
 
 ### Generated OpenAPI Output
@@ -301,10 +301,10 @@ Comprehensive user account administration with enterprise-grade security feature
 ## Endpoints
 
 ### GET /users
-Tags: users, accounts
+Section: User Management
 
 ### POST /users  
-Tags: users, accounts, admin
+Section: User Management
 ```
 
 **`docs/api/authentication.md`:**
@@ -318,13 +318,13 @@ Secure authentication system with JWT tokens, multi-factor authentication, and s
 ## Endpoints
 
 ### POST /auth/login
-Tags: auth, login
+Section: Authentication
 
 ### POST /auth/logout
-Tags: auth, session
+Section: Authentication
 ```
 
-This creates separate tag descriptions for `users`, `accounts`, `admin`, `auth`, `login`, and `session` tags.
+This creates separate section descriptions for `User Management` and `Authentication` sections.
 
 ### Best Practices for Overview Sections
 

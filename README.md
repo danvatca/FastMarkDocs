@@ -12,7 +12,7 @@ A powerful library for enhancing FastAPI applications with rich markdown-based A
 
 ✨ **Rich Documentation**: Transform markdown files into comprehensive API documentation<br/>
 🔧 **OpenAPI Enhancement**: Automatically enhance your OpenAPI/Swagger schemas<br/>
-🏷️ **Smart Tag Descriptions**: Automatically extract tag descriptions from markdown Overview sections<br/>
+🏷️ **Smart Section Descriptions**: Automatically extract section descriptions from markdown Overview sections<br/>
 🌍 **Multi-language Code Samples**: Generate code examples in Python, JavaScript, TypeScript, Go, Java, PHP, Ruby, C#, and cURL<br/>
 📝 **Markdown-First**: Write documentation in familiar markdown format<br/>
 🔗 **API Cross-References**: Include links to other APIs in your system with automatic formatting<br/>
@@ -180,11 +180,13 @@ const response = await fetch('https://api.example.com/users');
 const users = await response.json();
 ```
 
+Section: User Management
+
 ```
 
-## Smart Tag Descriptions
+## Smart Section Descriptions
 
-FastMarkDocs automatically extracts rich tag descriptions from markdown **Overview** sections, creating comprehensive OpenAPI tag documentation without manual configuration.
+FastMarkDocs automatically extracts rich section descriptions from markdown **Overview** sections, creating comprehensive OpenAPI tag documentation without manual configuration.
 
 ### How It Works
 
@@ -222,12 +224,12 @@ The **User Management API** provides comprehensive user account administration f
 ### GET /users
 List all users in the system.
 
-Tags: users, list
+Section: User Management
 
 ### POST /users
 Create a new user account.
 
-Tags: users, create
+Section: User Management
 ```
 
 **`docs/api/authentication.md`:**
@@ -249,12 +251,12 @@ The **Authentication API** handles secure user login, session management, and se
 ### POST /auth/login
 Authenticate a user and create a session.
 
-Tags: authentication, login
+Section: Authentication
 
 ### POST /auth/logout
 Logout a user and invalidate the session.
 
-Tags: authentication, logout
+Section: Authentication
 ```
 
 ### Generated OpenAPI Enhancement
@@ -281,7 +283,7 @@ FastMarkDocs automatically creates this in your OpenAPI schema:
 - 📝 **No Extra Configuration**: Works automatically with existing markdown files
 - 🎨 **Rich Formatting**: Preserves markdown formatting, emojis, and structure
 - 🔄 **Consistent Documentation**: Same overview content appears in both markdown and OpenAPI docs
-- 🏷️ **Smart Association**: All tags in a file share the same overview description
+- 🏷️ **Smart Association**: All sections in a file share the same overview description
 - 🔧 **Backward Compatible**: Doesn't affect existing functionality
 
 ## CLI Tools

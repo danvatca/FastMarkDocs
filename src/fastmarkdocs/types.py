@@ -208,7 +208,7 @@ class EndpointDocumentation:
     code_samples: list[CodeSample] = field(default_factory=list)
     response_examples: list[ResponseExample] = field(default_factory=list)
     parameters: list[ParameterDocumentation] = field(default_factory=list)
-    tags: list[str] = field(default_factory=list)
+    sections: list[str] = field(default_factory=list)
     deprecated: bool = False
 
     def __post_init__(self) -> None:
@@ -225,7 +225,7 @@ class DocumentationData:
     endpoints: list[EndpointDocumentation] = field(default_factory=list)
     global_examples: list[CodeSample] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    tag_descriptions: dict[str, str] = field(default_factory=dict)
+    section_descriptions: dict[str, str] = field(default_factory=dict)
 
     def __getitem__(self, key: str) -> Any:
         """Allow dictionary-style access for backwards compatibility."""
@@ -235,8 +235,10 @@ class DocumentationData:
             return self.global_examples
         elif key == "metadata":
             return self.metadata
-        elif key == "tag_descriptions":
-            return self.tag_descriptions
+        elif key == "section_descriptions":
+            return self.section_descriptions
+        elif key == "tag_descriptions":  # Backward compatibility
+            return self.section_descriptions
         else:
             raise KeyError(f"'{key}' not found in DocumentationData")
 

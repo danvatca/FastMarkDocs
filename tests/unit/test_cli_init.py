@@ -239,7 +239,7 @@ class TestFormatOutput:
 
     def test_format_json_output(self) -> None:
         """Test JSON formatting."""
-        endpoint = EndpointInfo("GET", "/users", "get_users", "api.py", 10, summary="Get users", tags=["users"])
+        endpoint = EndpointInfo("GET", "/users", "get_users", "api.py", 10, summary="Get users", sections=["users"])
         result = {
             "endpoints": [endpoint],
             "files": ["docs/api.md"],
@@ -255,7 +255,7 @@ class TestFormatOutput:
         assert endpoint_data["path"] == "/users"
         assert endpoint_data["function_name"] == "get_users"
         assert endpoint_data["summary"] == "Get users"
-        assert endpoint_data["tags"] == ["users"]
+        assert endpoint_data["sections"] == ["users"]
 
     def test_format_json_output_no_endpoints(self) -> None:
         """Test JSON formatting with no endpoints."""

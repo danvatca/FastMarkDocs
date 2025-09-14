@@ -189,7 +189,7 @@ class TestDataClasses:
         assert endpoint.code_samples == []
         assert endpoint.response_examples == []
         assert endpoint.parameters == []
-        assert endpoint.tags == []
+        assert endpoint.sections == []
 
     def test_endpoint_documentation_empty_path_validation(self) -> None:
         """Test EndpointDocumentation validation with empty path."""
@@ -351,19 +351,19 @@ class TestDataClasses:
             code_samples=[code_sample],
             response_examples=[response_example],
             parameters=[parameter],
-            tags=["users", "api"],
+            sections=["users", "api"],
             deprecated=True,
         )
 
         assert len(endpoint.code_samples) == 1
         assert len(endpoint.response_examples) == 1
         assert len(endpoint.parameters) == 1
-        assert len(endpoint.tags) == 2
+        assert len(endpoint.sections) == 2
         assert endpoint.deprecated is True
         assert endpoint.code_samples[0].language == CodeLanguage.PYTHON
         assert endpoint.response_examples[0].status_code == 200
         assert endpoint.parameters[0].name == "id"
-        assert "users" in endpoint.tags
+        assert "users" in endpoint.sections
 
     def test_response_example_edge_case_status_codes(self) -> None:
         """Test ResponseExample with edge case status codes."""

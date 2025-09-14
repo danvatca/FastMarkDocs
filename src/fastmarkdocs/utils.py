@@ -200,7 +200,7 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
     Returns:
         Dictionary containing endpoint information including endpoint-specific description
     """
-    endpoint_info: dict[str, Any] = {"path": None, "method": None, "summary": None, "description": None, "tags": []}
+    endpoint_info: dict[str, Any] = {"path": None, "method": None, "summary": None, "description": None, "sections": []}
 
     lines = markdown_content.split("\n")
     description_lines: list[str] = []
@@ -295,11 +295,11 @@ def extract_endpoint_info(markdown_content: str, general_docs_content: Optional[
                 summary = re.sub(r"\*\*(.*?)\*\*", r"\1", summary)
                 endpoint_info["summary"] = summary
 
-        # Extract tags from metadata
-        tag_match = re.match(r"^Tags?:\s*(.+)", line, re.IGNORECASE)
-        if tag_match:
-            tags = [tag.strip() for tag in tag_match.group(1).split(",")]
-            endpoint_info["tags"] = tags
+        # Extract sections from metadata
+        section_match = re.match(r"^Section:\s*(.+)", line, re.IGNORECASE)
+        if section_match:
+            sections = [section.strip() for section in section_match.group(1).split(",")]
+            endpoint_info["sections"] = sections
 
     # Build description from overview + endpoint content (no general docs)
     full_description_lines = []

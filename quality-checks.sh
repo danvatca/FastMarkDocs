@@ -20,17 +20,23 @@ print_header() {
     term_width=$(tput cols 2>/dev/null || echo 80)
     local title="$1"
     local title_length=${#title}
-    local padding=$(( (term_width - title_length - 2) / 2 ))
-    
-    printf "${WHITE}+"
+    local padding=$(((term_width - title_length - 2) / 2))
+
+    printf '%b+' "$WHITE"
     printf '=%.0s' $(seq 1 $((term_width - 2)))
-    printf "+${NC}\n"
-    
-    printf "${WHITE}|%*s%s%*s|${NC}\n" $padding "" "$title" $((term_width - padding - title_length - 2)) ""
-    
-    printf "${WHITE}+"
+    printf '+%b\n' "$NC"
+
+    printf '%b|%*s%s%*s|%b\n' \
+        "$WHITE" \
+        "$padding" "" \
+        "$title" \
+        "$((term_width - padding - title_length - 2))" "" \
+        "$NC"
+
+    printf '%b+' "$WHITE"
     printf '=%.0s' $(seq 1 $((term_width - 2)))
-    printf "+${NC}\n"
+    printf '+%b\n' "$NC"
+
     echo
 }
 
@@ -38,7 +44,8 @@ print_header() {
 run_check() {
     local cmd="$1"
     local description="$2"
-    local temp_file=$(mktemp)
+    local temp_file
+    temp_file=$(mktemp)
     
     echo -ne "$description: "
     
@@ -158,7 +165,7 @@ else
 fi
 
 # Code formatting check
-if run_check "black --check ./src/" "🎨 Code formatting"; then
+if run_check "black --check ." "🎨 Code formatting"; then
     RESULTS+=("Code formatting")
 else
     FAILED_CHECKS+=("Code formatting")
@@ -248,10 +255,8 @@ else
 fi
 
 # Tests (matching GitHub Actions)
-TESTS_PASSED=false
 if run_check "pytest tests/ -v --cov=fastmarkdocs --cov-report=xml --cov-report=term-missing --cov-fail-under=89" "🧪 Tests with coverage"; then
     RESULTS+=("Tests with coverage")
-    TESTS_PASSED=true
 else
     FAILED_CHECKS+=("Tests with coverage")
 fi
