@@ -40,7 +40,7 @@ class TestFileProcessingBehavior:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a file with invalid UTF-8
             bad_file = Path(temp_dir) / "bad_encoding.py"
-            bad_file.write_bytes(b'\xff\xfe# Invalid UTF-8')
+            bad_file.write_bytes(b"\xff\xfe# Invalid UTF-8")
 
             scanner = FastAPIEndpointScanner(temp_dir)
 
@@ -67,14 +67,16 @@ class TestFileProcessingBehavior:
 
             # Create valid Python file
             valid_file = temp_path / "valid.py"
-            valid_file.write_text("""
+            valid_file.write_text(
+                """
 from fastapi import APIRouter
 router = APIRouter(tags=["test"])
 
 @router.get("/test")
 def test_endpoint():
     return {"test": "data"}
-""")
+"""
+            )
 
             # Create invalid Python file
             invalid_file = temp_path / "invalid.py"
@@ -86,7 +88,7 @@ def test_endpoint():
 
             scanner = FastAPIEndpointScanner(temp_dir)
 
-            with patch('builtins.print') as mock_print:
+            with patch("builtins.print") as mock_print:
                 endpoints = scanner.scan_directory()
 
             # Should find endpoints from valid file only
@@ -103,19 +105,22 @@ def test_endpoint():
 
             # Create a file that will cause an exception
             problem_file = temp_path / "problem.py"
-            problem_file.write_text("""
+            problem_file.write_text(
+                """
 from fastapi import APIRouter
 router = APIRouter()
 
 @router.get("/test")
 def test():
     pass
-""")
+"""
+            )
 
             scanner = FastAPIEndpointScanner(temp_dir)
 
             # Mock _scan_file to raise an exception
             original_scan_file = scanner._scan_file
+
             def mock_scan_file(file_path):
                 if file_path.name == "problem.py":
                     raise ValueError("Test exception")
@@ -123,7 +128,7 @@ def test():
 
             scanner._scan_file = mock_scan_file
 
-            with patch('builtins.print') as mock_print:
+            with patch("builtins.print") as mock_print:
                 endpoints = scanner.scan_directory()
 
             # Should handle exception gracefully
@@ -268,7 +273,7 @@ class TestAutomaticSectionAssignment:
             function_name="unknown_func",
             file_path=Path("unknown.py"),
             router_tags=["router_tag"],
-            endpoint_tags=["endpoint_tag"]
+            endpoint_tags=["endpoint_tag"],
         )
         assert section == "endpoint_tag"
 
@@ -278,17 +283,13 @@ class TestAutomaticSectionAssignment:
             function_name="unknown_func",
             file_path=Path("unknown.py"),
             router_tags=["router_tag"],
-            endpoint_tags=[]
+            endpoint_tags=[],
         )
         assert section == "router_tag"
 
         # Test path-based inference
         section = scanner._determine_section_for_endpoint(
-            path="/health",
-            function_name="unknown_func",
-            file_path=Path("unknown.py"),
-            router_tags=[],
-            endpoint_tags=[]
+            path="/health", function_name="unknown_func", file_path=Path("unknown.py"), router_tags=[], endpoint_tags=[]
         )
         assert section == "Health"
 
@@ -298,17 +299,13 @@ class TestAutomaticSectionAssignment:
             function_name="unknown_func",
             file_path=Path("metrics.py"),
             router_tags=[],
-            endpoint_tags=[]
+            endpoint_tags=[],
         )
         assert section == "Metrics"
 
         # Test function-based inference
         section = scanner._determine_section_for_endpoint(
-            path="/unknown",
-            function_name="get_user",
-            file_path=Path("unknown.py"),
-            router_tags=[],
-            endpoint_tags=[]
+            path="/unknown", function_name="get_user", file_path=Path("unknown.py"), router_tags=[], endpoint_tags=[]
         )
         assert section == "User Management"
 
@@ -318,7 +315,7 @@ class TestAutomaticSectionAssignment:
             function_name="unknown_func",
             file_path=Path("unknown.py"),
             router_tags=[],
-            endpoint_tags=[]
+            endpoint_tags=[],
         )
         assert section == "API"
 
@@ -342,26 +339,16 @@ class TestMarkdownScaffoldGeneration:
                 description="An endpoint with complex parameters",
                 sections=["API"],
                 parameters=[
-                    ParameterInfo(
-                        name="path_param",
-                        type_hint="int",
-                        is_required=True,
-                        parameter_type="path"
-                    ),
+                    ParameterInfo(name="path_param", type_hint="int", is_required=True, parameter_type="path"),
                     ParameterInfo(
                         name="query_param",
                         type_hint="Optional[str]",
                         default_value="None",
                         is_required=False,
-                        parameter_type="query"
+                        parameter_type="query",
                     ),
-                    ParameterInfo(
-                        name="body_param",
-                        type_hint="dict",
-                        is_required=True,
-                        parameter_type="body"
-                    )
-                ]
+                    ParameterInfo(name="body_param", type_hint="dict", is_required=True, parameter_type="body"),
+                ],
             )
 
             section = generator._generate_endpoint_section(endpoint)
@@ -386,7 +373,7 @@ class TestMarkdownScaffoldGeneration:
                 file_path="api.py",
                 line_number=5,
                 sections=["API"],
-                parameters=[]
+                parameters=[],
             )
 
             section = generator._generate_endpoint_section(endpoint)
@@ -405,7 +392,7 @@ class TestMarkdownScaffoldGeneration:
                 function_name="test_endpoint",
                 file_path="api.py",
                 line_number=1,
-                sections=[]
+                sections=[],
             )
 
             section = generator._generate_endpoint_section(endpoint)
@@ -463,22 +450,21 @@ class TestDocumentationInitialization:
 
             # Create source with endpoint
             source_file = temp_path / "api.py"
-            source_file.write_text("""
+            source_file.write_text(
+                """
 from fastapi import APIRouter
 router = APIRouter(tags=["test"])
 
 @router.get("/test")
 def test_endpoint():
     return {"test": "data"}
-""")
+"""
+            )
 
             # Use non-existent output directory (single level)
             output_dir = temp_path / "docs"
 
-            initializer = DocumentationInitializer(
-                source_directory=str(temp_path),
-                output_directory=str(output_dir)
-            )
+            initializer = DocumentationInitializer(source_directory=str(temp_path), output_directory=str(output_dir))
 
             result = initializer.initialize()
 

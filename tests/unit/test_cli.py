@@ -1220,7 +1220,7 @@ class TestCLIMain:
             docs_dir = Path(temp_dir) / "docs"
             docs_dir.mkdir()
             (docs_dir / "users.md").write_text(
-                    """
+                """
 ## GET /users
 
 List all users in the system.
@@ -1849,7 +1849,7 @@ format: "json"
 
             # Create complete documentation
             (Path(temp_dir) / "users.md").write_text(
-                    """
+                """
 ## GET /users
 
 List all users in the system.
@@ -1932,7 +1932,7 @@ curl -X GET "/test"
 
 Section: API
 """
-                )
+            )
 
             original_cwd = Path.cwd()
             try:
@@ -1999,7 +1999,7 @@ curl -X GET "/test"
 
 Section: API
 """
-                )
+            )
 
             original_cwd = Path.cwd()
             try:
@@ -2059,7 +2059,7 @@ curl -X GET "/test"
 
 Section: API
 """
-                )
+            )
 
             original_cwd = Path.cwd()
             try:
@@ -2129,7 +2129,7 @@ curl -X GET "/test"
 
 Section: API
 """
-                )
+            )
 
             with patch(
                 "sys.argv",

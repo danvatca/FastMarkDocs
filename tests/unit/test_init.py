@@ -174,7 +174,7 @@ def get_orders():
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "api.py"
             api_file.write_text(
-                    '''
+                '''
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -207,7 +207,7 @@ def create_order():
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "users.py"
             api_file.write_text(
-                    '''
+                '''
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -289,7 +289,7 @@ def health_check():
         with tempfile.TemporaryDirectory() as temp_dir:
             api_file = Path(temp_dir) / "multi_router.py"
             api_file.write_text(
-                    """
+                """
 from fastapi import APIRouter
 
 users_router = APIRouter(prefix="/users", tags=["users"])

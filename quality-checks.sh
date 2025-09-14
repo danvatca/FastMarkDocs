@@ -165,7 +165,7 @@ else
 fi
 
 # Code formatting check
-if run_check "black --check ./src/" "🎨 Code formatting"; then
+if run_check "black --check ." "🎨 Code formatting"; then
     RESULTS+=("Code formatting")
 else
     FAILED_CHECKS+=("Code formatting")
